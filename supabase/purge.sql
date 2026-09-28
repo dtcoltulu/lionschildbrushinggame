@@ -1,0 +1,2 @@
+-- Etkinlikten sonra bir kampanyanın verisini silmek isterseniz (isteğe bağlı):
+-- delete from public.sessions where campaign_id = 'lions-118y-2026-10-11';  -- events de cascade ile silinir

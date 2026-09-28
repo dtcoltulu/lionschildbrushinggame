@@ -1,0 +1,12 @@
+{
+  "name": "Diş Kahramanı Ol! – 118-Y Lions",
+  "short_name": "Diş Kahramanı",
+  "start_url": "/oyun",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fff7ec",
+  "theme_color": "#2e1a5e",
+  "lang": "tr",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
