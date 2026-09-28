@@ -40,11 +40,11 @@ function kidEvents(now) {
   }
   out.push(ev("game_started", { playId, playIndex: 1 }));
   const completes = pick(0.88);
-  const phases = completes ? 4 : Math.floor(rnd(1, 4));
+  const phases = completes ? 6 : Math.floor(rnd(1, 6));
   let total = 0;
   for (let p = 1; p <= phases; p++) {
-    const d = Math.round(rnd(7000, 18000));
-    total += d + 1700;
+    const d = Math.round(rnd(5000, 13000));
+    total += d + 1400;
     out.push(ev("phase_completed", { playId, playIndex: 1, phase: p, durationMs: d }));
   }
   if (completes) {

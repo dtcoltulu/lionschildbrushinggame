@@ -46,7 +46,7 @@ export async function scrubWholeCanvas(page: Page, opts: { until?: () => Promise
  * Tıklamaya KISA zaman sınırı konur: ödül ekranı açılınca buton DOM'dan kalkar; sınırsız bekleyen bir
  * click() döngüyü kilitler (CI'da aralıklı görülen hata buydu).
  */
-export async function finishGameWithHelp(page: Page, timeout = 80_000) {
+export async function finishGameWithHelp(page: Page, timeout = 120_000) {
   await expect
     .poll(
       async () => {

@@ -71,7 +71,7 @@ export class GameEngine {
   }
 
   private loadPhase(i: number): void {
-    const need = this.opts.swipesPerPatch ?? SWIPES_PER_PATCH;
+    const need = this.phases[i]!.swipes ?? this.opts.swipesPerPatch ?? SWIPES_PER_PATCH;
     this.patches = this.phases[i]!.patches.map((p) => ({
       ...p,
       swipes: 0,
