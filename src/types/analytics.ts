@@ -23,7 +23,7 @@ export interface ClientEvent {
   playId?: string; // uuid
   playIndex?: number; // 1..n
   durationMs?: number;
-  phase?: number; // 1..4
+  phase?: number; // 1..6
 }
 
 export interface EventBatch {

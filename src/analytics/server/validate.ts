@@ -49,7 +49,7 @@ export function validateBatch(input: unknown): Result<EventBatch> {
       out.durationMs = e.durationMs;
     }
     if (e.phase !== undefined) {
-      if (!isInt(e.phase, 1, 4)) return { ok: false, error: "event.phase" };
+      if (!isInt(e.phase, 1, 6)) return { ok: false, error: "event.phase" };
       out.phase = e.phase;
     }
     clean.push(out);

@@ -22,7 +22,7 @@ create table if not exists public.events (
   play_id     uuid,
   play_index  smallint    check (play_index between 1 and 1000),
   duration_ms integer     check (duration_ms between 0 and 7200000),
-  phase       smallint    check (phase between 1 and 4),
+  phase       smallint    check (phase between 1 and 6),
   foreign key (session_id, campaign_id) references public.sessions (id, campaign_id) on delete cascade
 );
 

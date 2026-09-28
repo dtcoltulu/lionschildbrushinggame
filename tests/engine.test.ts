@@ -90,7 +90,7 @@ describe("GameEngine", () => {
     expect(p.clean).toBe(1);
   });
 
-  it("4 aşama sırasıyla tamamlanır ve onComplete bir kez çağrılır", () => {
+  it("6 aşama sırasıyla tamamlanır ve onComplete bir kez çağrılır", () => {
     const started: number[] = [];
     const finished: number[] = [];
     let completes = 0;
@@ -102,8 +102,8 @@ describe("GameEngine", () => {
     e.start();
     playAll(e);
     expect(e.status).toBe("done");
-    expect(started).toEqual([0, 1, 2, 3]);
-    expect(finished).toEqual([0, 1, 2, 3]);
+    expect(started).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(finished).toEqual([0, 1, 2, 3, 4, 5]);
     expect(completes).toBe(1);
     expect(e.overallProgress()).toBe(1);
   });
@@ -123,8 +123,8 @@ describe("GameEngine", () => {
     playAll(e);
     const sec = e.completionMs / 1000;
     // Bot mükemmel/verimli; gerçek çocuklar daha yavaş. Alt sınır makul olmalı.
-    expect(sec).toBeGreaterThan(18);
-    expect(sec).toBeLessThan(60);
+    expect(sec).toBeGreaterThan(25);
+    expect(sec).toBeLessThan(90);
   });
 
   it("yavaş/dağınık çocuk için bile takılma yok: yardım devreye girer", () => {

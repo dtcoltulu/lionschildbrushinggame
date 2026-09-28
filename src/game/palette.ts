@@ -20,8 +20,19 @@ export const C = {
 
 export const BG: Record<string, [string, string]> = {
   outer: ["#3B2378", "#221248"],
+  gaps: ["#5A2456", "#331433"],
   inner: ["#0F4C5C", "#0A2E3A"],
   chewing: ["#1F5A44", "#123528"],
-  gumline: ["#5A2456", "#331433"],
+  tongue: ["#6B2A3D", "#3A1424"],
+  floss: ["#12507A", "#0A2B44"],
   tutorial: ["#3B2378", "#221248"],
+};
+
+/** Sevimli yüzün rengi (arka planın biraz açığı; ten rengi değil, nötr bir "karakter" rengi). */
+export const FACE: Record<string, string> = {
+  outer: "#5A3FA6",
+  gaps: "#86408A",
+  inner: "#1B7A8F",
+  tongue: "#A24A63",
+  floss: "#1C74AD",
 };

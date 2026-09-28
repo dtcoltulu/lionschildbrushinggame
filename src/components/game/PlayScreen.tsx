@@ -17,12 +17,20 @@ export function PlayScreen({ onPhaseComplete, onComplete }: Props) {
   const [phase, setPhase] = useState(0);
   const [message, setMessage] = useState<string>(tr.phases[0].intro);
   const [live, setLive] = useState<string>(tr.phases[0].intro);
+  const [callout, setCallout] = useState<string>("");
+  const calloutTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const controlRef = useRef<GameCanvasHandle | null>(null);
   const cleaned = useRef(0);
   const flash = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phaseRef = useRef(0);
 
-  useEffect(() => () => void (flash.current && clearTimeout(flash.current)), []);
+  useEffect(
+    () => () => {
+      if (flash.current) clearTimeout(flash.current);
+      if (calloutTimer.current) clearTimeout(calloutTimer.current);
+    },
+    [],
+  );
 
   const showFor = useCallback((text: string, restore: string, ms = 1300) => {
     setMessage(text);
@@ -37,8 +45,12 @@ export function PlayScreen({ onPhaseComplete, onComplete }: Props) {
       cleaned.current = 0;
       if (flash.current) clearTimeout(flash.current);
       const text = tr.phases[i]?.intro ?? "";
+      const call = tr.phases[i]?.callout ?? "";
       setMessage(text);
-      setLive(text);
+      setLive(call ? `${call} ${text}` : text);
+      if (calloutTimer.current) clearTimeout(calloutTimer.current);
+      setCallout(call);
+      if (call) calloutTimer.current = setTimeout(() => setCallout(""), 1700);
     },
     onPhaseComplete: (i: number, ms: number) => {
       sfx.phase();
@@ -88,6 +100,13 @@ export function PlayScreen({ onPhaseComplete, onComplete }: Props) {
 
       <div className="relative flex-1 touch-none" style={{ minHeight: 320 }}>
         <GameCanvas mode="game" callbacks={callbacks} controlRef={controlRef} />
+        {callout && (
+          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-4 z-10 flex justify-center px-3" data-testid="callout">
+            <span key={callout} className="anim-pop rounded-full bg-gold px-6 py-2 text-3xl font-black text-ink shadow-xl ring-4 ring-white">
+              {callout}
+            </span>
+          </div>
+        )}
         <button
           type="button"
           onClick={() => controlRef.current?.assist()}

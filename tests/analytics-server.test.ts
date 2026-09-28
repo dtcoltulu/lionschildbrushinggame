@@ -45,7 +45,8 @@ describe("validateBatch", () => {
   it("saçma sayısal değerleri reddeder", () => {
     const e = (extra: object) => base({ events: [{ id: uuid(), name: "game_completed", ts: 5, ...extra }] });
     expect(validateBatch(e({ durationMs: -1 })).ok).toBe(false);
-    expect(validateBatch(e({ phase: 9 })).ok).toBe(false);
+    expect(validateBatch(e({ phase: 7 })).ok).toBe(false);
+    expect(validateBatch(e({ phase: 6 })).ok).toBe(true);
     expect(validateBatch(e({ playIndex: 1.5 })).ok).toBe(false);
     expect(validateBatch(e({ durationMs: 58000, playIndex: 1 })).ok).toBe(true);
   });

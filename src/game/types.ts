@@ -3,14 +3,16 @@ export interface Point {
   y: number;
 }
 
-export type PhaseKind = "outer" | "inner" | "chewing" | "gumline" | "tutorial";
+export type PhaseKind = "outer" | "gaps" | "inner" | "chewing" | "tongue" | "floss" | "tutorial";
+
+/** Temizlenecek artık türü: plak, çikolata, cips, mikrop (karakter) veya dil pası. */
+export type DebrisKind = "plaque" | "chocolate" | "chips" | "germ" | "coating";
 
 export interface Patch {
   x: number;
   y: number;
   r: number;
-  /** Üstünde sevimli bir mikrop karakteri var mı? */
-  germ: boolean;
+  kind: DebrisKind;
   /** Görsel çeşitlilik için sabit tohum (0..1). */
   seed: number;
 }
@@ -32,6 +34,8 @@ export interface PatchState extends Patch {
 export interface PhaseSpec {
   kind: PhaseKind;
   patches: Patch[];
+  /** Bu aşamada leke başına gereken swipe (verilmezse varsayılan). */
+  swipes?: number;
 }
 
 export interface Sparkle {

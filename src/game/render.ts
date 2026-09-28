@@ -1,19 +1,18 @@
 import { BRUSH_RADIUS, WORLD_H, WORLD_W } from "./constants";
 import type { GameEngine } from "./engine";
 import {
-  GUM_BOTTOM,
-  GUM_LOWER_EDGE,
-  GUM_LOWER_TEETH,
-  GUM_TOP,
-  GUM_UPPER_EDGE,
-  GUM_UPPER_TEETH,
+  CHEW_DIVIDER_Y,
+  CHEW_PANEL,
+  CHEW_TILES,
   LOWER_TEETH,
-  MOLARS,
+  MOUTH,
+  MOUTH_IN,
   rand,
+  TONGUE,
   UPPER_TEETH,
   type Rect,
 } from "./layout";
-import { BG, C } from "./palette";
+import { BG, C, FACE } from "./palette";
 import type { PatchState, PhaseKind } from "./types";
 
 type Ctx = CanvasRenderingContext2D;
@@ -40,149 +39,225 @@ function toothShape(ctx: Ctx, t: Rect, fill: string, radii: [number, number, num
   g.addColorStop(1, shade);
   ctx.fillStyle = g;
   ctx.fill();
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = 1.3;
   ctx.strokeStyle = C.toothLine;
   ctx.stroke();
-  // parlama
   ctx.fillStyle = "rgba(255,255,255,0.55)";
-  rrect(ctx, t.x + t.w * 0.14, t.y + 8, t.w * 0.14, t.h * 0.45, 6);
+  rrect(ctx, t.x + t.w * 0.16, t.y + 6, Math.max(3, t.w * 0.14), Math.min(t.h * 0.42, 30), 3);
   ctx.fill();
 }
 
-// ---- Sahneler ------------------------------------------------------------
+// ---- Yüz ve ağız -----------------------------------------------------------------
 
-function drawFaceEyes(ctx: Ctx) {
+/** Sevimli büyük yüz: gözler, kaşlar, yanaklar. Çocuk bu yüzün dişlerini temizler. */
+function drawFace(ctx: Ctx, kind: PhaseKind) {
+  const tint = FACE[kind] ?? FACE.outer!;
+  ctx.fillStyle = tint;
+  ctx.beginPath();
+  ctx.ellipse(180, 290, 214, 300, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // yanaklar
+  ctx.fillStyle = "rgba(255,143,163,0.35)";
+  for (const x of [26, 334]) {
+    ctx.beginPath();
+    ctx.arc(x, 128, 26, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // kaşlar
+  ctx.strokeStyle = "rgba(255,255,255,0.75)";
+  ctx.lineWidth = 6;
+  ctx.lineCap = "round";
+  for (const x of [112, 248]) {
+    ctx.beginPath();
+    ctx.arc(x, 62, 34, Math.PI * 1.2, Math.PI * 1.8);
+    ctx.stroke();
+  }
+  // gözler
   for (const x of [112, 248]) {
     ctx.fillStyle = "#fff";
     ctx.beginPath();
-    ctx.ellipse(x, 42, 24, 26, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, 60, 24, 26, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = "#1c1038";
     ctx.beginPath();
-    ctx.arc(x, 52, 11, 0, Math.PI * 2);
+    ctx.arc(x, 70, 11, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = "#fff";
     ctx.beginPath();
-    ctx.arc(x + 4, 47, 3.5, 0, Math.PI * 2);
+    ctx.arc(x + 4, 65, 3.5, 0, Math.PI * 2);
     ctx.fill();
   }
+  // burun
+  ctx.fillStyle = "rgba(0,0,0,0.16)";
+  ctx.beginPath();
+  ctx.ellipse(180, 118, 11, 7, 0, 0, Math.PI * 2);
+  ctx.fill();
 }
 
-function drawMouthFrame(ctx: Ctx) {
-  drawFaceEyes(ctx);
+function drawMouthFrame(ctx: Ctx, kind: PhaseKind) {
+  drawFace(ctx, kind);
   ctx.fillStyle = C.lip;
-  rrect(ctx, 6, 84, 348, 352, 120);
+  rrect(ctx, MOUTH.x, MOUTH.y, MOUTH.w, MOUTH.h, 96);
   ctx.fill();
   ctx.fillStyle = C.mouth;
-  rrect(ctx, 20, 98, 320, 324, 100);
+  rrect(ctx, MOUTH_IN.x, MOUTH_IN.y, MOUTH_IN.w, MOUTH_IN.h, 84);
   ctx.fill();
+}
+
+function clipMouth(ctx: Ctx) {
+  rrect(ctx, MOUTH_IN.x, MOUTH_IN.y, MOUTH_IN.w, MOUTH_IN.h, 84);
+  ctx.clip();
+}
+
+/** Diş etinin dişlerin çevresinde kıvrımlı kenarı. `upper`: üst çene (dişler aşağı sarkar). */
+function gumBand(ctx: Ctx, teeth: Rect[], upper: boolean, color: string) {
+  const edge = (t: Rect) => (upper ? t.y : t.y + t.h);
+  const dir = upper ? 1 : -1;
+  const yFar = upper ? MOUTH_IN.y - 4 : MOUTH_IN.y + MOUTH_IN.h + 4;
+  const trace = () => {
+    ctx.beginPath();
+    ctx.moveTo(MOUTH_IN.x - 4, edge(teeth[0]!));
+    for (const t of teeth) {
+      ctx.quadraticCurveTo(t.x + t.w / 2, edge(t) + dir * 9, t.x + t.w + 1.5, edge(t));
+    }
+    ctx.lineTo(MOUTH_IN.x + MOUTH_IN.w + 4, edge(teeth.at(-1)!));
+  };
+  trace();
+  ctx.lineTo(MOUTH_IN.x + MOUTH_IN.w + 4, yFar);
+  ctx.lineTo(MOUTH_IN.x - 4, yFar);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  trace();
+  ctx.strokeStyle = C.gumDark;
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+}
+
+function upperRadii(t: Rect): [number, number, number, number] {
+  return [5, 5, Math.min(14, t.w / 2), Math.min(14, t.w / 2)];
+}
+function lowerRadii(t: Rect): [number, number, number, number] {
+  return [Math.min(14, t.w / 2), Math.min(14, t.w / 2), 5, 5];
+}
+
+function drawFrontTeeth(ctx: Ctx, kind: PhaseKind, inner: boolean) {
+  drawMouthFrame(ctx, kind);
+  ctx.save();
+  clipMouth(ctx);
+  if (inner) {
+    // İç yüz: damak + dil
+    gumBand(ctx, UPPER_TEETH, true, "#E98AA0");
+    ctx.fillStyle = C.tongue;
+    ctx.beginPath();
+    ctx.ellipse(180, 400, 176, 104, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(90,26,46,0.35)";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(180, 318);
+    ctx.lineTo(180, 372);
+    ctx.stroke();
+  } else {
+    gumBand(ctx, UPPER_TEETH, true, C.gum);
+    gumBand(ctx, LOWER_TEETH, false, C.gum);
+  }
+  const fill = inner ? "#F1EDFA" : C.tooth;
+  const shade = inner ? "#D9D2EA" : C.toothShade;
+  for (const t of UPPER_TEETH) {
+    toothShape(ctx, t, fill, upperRadii(t), shade);
+    if (inner) {
+      ctx.fillStyle = "rgba(120,100,170,0.16)";
+      rrect(ctx, t.x + 3, t.y + t.h * 0.45, t.w - 6, t.h * 0.42, 8);
+      ctx.fill();
+    }
+  }
+  for (const t of LOWER_TEETH) {
+    toothShape(ctx, t, fill, lowerRadii(t), shade);
+    if (inner) {
+      ctx.fillStyle = "rgba(120,100,170,0.16)";
+      rrect(ctx, t.x + 3, t.y + 4, t.w - 6, t.h * 0.42, 8);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
 }
 
 function drawOuter(ctx: Ctx) {
-  drawMouthFrame(ctx);
-  UPPER_TEETH.forEach((t) => toothShape(ctx, t, C.tooth, [8, 8, 18, 18]));
-  LOWER_TEETH.forEach((t) => toothShape(ctx, t, C.tooth, [18, 18, 8, 8]));
+  drawFrontTeeth(ctx, "outer", false);
 }
-
+function drawGaps(ctx: Ctx) {
+  drawFrontTeeth(ctx, "gaps", false);
+}
+function drawFloss(ctx: Ctx) {
+  drawFrontTeeth(ctx, "floss", false);
+}
 function drawInner(ctx: Ctx) {
-  drawMouthFrame(ctx);
-  // dil (ağız içine kırpılır)
-  ctx.save();
-  rrect(ctx, 20, 98, 320, 324, 100);
-  ctx.clip();
-  ctx.fillStyle = C.tongue;
-  ctx.beginPath();
-  ctx.ellipse(180, 408, 136, 92, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = "rgba(90,26,46,0.35)";
-  ctx.lineWidth = 3;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.moveTo(180, 330);
-  ctx.lineTo(180, 396);
-  ctx.stroke();
-  ctx.restore();
-  const shade = "#D9D2EA";
-  UPPER_TEETH.forEach((t) => {
-    toothShape(ctx, t, "#F1EDFA", [8, 8, 18, 18], shade);
-    ctx.fillStyle = "rgba(120,100,170,0.16)";
-    rrect(ctx, t.x + 6, t.y + t.h * 0.5, t.w - 12, t.h * 0.42, 12);
-    ctx.fill();
-  });
-  LOWER_TEETH.forEach((t) => {
-    toothShape(ctx, t, "#F1EDFA", [18, 18, 8, 8], shade);
-    ctx.fillStyle = "rgba(120,100,170,0.16)";
-    rrect(ctx, t.x + 6, t.y + 6, t.w - 12, t.h * 0.42, 12);
-    ctx.fill();
-  });
+  drawFrontTeeth(ctx, "inner", true);
 }
 
 function drawChewing(ctx: Ctx) {
   ctx.fillStyle = C.gum;
-  rrect(ctx, 6, 62, WORLD_W - 12, 396, 54);
+  rrect(ctx, CHEW_PANEL.x, CHEW_PANEL.y, CHEW_PANEL.w, CHEW_PANEL.h, 54);
   ctx.fill();
-  MOLARS.forEach((m) => {
-    toothShape(ctx, m, C.tooth, [34, 34, 34, 34]);
-    // olukları çiz
+  // üst / alt çene ayırıcı
+  ctx.strokeStyle = C.gumDark;
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.setLineDash([2, 10]);
+  ctx.beginPath();
+  ctx.moveTo(30, CHEW_DIVIDER_Y);
+  ctx.lineTo(WORLD_W - 30, CHEW_DIVIDER_Y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  CHEW_TILES.forEach((m) => {
+    toothShape(ctx, m, C.tooth, [30, 30, 30, 30]);
     ctx.strokeStyle = C.toothLine;
     ctx.lineWidth = 3;
     ctx.lineCap = "round";
     const cx = m.x + m.w / 2;
     const cy = m.y + m.h / 2;
     ctx.beginPath();
-    ctx.moveTo(m.x + 20, cy);
-    ctx.lineTo(m.x + m.w - 20, cy);
-    ctx.moveTo(cx, m.y + 16);
-    ctx.lineTo(cx, m.y + m.h - 16);
-    ctx.moveTo(m.x + 30, m.y + 24);
+    ctx.moveTo(m.x + 18, cy);
+    ctx.lineTo(m.x + m.w - 18, cy);
+    ctx.moveTo(cx, m.y + 14);
+    ctx.lineTo(cx, m.y + m.h - 14);
+    ctx.moveTo(m.x + 26, m.y + 20);
     ctx.lineTo(cx - 8, cy - 8);
-    ctx.moveTo(m.x + m.w - 30, m.y + m.h - 24);
+    ctx.moveTo(m.x + m.w - 26, m.y + m.h - 20);
     ctx.lineTo(cx + 8, cy + 8);
     ctx.stroke();
   });
 }
 
-function drawGumline(ctx: Ctx) {
-  ctx.fillStyle = C.mouth;
-  ctx.fillRect(0, GUM_TOP, WORLD_W, GUM_BOTTOM - GUM_TOP);
-  // üst diş eti
-  ctx.fillStyle = C.gum;
-  rrect(ctx, 0, GUM_TOP, WORLD_W, GUM_UPPER_EDGE - GUM_TOP + 4, [34, 34, 0, 0]);
+function drawTongue(ctx: Ctx) {
+  drawMouthFrame(ctx, "tongue");
+  ctx.save();
+  clipMouth(ctx);
+  const g = ctx.createLinearGradient(0, TONGUE.y, 0, TONGUE.y + TONGUE.h);
+  g.addColorStop(0, "#FF8FA3");
+  g.addColorStop(1, "#E5607A");
+  ctx.fillStyle = g;
+  rrect(ctx, TONGUE.x, TONGUE.y, TONGUE.w, TONGUE.h, 120);
   ctx.fill();
-  GUM_UPPER_TEETH.forEach((t) => toothShape(ctx, t, C.tooth, [6, 6, 28, 28]));
-  scallop(ctx, GUM_UPPER_TEETH, GUM_UPPER_EDGE, true);
-  // alt diş eti
-  GUM_LOWER_TEETH.forEach((t) => toothShape(ctx, t, C.tooth, [28, 28, 6, 6]));
-  ctx.fillStyle = C.gum;
-  rrect(ctx, 0, GUM_LOWER_EDGE, WORLD_W, GUM_BOTTOM - GUM_LOWER_EDGE, [0, 0, 34, 34]);
-  ctx.fill();
-  scallop(ctx, GUM_LOWER_TEETH, GUM_LOWER_EDGE, false);
-}
-
-/** Diş etinin dişlerin arasına sarkan kıvrımlı kenarı. */
-function scallop(ctx: Ctx, teeth: Rect[], edgeY: number, upper: boolean) {
-  ctx.fillStyle = C.gum;
-  ctx.strokeStyle = C.gumDark;
-  ctx.lineWidth = 3;
-  const dir = upper ? 1 : -1;
+  // orta çizgi ve papiller
+  ctx.strokeStyle = "rgba(120,20,50,0.35)";
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
   ctx.beginPath();
-  ctx.moveTo(0, edgeY - dir * 4);
-  teeth.forEach((t) => {
-    const cx = t.x + t.w / 2;
-    ctx.quadraticCurveTo(cx, edgeY + dir * 20, t.x + t.w + 2, edgeY - dir * 4);
-  });
-  ctx.lineTo(WORLD_W, edgeY - dir * 4);
-  ctx.lineTo(WORLD_W, edgeY - dir * 60);
-  ctx.lineTo(0, edgeY - dir * 60);
-  ctx.closePath();
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(0, edgeY - dir * 4);
-  teeth.forEach((t) => {
-    const cx = t.x + t.w / 2;
-    ctx.quadraticCurveTo(cx, edgeY + dir * 20, t.x + t.w + 2, edgeY - dir * 4);
-  });
+  ctx.moveTo(180, TONGUE.y + 30);
+  ctx.lineTo(180, TONGUE.y + TONGUE.h - 30);
   ctx.stroke();
+  ctx.fillStyle = "rgba(255,255,255,0.22)";
+  for (let i = 0; i < 46; i++) {
+    const x = TONGUE.x + 30 + rand(i * 2.3) * (TONGUE.w - 60);
+    const y = TONGUE.y + 26 + rand(i * 4.1) * (TONGUE.h - 52);
+    ctx.beginPath();
+    ctx.arc(x, y, 2 + rand(i * 7.7) * 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 function drawTutorialTooth(ctx: Ctx) {
@@ -191,58 +266,125 @@ function drawTutorialTooth(ctx: Ctx) {
 
 const SCENES: Record<PhaseKind, (ctx: Ctx) => void> = {
   outer: drawOuter,
+  gaps: drawGaps,
   inner: drawInner,
   chewing: drawChewing,
-  gumline: drawGumline,
+  tongue: drawTongue,
+  floss: drawFloss,
   tutorial: drawTutorialTooth,
 };
 
-// ---- Plak, mikrop, parıltı -------------------------------------------------
+// ---- Artıklar: plak, çikolata, cips, dil pası, mikrop ------------------------------
 
-function drawPlaque(ctx: Ctx, p: PatchState, alpha: number, kind: PhaseKind) {
-  if (alpha <= 0.01) return;
-  ctx.save();
-  ctx.globalAlpha = Math.min(1, alpha);
-  const blobs = 6;
-  for (let i = 0; i < blobs; i++) {
-    const a = (Math.PI * 2 * i) / blobs + p.seed * 6;
-    const d = p.r * (0.35 + rand(p.seed * 10 + i) * 0.3);
-    const rr = p.r * (0.5 + rand(p.seed * 20 + i) * 0.28);
-    ctx.fillStyle = `rgba(${C.plaque},0.92)`;
+function blobs(ctx: Ctx, p: PatchState, n: number, fill: string) {
+  ctx.fillStyle = fill;
+  for (let i = 0; i < n; i++) {
+    const a = (Math.PI * 2 * i) / n + p.seed * 6;
+    const d = p.r * (0.3 + rand(p.seed * 10 + i) * 0.35);
+    const rr = p.r * (0.45 + rand(p.seed * 20 + i) * 0.3);
     ctx.beginPath();
     ctx.arc(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d, rr, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.fillStyle = `rgba(${C.plaque},0.92)`;
   ctx.beginPath();
-  ctx.arc(p.x, p.y, p.r * 0.75, 0, Math.PI * 2);
+  ctx.arc(p.x, p.y, p.r * 0.72, 0, Math.PI * 2);
   ctx.fill();
-  // benekler
-  ctx.fillStyle = `rgba(${C.plaqueDark},0.55)`;
-  for (let i = 0; i < 4; i++) {
+}
+
+function specks(ctx: Ctx, p: PatchState, n: number, fill: string) {
+  ctx.fillStyle = fill;
+  for (let i = 0; i < n; i++) {
     ctx.beginPath();
     ctx.arc(
-      p.x + (rand(p.seed * 30 + i) - 0.5) * p.r * 1.2,
-      p.y + (rand(p.seed * 40 + i) - 0.5) * p.r * 1.2,
-      2 + rand(p.seed * 50 + i) * 2.5,
+      p.x + (rand(p.seed * 30 + i) - 0.5) * p.r * 1.3,
+      p.y + (rand(p.seed * 40 + i) - 0.5) * p.r * 1.3,
+      1.5 + rand(p.seed * 50 + i) * 2,
       0,
       Math.PI * 2,
     );
     ctx.fill();
   }
-  if (kind === "chewing") {
-    const colors = ["#E4572E", "#8B5A2B", "#F29E4C", "#6A994E"];
-    for (let i = 0; i < 3; i++) {
-      ctx.fillStyle = colors[(i + Math.floor(p.seed * 4)) % colors.length]!;
-      const cx = p.x + (rand(p.seed * 60 + i) - 0.5) * p.r * 1.1;
-      const cy = p.y + (rand(p.seed * 70 + i) - 0.5) * p.r * 1.1;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy - 4);
-      ctx.lineTo(cx + 4, cy + 3);
-      ctx.lineTo(cx - 4, cy + 3);
-      ctx.closePath();
-      ctx.fill();
-    }
+}
+
+function drawPlaque(ctx: Ctx, p: PatchState) {
+  blobs(ctx, p, 6, `rgba(${C.plaque},0.94)`);
+  specks(ctx, p, 4, `rgba(${C.plaqueDark},0.55)`);
+}
+
+function drawChocolate(ctx: Ctx, p: PatchState) {
+  blobs(ctx, p, 5, "rgba(84,48,26,0.96)");
+  specks(ctx, p, 3, "rgba(140,92,54,0.8)");
+  // küçük çikolata parçası
+  ctx.save();
+  ctx.translate(p.x + p.r * 0.1, p.y - p.r * 0.05);
+  ctx.rotate((p.seed - 0.5) * 1.2);
+  const w = p.r * 0.85;
+  const h = p.r * 0.62;
+  ctx.fillStyle = "#6B3A1F";
+  rrect(ctx, -w / 2, -h / 2, w, h, 2.5);
+  ctx.fill();
+  ctx.strokeStyle = "#3F1F0D";
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(0, -h / 2);
+  ctx.lineTo(0, h / 2);
+  ctx.moveTo(-w / 2, 0);
+  ctx.lineTo(w / 2, 0);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawChips(ctx: Ctx, p: PatchState) {
+  blobs(ctx, p, 4, "rgba(240,190,80,0.4)");
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI * 2 * i) / 6 + p.seed * 5;
+    const d = p.r * (0.2 + rand(p.seed * 60 + i) * 0.55);
+    const cx = p.x + Math.cos(a) * d;
+    const cy = p.y + Math.sin(a) * d;
+    const s = p.r * (0.3 + rand(p.seed * 70 + i) * 0.2);
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rand(p.seed * 80 + i) * Math.PI * 2);
+    ctx.fillStyle = "#F2B33D";
+    ctx.strokeStyle = "#C98A12";
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.moveTo(-s, s * 0.7);
+    ctx.quadraticCurveTo(0, -s * 1.2, s, s * 0.7);
+    ctx.quadraticCurveTo(0, s * 0.2, -s, s * 0.7);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawCoating(ctx: Ctx, p: PatchState) {
+  blobs(ctx, p, 6, "rgba(246,238,206,0.94)");
+  ctx.strokeStyle = "rgba(190,170,110,0.65)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.r * 0.95, 0, Math.PI * 2);
+  ctx.stroke();
+  specks(ctx, p, 4, "rgba(200,180,120,0.7)");
+}
+
+function drawDebris(ctx: Ctx, p: PatchState, alpha: number) {
+  if (alpha <= 0.01) return;
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, alpha);
+  switch (p.kind) {
+    case "chocolate":
+      drawChocolate(ctx, p);
+      break;
+    case "chips":
+      drawChips(ctx, p);
+      break;
+    case "coating":
+      drawCoating(ctx, p);
+      break;
+    default:
+      drawPlaque(ctx, p); // plak ve mikrop (mikrop karakteri ayrıca çizilir)
   }
   ctx.restore();
 }
@@ -295,7 +437,9 @@ function drawGerm(ctx: Ctx, p: PatchState, t: number, reduced: boolean) {
   ctx.restore();
 }
 
-function drawHint(ctx: Ctx, p: PatchState, t: number) {
+// ---- İpucu, fırça, diş ipi ------------------------------------------------------------
+
+function drawHint(ctx: Ctx, p: PatchState, t: number, vertical: boolean) {
   const pulse = 0.5 + 0.5 * Math.sin(t / 260);
   ctx.save();
   ctx.strokeStyle = `rgba(245,184,0,${0.5 + pulse * 0.5})`;
@@ -305,7 +449,8 @@ function drawHint(ctx: Ctx, p: PatchState, t: number) {
   ctx.arc(p.x, p.y, p.r + 8 + pulse * 5, 0, Math.PI * 2);
   ctx.stroke();
   ctx.setLineDash([]);
-  drawFinger(ctx, p.x + Math.sin(t / 240) * p.r * 0.9, p.y + 6, 1);
+  const m = Math.sin(t / 240) * Math.max(p.r, 14) * 0.9;
+  drawFinger(ctx, vertical ? p.x : p.x + m, vertical ? p.y + m : p.y + 6, 1);
   ctx.restore();
 }
 
@@ -328,15 +473,13 @@ export function drawFinger(ctx: Ctx, x: number, y: number, alpha: number) {
   ctx.restore();
 }
 
-function drawBrush(ctx: Ctx, x: number, y: number, kind: PhaseKind, down: boolean, t: number, reduced: boolean) {
-  const tilt = kind === "gumline" ? -0.95 : -0.55;
+function drawBrush(ctx: Ctx, x: number, y: number, down: boolean, t: number, reduced: boolean) {
   const wiggle = down && !reduced ? Math.sin(t / 55) * 0.06 : 0;
   ctx.save();
   ctx.translate(x, y);
-  ctx.rotate(tilt + wiggle);
+  ctx.rotate(-0.55 + wiggle);
   ctx.shadowColor = "rgba(0,0,0,0.35)";
   ctx.shadowBlur = 8;
-  // sap
   const grad = ctx.createLinearGradient(0, -6, 0, 6);
   grad.addColorStop(0, C.gold);
   grad.addColorStop(1, "#D99A00");
@@ -344,11 +487,9 @@ function drawBrush(ctx: Ctx, x: number, y: number, kind: PhaseKind, down: boolea
   rrect(ctx, 14, -6, 96, 12, 6);
   ctx.fill();
   ctx.shadowBlur = 0;
-  // baş
   ctx.fillStyle = C.purpleMid;
   rrect(ctx, -22, -9, 44, 18, 8);
   ctx.fill();
-  // kıllar
   ctx.fillStyle = "#fff";
   for (let i = 0; i < 6; i++) {
     rrect(ctx, -19 + i * 7, -19, 4.5, 12, 2);
@@ -359,6 +500,40 @@ function drawBrush(ctx: Ctx, x: number, y: number, kind: PhaseKind, down: boolea
     rrect(ctx, -19 + i * 7, -19, 4.5, 5, 2);
     ctx.fill();
   }
+  ctx.restore();
+}
+
+/** Diş ipi: iki parmak arasında gerilmiş beyaz ip. İpin ortası (x,y) noktasıdır. */
+function drawFlossTool(ctx: Ctx, x: number, y: number, down: boolean, t: number, reduced: boolean) {
+  const sag = down && !reduced ? 3 + Math.sin(t / 60) * 2 : 5;
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.35)";
+  ctx.shadowBlur = 6;
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(x - 26, y - 14);
+  ctx.quadraticCurveTo(x, y + sag, x + 26, y - 14);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  // iki tutma noktası (parmaklar)
+  for (const dx of [-30, 30]) {
+    ctx.fillStyle = C.gold;
+    ctx.beginPath();
+    ctx.arc(x + dx, y - 20, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#D99A00";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+  // kutu
+  ctx.fillStyle = C.mint;
+  rrect(ctx, x - 12, y - 58, 24, 24, 6);
+  ctx.fill();
+  ctx.fillStyle = "#fff";
+  rrect(ctx, x - 7, y - 53, 14, 14, 3);
+  ctx.fill();
   ctx.restore();
 }
 
@@ -384,15 +559,16 @@ export function renderFrame(ctx: Ctx, engine: GameEngine, t: number, opts: Rende
 
   for (const p of engine.patches) {
     const fade = p.done ? Math.max(0, 1 - p.cleanedFor / 350) : 1 - p.clean * 0.92;
-    drawPlaque(ctx, p, fade, kind);
+    drawDebris(ctx, p, fade);
   }
-  for (const p of engine.patches) if (p.germ) drawGerm(ctx, p, t, opts.reducedMotion);
+  for (const p of engine.patches) if (p.kind === "germ") drawGerm(ctx, p, t, opts.reducedMotion);
 
   if (engine.status === "transition" && !opts.reducedMotion) drawSheen(ctx, engine.transitionProgress);
 
+  const floss = kind === "floss";
   if (engine.hintIndex !== null && engine.status === "playing") {
     const p = engine.patches[engine.hintIndex];
-    if (p) drawHint(ctx, p, t);
+    if (p) drawHint(ctx, p, t, floss);
   }
 
   if (opts.showTutorialHand && engine.status === "playing" && engine.idle > 900 && !engine.brushDown) {
@@ -414,7 +590,8 @@ export function renderFrame(ctx: Ctx, engine: GameEngine, t: number, opts: Rende
       ctx.arc(engine.brush.x, engine.brush.y, BRUSH_RADIUS, 0, Math.PI * 2);
       ctx.stroke();
     }
-    drawBrush(ctx, engine.brush.x, engine.brush.y, kind, engine.brushDown, t, opts.reducedMotion);
+    if (floss) drawFlossTool(ctx, engine.brush.x, engine.brush.y, engine.brushDown, t, opts.reducedMotion);
+    else drawBrush(ctx, engine.brush.x, engine.brush.y, engine.brushDown, t, opts.reducedMotion);
   }
 }
 

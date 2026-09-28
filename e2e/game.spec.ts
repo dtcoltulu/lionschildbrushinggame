@@ -2,7 +2,7 @@ import { devices, expect, test } from "@playwright/test";
 import { captureEvents, finishGameWithHelp, scrubWholeCanvas } from "./helpers";
 
 test.describe("Oyun akışı", () => {
-  test("QR adresi → öğretici → 4 aşama → ödül → tekrar oyna; olaylar doğru", async ({ page }) => {
+  test("QR adresi → öğretici → 6 aşama → ödül → tekrar oyna; olaylar doğru", async ({ page }) => {
     const cap = captureEvents(page);
     await page.goto("/oyun");
     await expect(page.getByRole("heading", { name: "Diş Kahramanı Ol!" })).toBeVisible();
@@ -29,7 +29,7 @@ test.describe("Oyun akışı", () => {
           await scrubWholeCanvas(page, { passes: 1, until: async () => await page.getByTestId("reward-screen").isVisible() });
           return "playing";
         },
-        { timeout: 80_000, intervals: [50] },
+        { timeout: 130_000, intervals: [50] },
       )
       .toBe("reward");
     console.log("oyun süresi (sn, bot):", ((Date.now() - started) / 1000).toFixed(1), "aşamalar:", [...seen].join(","));
@@ -39,7 +39,7 @@ test.describe("Oyun akışı", () => {
     await expect(reward).toContainText("DİŞ KAHRAMANI OLDUN!");
     await expect(reward).toContainText("Bu ekranı Lions standındaki görevliye göster.");
     await expect(reward).toContainText("Diş macunu hediyeni al.");
-    await expect(reward).toContainText("Günde 2 kez fırçala");
+    await expect(reward).toContainText("Günde 3 kez fırçala");
     await expect(reward).toContainText("Yaklaşık 2 dakika fırçala");
     await expect(reward).toContainText("Dişlerini düzenli kontrol ettir");
     await expect(reward).toContainText("Tekrar Oyna");
@@ -49,7 +49,7 @@ test.describe("Oyun akışı", () => {
     await expect.poll(() => cap.names.includes("replay_started"), { timeout: 15_000 }).toBe(true);
 
     await page.evaluate(() => window.dispatchEvent(new Event("pagehide")));
-    await expect.poll(() => cap.names.filter((n) => n === "phase_completed").length, { timeout: 15_000 }).toBe(4);
+    await expect.poll(() => cap.names.filter((n) => n === "phase_completed").length, { timeout: 15_000 }).toBe(6);
 
     const count = (n: string) => cap.names.filter((x) => x === n).length;
     expect(count("landing_view")).toBe(1);

@@ -3,7 +3,7 @@
 ## Akış
 
 ```
-QR ──► /oyun (statik sayfa) ──► Landing ──► Öğretici (ilk kez; atlanabilir) ──► 4 aşama ──► Ödül ──► Tekrar Oyna
+QR ──► /oyun (statik sayfa) ──► Landing ──► Öğretici (ilk kez; atlanabilir) ──► 6 aşama ──► Ödül ──► Tekrar Oyna
                   │                                  │                                      │
                   └──────── analytics olayları ──────┴──► yerel kuyruk (localStorage) ──► POST /api/events ──► Supabase
                                                                                                                ▲

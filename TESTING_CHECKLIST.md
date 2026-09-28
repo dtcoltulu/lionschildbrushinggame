@@ -9,14 +9,14 @@ npm run build && npm run test:e2e                  # uçtan uca (Playwright)
 
 Kapsam:
 
-- **Oyun motoru:** swipe algılama, tek dokunuşla temizlenmeme, 4 aşamanın sırayla bitmesi, ilerlemenin monoton artması, yardım/ipucu, arka planda süre şişmemesi.
+- **Oyun motoru:** swipe algılama, tek dokunuşla temizlenmeme, 6 aşamanın sırayla bitmesi, ilerlemenin monoton artması, yardım/ipucu, arka planda süre şişmemesi.
 - **Analytics istemcisi:** çevrimdışı kuyruk, sayfa yenilense de kuyruğun korunması, 503'te tutma / 400'de atma, 20'lik gruplar, depolama kapalıyken çalışma, ilk/tekrar oyun ayrımı.
 - **Sunucu:** kampanya/UUID/olay adı doğrulaması, fazladan (kişisel) alanların atılması, saat sapması düzeltmesi, çift gönderimde tek kayıt.
 - **KPI:** ziyaret/başlama/tamamlama ayrımı, tamamlama oranı, ilk oyun süresi, İstanbul saatiyle saatlik dağılım, gece yarısı sınırı, boş veri.
 - **CSV:** BOM, `;`, Türkçe karakter, formül enjeksiyonu koruması.
 - **Yönetici girişi:** doğru/yanlış parola, süre dolumu, kurcalanmış token, yapılandırma yoksa kapalı.
 - **QR:** logolu ve logosuz üretilen kod bir çözücüyle **geri okunur**, küçük baskı boyutunda da.
-- **E2E:** tam oyun (öğretici → 4 aşama → ödül → tekrar), olay sırası ve gizlilik (gövdede yalnızca izinli alanlar), öğretici atlama, yardım butonu, ses tercihi, **çevrimdışı oyun + kuyruğun internet gelince boşalması**, **service worker ile internetsiz açılış**, **gerçek dokunmatik olaylar**, admin erişim koruması, dashboard/rapor/CSV/QR indirme.
+- **E2E:** tam oyun (öğretici → 6 aşama → ödül → tekrar), olay sırası ve gizlilik (gövdede yalnızca izinli alanlar), öğretici atlama, yardım butonu, ses tercihi, **çevrimdışı oyun + kuyruğun internet gelince boşalması**, **service worker ile internetsiz açılış**, **gerçek dokunmatik olaylar**, admin erişim koruması, dashboard/rapor/CSV/QR indirme.
 
 ## B. Etkinlikten ÖNCE el ile yapılacak testler
 
@@ -37,7 +37,7 @@ Gerçek cihaz gerektirir; bu depoda otomatikleştirilemez. Test için hep `…/o
 - [ ] Sayfa açılınca "Başla" hemen görünüyor, kaydırma gerekmiyor.
 - [ ] Öğretici anlaşılıyor; "Atla" çalışıyor.
 - [ ] Parmakla ileri-geri fırçalama doğal; fırça parmağı örtmüyor; sayfa kaymıyor, aşağı çekince yenilenmiyor (özellikle iOS Safari).
-- [ ] 4 aşama sırayla geliyor; mesajlar okunuyor; ilerleme çubuğu artıyor.
+- [ ] 6 aşama sırayla geliyor (dış yüzey → diş araları → iç yüzey → çiğneme → dil → diş ipi); mesajlar okunuyor; ilerleme çubuğu artıyor.
 - [ ] Takılınca ~6 sn'de ipucu çıkıyor; "Yardım" butonu çalışıyor.
 - [ ] **Gerçek çocuklarla** (6–14 yaş, en az 5 çocuk, farklı yaşlardan) süre ölçün: hedef 45–90 sn. Çok kısa/uzunsa `src/game/constants.ts` (`SWIPES_PER_PATCH`, aşama sabitleri) ayarlanır.
 - [ ] Ekranı dikey/yatay çevirince bozulmuyor (dikey önerilir).
