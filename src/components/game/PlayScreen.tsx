@@ -73,7 +73,7 @@ export function PlayScreen({ onPhaseComplete, onComplete }: Props) {
           </div>
           <SoundToggle />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex min-h-[3.5rem] items-center gap-2">
           <span className="shrink-0 rounded-full bg-gold px-3 py-1 text-sm font-black text-ink" data-testid="phase-pill">
             {phase + 1}/{TOTAL_PHASES}
           </span>

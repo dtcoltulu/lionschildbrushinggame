@@ -38,6 +38,24 @@ export const CAMPAIGNS: readonly CampaignConfig[] = [
     logoPath: "/assets/lions-logo.svg",
     active: true,
   },
+  {
+    // Deneme/prova kampanyası: etkinlik öncesi testler ve simülasyon için. Gerçek istatistikleri kirletmez.
+    // Kullanım: https://alanadi.org/oyun?k=test-deneme
+    campaignId: "test-deneme",
+    eventName: "Deneme (Test)",
+    eventDate: "2026-10-01",
+    eventDateLabel: "prova",
+    eventLocation: "Deneme amaçlı",
+    organization: "118-Y Lions",
+    district: "118-Y Lions Bölgesi",
+    committee: "Ağız ve Diş Sağlığı Komitesi",
+    reportTitle: "DENEME – Dünya Lions Hizmet Günü",
+    reportSubtitle: "Test verisi – gerçek rapor değildir",
+    timezone: "Europe/Istanbul",
+    rewardLine: "Diş macunu hediyeni al.",
+    logoPath: "/assets/lions-logo.svg",
+    active: true,
+  },
 ];
 
 export const FALLBACK_CAMPAIGN_ID = CAMPAIGNS[0]!.campaignId;

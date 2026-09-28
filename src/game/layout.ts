@@ -21,20 +21,21 @@ function row(count: number, w: number, gap: number, y: number, h: number): Rect[
 }
 
 /** Ön görünüş / iç görünüş dişleri. */
-export const UPPER_TEETH: Rect[] = row(6, 46, 3, 128, 88);
-export const LOWER_TEETH: Rect[] = row(6, 44, 4, 228, 74);
+export const UPPER_TEETH: Rect[] = row(6, 46, 3, 158, 104);
+export const LOWER_TEETH: Rect[] = row(6, 44, 4, 272, 88);
 
-/** Çiğneme yüzeyi (yukarıdan) azı dişleri. */
-export const MOLARS: Rect[] = [
-  ...row(3, 98, 10, 112, 98),
-  ...row(3, 98, 10, 250, 98),
-];
+/** Çiğneme yüzeyi (yukarıdan) azı dişleri: 2 sütun x 3 satır. */
+export const MOLARS: Rect[] = [0, 1, 2].flatMap((r) =>
+  [0, 1].map((c) => ({ x: 24 + c * 162, y: 84 + r * 124, w: 150, h: 110 })),
+);
 
 /** Diş eti sınırı görünümü. */
-export const GUM_UPPER_EDGE = 196;
-export const GUM_LOWER_EDGE = 330;
-export const GUM_UPPER_TEETH: Rect[] = row(5, 56, 4, GUM_UPPER_EDGE, 118);
-export const GUM_LOWER_TEETH: Rect[] = row(5, 56, 4, GUM_LOWER_EDGE - 96, 96);
+export const GUM_TOP = 30;
+export const GUM_UPPER_EDGE = 132;
+export const GUM_LOWER_EDGE = 404;
+export const GUM_BOTTOM = 500;
+export const GUM_UPPER_TEETH: Rect[] = row(5, 64, 4, GUM_UPPER_EDGE, 128);
+export const GUM_LOWER_TEETH: Rect[] = row(5, 64, 4, GUM_LOWER_EDGE - 116, 116);
 
 function patchIn(rect: Rect, i: number, r: number, germ: boolean, dx = 0, dy = 0): Patch {
   const jx = (rand(i * 3.1) - 0.5) * (rect.w * 0.22);
@@ -65,8 +66,8 @@ function inner(): PhaseSpec {
 function chewing(): PhaseSpec {
   const patches: Patch[] = [];
   MOLARS.forEach((m, i) => {
-    patches.push(patchIn(m, 80 + i, 19, i === 1 || i === 4, -18, -14));
-    if (i !== 2 && i !== 3) patches.push(patchIn(m, 100 + i, 17, i === 0 || i === 5, 20, 18));
+    patches.push(patchIn(m, 80 + i, 20, i === 1 || i === 4, -30, -16));
+    if (i !== 2 && i !== 3) patches.push(patchIn(m, 100 + i, 18, i === 0 || i === 5, 34, 20));
   });
   return { kind: "chewing", patches };
 }

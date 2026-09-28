@@ -1,8 +1,10 @@
 import { BRUSH_RADIUS, WORLD_H, WORLD_W } from "./constants";
 import type { GameEngine } from "./engine";
 import {
+  GUM_BOTTOM,
   GUM_LOWER_EDGE,
   GUM_LOWER_TEETH,
+  GUM_TOP,
   GUM_UPPER_EDGE,
   GUM_UPPER_TEETH,
   LOWER_TEETH,
@@ -49,14 +51,30 @@ function toothShape(ctx: Ctx, t: Rect, fill: string, radii: [number, number, num
 
 // ---- Sahneler ------------------------------------------------------------
 
+function drawFaceEyes(ctx: Ctx) {
+  for (const x of [112, 248]) {
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.ellipse(x, 42, 24, 26, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#1c1038";
+    ctx.beginPath();
+    ctx.arc(x, 52, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.arc(x + 4, 47, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
 function drawMouthFrame(ctx: Ctx) {
+  drawFaceEyes(ctx);
   ctx.fillStyle = C.lip;
-  ctx.beginPath();
-  ctx.ellipse(180, 262, 172, 150, 0, 0, Math.PI * 2);
+  rrect(ctx, 6, 84, 348, 352, 120);
   ctx.fill();
   ctx.fillStyle = C.mouth;
-  ctx.beginPath();
-  ctx.ellipse(180, 262, 158, 134, 0, 0, Math.PI * 2);
+  rrect(ctx, 20, 98, 320, 324, 100);
   ctx.fill();
 }
 
@@ -68,17 +86,22 @@ function drawOuter(ctx: Ctx) {
 
 function drawInner(ctx: Ctx) {
   drawMouthFrame(ctx);
-  // dil
+  // dil (ağız içine kırpılır)
+  ctx.save();
+  rrect(ctx, 20, 98, 320, 324, 100);
+  ctx.clip();
   ctx.fillStyle = C.tongue;
   ctx.beginPath();
-  ctx.ellipse(180, 330, 118, 62, 0, Math.PI, Math.PI * 2);
+  ctx.ellipse(180, 408, 136, 92, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.strokeStyle = "rgba(90,26,46,0.35)";
   ctx.lineWidth = 3;
+  ctx.lineCap = "round";
   ctx.beginPath();
-  ctx.moveTo(180, 274);
-  ctx.lineTo(180, 320);
+  ctx.moveTo(180, 330);
+  ctx.lineTo(180, 396);
   ctx.stroke();
+  ctx.restore();
   const shade = "#D9D2EA";
   UPPER_TEETH.forEach((t) => {
     toothShape(ctx, t, "#F1EDFA", [8, 8, 18, 18], shade);
@@ -96,10 +119,10 @@ function drawInner(ctx: Ctx) {
 
 function drawChewing(ctx: Ctx) {
   ctx.fillStyle = C.gum;
-  rrect(ctx, 6, 92, WORLD_W - 12, 274, 44);
+  rrect(ctx, 6, 62, WORLD_W - 12, 396, 54);
   ctx.fill();
   MOLARS.forEach((m) => {
-    toothShape(ctx, m, C.tooth, [30, 30, 30, 30]);
+    toothShape(ctx, m, C.tooth, [34, 34, 34, 34]);
     // olukları çiz
     ctx.strokeStyle = C.toothLine;
     ctx.lineWidth = 3;
@@ -107,29 +130,31 @@ function drawChewing(ctx: Ctx) {
     const cx = m.x + m.w / 2;
     const cy = m.y + m.h / 2;
     ctx.beginPath();
-    ctx.moveTo(m.x + 16, cy);
-    ctx.lineTo(m.x + m.w - 16, cy);
+    ctx.moveTo(m.x + 20, cy);
+    ctx.lineTo(m.x + m.w - 20, cy);
     ctx.moveTo(cx, m.y + 16);
     ctx.lineTo(cx, m.y + m.h - 16);
-    ctx.moveTo(m.x + 22, m.y + 22);
-    ctx.lineTo(cx - 6, cy - 6);
-    ctx.moveTo(m.x + m.w - 22, m.y + m.h - 22);
-    ctx.lineTo(cx + 6, cy + 6);
+    ctx.moveTo(m.x + 30, m.y + 24);
+    ctx.lineTo(cx - 8, cy - 8);
+    ctx.moveTo(m.x + m.w - 30, m.y + m.h - 24);
+    ctx.lineTo(cx + 8, cy + 8);
     ctx.stroke();
   });
 }
 
 function drawGumline(ctx: Ctx) {
+  ctx.fillStyle = C.mouth;
+  ctx.fillRect(0, GUM_TOP, WORLD_W, GUM_BOTTOM - GUM_TOP);
   // üst diş eti
   ctx.fillStyle = C.gum;
-  rrect(ctx, 0, 70, WORLD_W, GUM_UPPER_EDGE - 70 + 4, [30, 30, 0, 0]);
+  rrect(ctx, 0, GUM_TOP, WORLD_W, GUM_UPPER_EDGE - GUM_TOP + 4, [34, 34, 0, 0]);
   ctx.fill();
-  GUM_UPPER_TEETH.forEach((t) => toothShape(ctx, t, C.tooth, [6, 6, 26, 26]));
+  GUM_UPPER_TEETH.forEach((t) => toothShape(ctx, t, C.tooth, [6, 6, 28, 28]));
   scallop(ctx, GUM_UPPER_TEETH, GUM_UPPER_EDGE, true);
   // alt diş eti
-  GUM_LOWER_TEETH.forEach((t) => toothShape(ctx, t, C.tooth, [26, 26, 6, 6]));
+  GUM_LOWER_TEETH.forEach((t) => toothShape(ctx, t, C.tooth, [28, 28, 6, 6]));
   ctx.fillStyle = C.gum;
-  rrect(ctx, 0, GUM_LOWER_EDGE, WORLD_W, 110, [0, 0, 30, 30]);
+  rrect(ctx, 0, GUM_LOWER_EDGE, WORLD_W, GUM_BOTTOM - GUM_LOWER_EDGE, [0, 0, 34, 34]);
   ctx.fill();
   scallop(ctx, GUM_LOWER_TEETH, GUM_LOWER_EDGE, false);
 }
@@ -147,8 +172,8 @@ function scallop(ctx: Ctx, teeth: Rect[], edgeY: number, upper: boolean) {
     ctx.quadraticCurveTo(cx, edgeY + dir * 20, t.x + t.w + 2, edgeY - dir * 4);
   });
   ctx.lineTo(WORLD_W, edgeY - dir * 4);
-  ctx.lineTo(WORLD_W, edgeY - dir * 40);
-  ctx.lineTo(0, edgeY - dir * 40);
+  ctx.lineTo(WORLD_W, edgeY - dir * 60);
+  ctx.lineTo(0, edgeY - dir * 60);
   ctx.closePath();
   ctx.fill();
   ctx.beginPath();
