@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { captureEvents } from "./helpers";
+import { captureEvents, finishGameWithHelp } from "./helpers";
 
 const PASSWORD = "test-parola-12345";
 
@@ -32,16 +32,7 @@ test.describe("Yönetici erişimi", () => {
     await kp.goto("/oyun");
     await kp.getByTestId("start").click();
     await kp.getByTestId("skip-tutorial").click();
-    await expect
-      .poll(
-        async () => {
-          if (await kp.getByTestId("reward-screen").isVisible()) return true;
-          await kp.getByTestId("help").click().catch(() => {});
-          return false;
-        },
-        { timeout: 80_000, intervals: [100] },
-      )
-      .toBe(true);
+    await finishGameWithHelp(kp);
     await expect.poll(() => cap.names.includes("reward_screen_viewed")).toBe(true);
     // sunucuya ulaştığından emin ol
     await expect.poll(async () => (await kp.evaluate(() => JSON.parse(localStorage.getItem("lions.q") ?? "[]").length)), { timeout: 15_000 }).toBe(0);

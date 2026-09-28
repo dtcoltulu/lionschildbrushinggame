@@ -1,5 +1,5 @@
 import { devices, expect, test } from "@playwright/test";
-import { captureEvents, scrubWholeCanvas } from "./helpers";
+import { captureEvents, finishGameWithHelp, scrubWholeCanvas } from "./helpers";
 
 test.describe("Oyun akışı", () => {
   test("QR adresi → öğretici → 4 aşama → ödül → tekrar oyna; olaylar doğru", async ({ page }) => {
@@ -83,16 +83,7 @@ test.describe("Oyun akışı", () => {
     await page.goto("/oyun");
     await page.getByTestId("start").click();
     await page.getByTestId("skip-tutorial").click();
-    await expect
-      .poll(
-        async () => {
-          if (await page.getByTestId("reward-screen").isVisible()) return true;
-          await page.getByTestId("help").click({ trial: false }).catch(() => {});
-          return false;
-        },
-        { timeout: 80_000, intervals: [120] },
-      )
-      .toBe(true);
+    await finishGameWithHelp(page);
   });
 
   test("ses düğmesi çalışır ve tercih saklanır", async ({ page }) => {
@@ -126,16 +117,7 @@ test.describe("Bağlantı sorunları", () => {
     await page.getByTestId("start").click();
     await page.getByTestId("skip-tutorial").click();
     await expect(page.getByTestId("play-screen")).toBeVisible();
-    await expect
-      .poll(
-        async () => {
-          if (await page.getByTestId("reward-screen").isVisible()) return true;
-          await page.getByTestId("help").click().catch(() => {});
-          return false;
-        },
-        { timeout: 80_000, intervals: [120] },
-      )
-      .toBe(true);
+    await finishGameWithHelp(page);
     // Oyun çevrimdışı tamamlandı: ödül ekranı geldi. Kuyrukta bekleyen olaylar var.
     const queued = await page.evaluate(() => JSON.parse(localStorage.getItem("lions.q") ?? "[]").length);
     expect(queued).toBeGreaterThanOrEqual(6);

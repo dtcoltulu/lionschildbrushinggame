@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 export interface Captured {
   names: string[];
@@ -20,7 +20,9 @@ export function captureEvents(page: Page): Captured {
 
 /** Tuvali baştan sona zikzakla tarayan sanal çocuk (fare olayları). */
 export async function scrubWholeCanvas(page: Page, opts: { until?: () => Promise<boolean>; passes?: number } = {}) {
-  const box = (await page.getByTestId("game-canvas").boundingBox())!;
+  // Tuval kalkmış olabilir (ödül ekranı açıldı): sınırsız beklemeden çık.
+  const box = await page.getByTestId("game-canvas").boundingBox({ timeout: 1000 }).catch(() => null);
+  if (!box) return;
   const scale = Math.min(box.width / 360, box.height / 520);
   const ox = box.x + (box.width - 360 * scale) / 2;
   const oy = box.y + (box.height - 520 * scale) / 2;
@@ -37,4 +39,22 @@ export async function scrubWholeCanvas(page: Page, opts: { until?: () => Promise
       await page.mouse.up();
     }
   }
+}
+
+/**
+ * "Yardım" butonuyla oyunu bitirir (fırçalayamayan çocuk).
+ * Tıklamaya KISA zaman sınırı konur: ödül ekranı açılınca buton DOM'dan kalkar; sınırsız bekleyen bir
+ * click() döngüyü kilitler (CI'da aralıklı görülen hata buydu).
+ */
+export async function finishGameWithHelp(page: Page, timeout = 80_000) {
+  await expect
+    .poll(
+      async () => {
+        if (await page.getByTestId("reward-screen").isVisible()) return true;
+        await page.getByTestId("help").click({ timeout: 500 }).catch(() => {});
+        return false;
+      },
+      { timeout, intervals: [100] },
+    )
+    .toBe(true);
 }
