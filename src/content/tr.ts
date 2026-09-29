@@ -8,6 +8,7 @@ export const tr = {
     disclaimer: "Bu içerik ağız ve diş sağlığı farkındalığı amacıyla hazırlanmıştır.",
     privacy: "Gizlilik",
     noData: "İsim, telefon ya da kayıt yok.",
+    soundHint: "Ses için telefonun sessiz modunu kapat ve sesi aç.",
   },
   tutorial: {
     title: "Nasıl oynanır?",

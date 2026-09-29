@@ -23,6 +23,10 @@ export function Landing({ campaign, onStart }: { campaign: CampaignConfig; onSta
           {tr.landing.start}
         </button>
         <p className="text-sm font-semibold text-ink/60">{tr.landing.noData}</p>
+        <p className="text-sm font-semibold text-ink/60" data-testid="sound-hint">
+          <span aria-hidden="true">🔔 </span>
+          {tr.landing.soundHint}
+        </p>
       </section>
 
       <footer className="flex max-w-md flex-col items-center gap-1 text-xs text-ink/70">

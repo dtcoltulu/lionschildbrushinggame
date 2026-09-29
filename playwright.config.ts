@@ -13,7 +13,7 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${PORT}`,
     viewport: { width: 390, height: 780 },
-    launchOptions: fs.existsSync(localChromium) ? { executablePath: localChromium, args: ["--no-sandbox"] } : {},
+    launchOptions: fs.existsSync(localChromium) ? { executablePath: localChromium, args: ["--no-sandbox", "--autoplay-policy=user-gesture-required"] } : {},
   },
   webServer: {
     command: `npx next start -p ${PORT}`,

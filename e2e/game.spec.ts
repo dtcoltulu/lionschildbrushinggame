@@ -185,4 +185,38 @@ test.describe("Bağlantı sorunları", () => {
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     await ctx.close();
   });
+
+  test("telefonda ses: gerçek 'dokunmadan ses yok' politikasında ilk dokunuşla ses açılır ve oyun boyunca açık kalır", async ({ browser }) => {
+    const ctx = await browser.newContext({ ...devices["Pixel 7"] });
+    const page = await ctx.newPage();
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto("/oyun");
+    await expect(page.getByTestId("sound-hint")).toBeVisible(); // sessiz mod uyarısı
+    // Dokunmadan önce ses bağlamı yok / askıda (tarayıcı politikası)
+    expect(["none", "suspended"]).toContain(await page.evaluate(() => document.documentElement.dataset.audio));
+
+    await page.getByTestId("start").tap(); // gerçek dokunuş
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.audio), { timeout: 5000 }).toBe("running");
+
+    await page.getByTestId("skip-tutorial").tap();
+    await expect(page.getByTestId("play-screen")).toBeVisible();
+    // Oyun sırasında da açık kalır ve hata yok
+    await page.getByTestId("help").tap();
+    expect(await page.evaluate(() => document.documentElement.dataset.audio)).toBe("running");
+    expect(errors).toEqual([]);
+    await ctx.close();
+  });
+
+  test("ses testi sayfası: dokununca ses açılır, durum ve ipuçları görünür", async ({ browser }) => {
+    const ctx = await browser.newContext({ ...devices["Pixel 7"] });
+    const page = await ctx.newPage();
+    await page.goto("/ses-testi");
+    await expect(page.getByRole("heading", { name: "Ses testi" })).toBeVisible();
+    await expect(page.getByTestId("state")).toContainText("Henüz açılmadı");
+    await page.getByTestId("play-yay").tap();
+    await expect(page.getByTestId("state")).toContainText("Açık", { timeout: 5000 });
+    await expect(page.getByTestId("tips")).toContainText("sessiz düğmesini");
+    await ctx.close();
+  });
 });

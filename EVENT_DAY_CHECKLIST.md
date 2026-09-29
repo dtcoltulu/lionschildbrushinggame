@@ -60,6 +60,13 @@ Yazdırıp standda bulundurun. Kutuları işaretleyin.
 - [ ] **Etkinlik Raporu Oluştur** açılıyor; CSV inebiliyor (etkinlikten önce bir kez deneyin)
 - [ ] Panele yetkisiz kişinin erişemediğini doğrulayın (giriş yapmamış tarayıcıda `/admin` → giriş sayfası)
 
+## 🔊 Ses testi (her telefon türünde)
+
+- [ ] `https://…/ses-testi` adresini açın, **"Sesi dene"**ye dokunun: durum **"Açık ✅"** olmalı ve ses duyulmalı
+- [ ] iPhone'da yan **sessiz düğmesi kapalı** (turuncu görünmemeli) ve medya sesi açık
+- [ ] Bluetooth kulaklık bağlı değil (ses oraya gider)
+- [ ] Ses yine yoksa sayfadaki ipuçlarına bakın; oyun sessiz de tamamen oynanabilir (ses zorunlu değil)
+
 ## 🏆 8. Ödül ekranı testi
 
 - [ ] "TEBRİKLER! DİŞ KAHRAMANI OLDUN!" görünüyor
