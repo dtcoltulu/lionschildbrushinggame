@@ -74,7 +74,7 @@ npm run simulate -- --base=http://localhost:3000 --kids=300
 
 ## Lions logosu
 
-Logo dosyasını `public/assets/lions-logo.svg` olarak koyun (mevcut dosya bir **yer tutucudur**, üzerine yazın). PNG kullanacaksanız dosyayı `public/assets/lions-logo.png` olarak ekleyin ve `src/config/campaigns.ts` içinde `logoPath` değerini güncelleyin. Logo dosyası bulunamazsa sayfa bozulmaz, yazılı "118-Y" rozeti görünür. Logo giriş ekranında, ödül ekranında, QR'ın ortasında ve (isteğe bağlı) baskıda kullanılır. Kare ya da yuvarlak, şeffaf arka planlı, kısa kenarı ≥ 256 px bir dosya idealdir.
+Lions logosu `public/assets/` altındadır: `lions-logo.png` (arayüz için hafif, 112 px) ve `lions-logo-hd.png` (QR ortası için, 423×400 px). İkisi de şeffaf arka planlıdır. Logoyu değiştirmek için aynı adlarla üzerine yazın ya da `src/config/campaigns.ts` içinde `logoPath` / `qrLogoPath` değerlerini güncelleyin. Logo dosyası bulunamazsa sayfa bozulmaz, yazılı "118-Y" rozeti görünür. Logo giriş ve ödül ekranlarında (beyaz zemin üzerinde), QR'ın ortasında ve (isteğe bağlı) baskıda kullanılır. **Lions markasının kullanımı Lions Clubs International kurallarına tabidir; logoyu değiştirmeden, oranını bozmadan kullanın ve etkinlikten önce bölge yönetiminden onay alın.**
 
 ## Yönetici paneli, rapor, QR
 
