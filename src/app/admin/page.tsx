@@ -8,6 +8,7 @@ import { CAMPAIGNS, resolveCampaign } from "@/config/campaigns";
 import { requireAdmin } from "@/lib/admin-guard";
 import { getStore } from "@/lib/get-store";
 import { computeKpis, hourlyForDate } from "@/lib/kpi";
+import { describeStoreError } from "@/lib/store-error";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Yönetim | Diş Kahramanı" };
@@ -30,11 +31,17 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   let data;
   try {
     data = await store.loadCampaign(campaign.campaignId);
-  } catch {
+  } catch (err) {
+    // Anahtar/URL içermeyen, kısa bir teşhis satırı (ör. "events: Invalid API key", "fetch failed").
+    const detail = describeStoreError(err);
+    console.error("admin loadCampaign failed:", detail);
     return (
       <main className="mx-auto max-w-3xl p-6">
         <h1 className="text-2xl font-black text-purple">Veriler okunamadı</h1>
         <p className="mt-2">Veritabanına ulaşılamadı. Bağlantıyı ve anahtarları kontrol edip sayfayı yenileyin.</p>
+        <p className="mt-3 rounded-xl bg-purple-soft p-3 font-mono text-sm" data-testid="store-error-detail">
+          Ayrıntı: {detail}
+        </p>
       </main>
     );
   }
