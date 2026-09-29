@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="118-Y Lions">
-  <!-- YER TUTUCU: gerçek Lions logosunu bu dosyanın üzerine yazın (public/assets/lions-logo.svg veya .png) -->
-  <circle cx="60" cy="60" r="56" fill="#2e1a5e" stroke="#f5b800" stroke-width="6"/>
-  <text x="60" y="58" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="30" fill="#f5b800">118-Y</text>
-  <text x="60" y="82" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="16" fill="#fff">LIONS</text>
-</svg>

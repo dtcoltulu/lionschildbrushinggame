@@ -16,7 +16,10 @@ export interface CampaignConfig {
   reportSubtitle: string;
   timezone: string;
   rewardLine: string;
+  /** Arayüzde küçük gösterilen (hafif) logo. */
   logoPath: string;
+  /** QR kodun ortasında kullanılan yüksek çözünürlüklü logo (yoksa logoPath). */
+  qrLogoPath?: string;
   active: boolean;
 }
 
@@ -35,7 +38,8 @@ export const CAMPAIGNS: readonly CampaignConfig[] = [
       "118-Y Sağlık Hedef Liderliği · Ağız ve Diş Sağlığı Komitesi · Dijital Ağız ve Diş Sağlığı Farkındalık Etkinliği",
     timezone: "Europe/Istanbul",
     rewardLine: "Diş macunu hediyeni al.",
-    logoPath: "/assets/lions-logo.svg",
+    logoPath: "/assets/lions-logo.png",
+    qrLogoPath: "/assets/lions-logo-hd.png",
     active: true,
   },
   {
@@ -53,7 +57,8 @@ export const CAMPAIGNS: readonly CampaignConfig[] = [
     reportSubtitle: "Test verisi – gerçek rapor değildir",
     timezone: "Europe/Istanbul",
     rewardLine: "Diş macunu hediyeni al.",
-    logoPath: "/assets/lions-logo.svg",
+    logoPath: "/assets/lions-logo.png",
+    qrLogoPath: "/assets/lions-logo-hd.png",
     active: true,
   },
 ];

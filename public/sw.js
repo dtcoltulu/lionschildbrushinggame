@@ -7,7 +7,7 @@
 const VERSION = "v1";
 const STATIC_CACHE = "lions-static-" + VERSION;
 const PAGE_CACHE = "lions-pages-" + VERSION;
-const PRECACHE = ["/oyun", "/gizlilik", "/ses-testi", "/manifest.webmanifest", "/icon.svg", "/assets/lions-logo.svg"];
+const PRECACHE = ["/oyun", "/gizlilik", "/ses-testi", "/manifest.webmanifest", "/icon.svg", "/assets/lions-logo.png"];
 const NETWORK_TIMEOUT_MS = 3000;
 
 self.addEventListener("install", (event) => {

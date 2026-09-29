@@ -18,7 +18,7 @@ export default async function QrPage() {
       </div>
       <QrTool
         defaultUrl={`${site}/oyun`}
-        logoPath={campaign.logoPath}
+        logoPath={campaign.qrLogoPath ?? campaign.logoPath}
         campaigns={CAMPAIGNS.map((c) => ({ id: c.campaignId, label: `${c.eventName} (${c.eventDateLabel})` }))}
         defaultCampaignId={getDefaultCampaignId()}
       />
