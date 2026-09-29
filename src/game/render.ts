@@ -94,8 +94,101 @@ function drawFace(ctx: Ctx, kind: PhaseKind) {
   ctx.fill();
 }
 
+/**
+ * İç yüzey aşamasında yüz dönmüştür: gözler yerine kafanın arkası ve saçlar görünür
+ * (kulaklar, saç tutamları, tepede bir kıvrım ve altın tokası).
+ */
+function drawHeadBack(ctx: Ctx) {
+  const tint = FACE.inner!;
+  ctx.fillStyle = tint;
+  ctx.beginPath();
+  ctx.ellipse(180, 290, 214, 300, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // kulaklar (yüzün iki yanında)
+  for (const [x, dir] of [[26, -1], [334, 1]] as const) {
+    ctx.fillStyle = "#166B7D";
+    ctx.beginPath();
+    ctx.ellipse(x, 196, 24, 34, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.22)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x + dir * -2, 196, 11, Math.PI * 0.3, Math.PI * 1.7, dir > 0);
+    ctx.stroke();
+  }
+
+  // saç: tepeyi ve alın hizasını (gözlerin olduğu yeri) kaplar, altı dalgalı
+  const hair = "#231F4F";
+  const hairLight = "#4A4699";
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(180, 290, 214, 300, 0, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.fillStyle = hair;
+  ctx.beginPath();
+  ctx.moveTo(-40, -10);
+  ctx.lineTo(400, -10);
+  ctx.lineTo(400, 122);
+  // dalgalı alt kenar (sağdan sola)
+  for (let i = 0; i < 8; i++) {
+    const x1 = 400 - i * 55;
+    const x2 = x1 - 55;
+    ctx.quadraticCurveTo((x1 + x2) / 2, i % 2 ? 100 : 156, x2, 122 + (i % 2 ? -4 : 6));
+  }
+  ctx.lineTo(-40, 122);
+  ctx.closePath();
+  ctx.fill();
+
+  // saç telleri (açık renk vurgu çizgileri)
+  ctx.strokeStyle = hairLight;
+  ctx.lineWidth = 5;
+  ctx.lineCap = "round";
+  for (let i = 0; i < 9; i++) {
+    const x = 20 + i * 40;
+    ctx.beginPath();
+    ctx.moveTo(x, 8);
+    ctx.quadraticCurveTo(x + (i % 2 ? 16 : -16), 52, x + (i % 2 ? 6 : -6), 108);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // saçın parlak vurgusu: tepede yumuşak bir yay
+  ctx.strokeStyle = "rgba(160,150,255,0.35)";
+  ctx.lineWidth = 8;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(70, 70);
+  ctx.quadraticCurveTo(180, 18, 290, 70);
+  ctx.stroke();
+
+  // tepede sevimli kıvrım / tüy tutamı (açık renk, koyu saçın üstünde belli olsun)
+  ctx.strokeStyle = hairLight;
+  ctx.lineWidth = 9;
+  ctx.beginPath();
+  ctx.moveTo(150, 74);
+  ctx.bezierCurveTo(138, 26, 200, 14, 196, 52);
+  ctx.bezierCurveTo(194, 70, 172, 66, 176, 52);
+  ctx.stroke();
+
+  // altın toka (yıldız)
+  ctx.fillStyle = C.gold;
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const r = i % 2 === 0 ? 17 : 7.5;
+    const a = -Math.PI / 2 + (Math.PI * i) / 5;
+    ctx.lineTo(256 + Math.cos(a) * r, 64 + Math.sin(a) * r);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "#D99A00";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
 function drawMouthFrame(ctx: Ctx, kind: PhaseKind) {
-  drawFace(ctx, kind);
+  if (kind === "inner") drawHeadBack(ctx);
+  else drawFace(ctx, kind);
   ctx.fillStyle = C.lip;
   rrect(ctx, MOUTH.x, MOUTH.y, MOUTH.w, MOUTH.h, 96);
   ctx.fill();
