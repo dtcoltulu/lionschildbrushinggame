@@ -29,7 +29,7 @@ function installFakeBrowser(opts: { voices?: { lang: string; localService: boole
     createBufferSource() { return node("buffer"); }
     createBuffer(_c: number, len: number) { return { getChannelData: () => new Float32Array(len) }; }
   }
-  const spoken: { text: string; voice: unknown }[] = [];
+  const spoken: { text: string; voice: unknown; rate: number; pitch: number }[] = [];
   const voices = opts.voices ?? [];
   const w = {
     AudioContext: FakeCtx,
@@ -37,7 +37,8 @@ function installFakeBrowser(opts: { voices?: { lang: string; localService: boole
       getVoices: () => voices,
       addEventListener: () => {},
       cancel: () => {},
-      speak: (u: { text: string; voice: unknown }) => spoken.push({ text: u.text, voice: u.voice }),
+      speak: (u: { text: string; voice: unknown; rate: number; pitch: number }) =>
+        spoken.push({ text: u.text, voice: u.voice, rate: u.rate, pitch: u.pitch }),
     },
   };
   const store = new Map<string, string>();
@@ -50,8 +51,10 @@ function installFakeBrowser(opts: { voices?: { lang: string; localService: boole
 describe("sesler", () => {
   beforeEach(() => {
     vi.resetModules();
+    vi.useFakeTimers();
   });
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -78,6 +81,7 @@ describe("sesler", () => {
     audio.sfx.yay(1);
     audio.sfx.turn();
     audio.sfx.fanfare();
+    vi.advanceTimersByTime(2000);
     expect(env.created.length).toBe(before);
     expect(env.spoken).toHaveLength(0);
   });
@@ -97,19 +101,48 @@ describe("sesler", () => {
     const audio = await import("@/game/audio");
     audio.unlockAudio();
     audio.sfx.yay(0);
+    vi.advanceTimersByTime(2000);
     expect(env.spoken).toHaveLength(0); // yerel Türkçe yok → konuşma yok (yalnızca ses efekti)
   });
 
-  it("yerel Türkçe ses varsa kısa bir övgü söyler", async () => {
+  it("yerel Türkçe ses varsa kısa bir övgü söyler; efektten SONRA gelir", async () => {
     const local = { lang: "tr-TR", localService: true };
     const env = installFakeBrowser({ voices: [{ lang: "en-US", localService: true }, local] });
     const audio = await import("@/game/audio");
     audio.unlockAudio();
     audio.sfx.yay(0);
+    expect(env.spoken).toHaveLength(0); // hemen değil: önce efekt duyulur
+    vi.advanceTimersByTime(audio.SPEECH.delayMs + 10);
     expect(env.spoken).toHaveLength(1);
     expect(env.spoken[0]!.text).toBe("Yuppi!");
     expect(env.spoken[0]!.voice).toBe(local);
     audio.sfx.yay(2);
-    expect(env.spoken[1]!.text).toBe("Aferin!");
+    vi.advanceTimersByTime(audio.SPEECH.delayMs + 10);
+    expect(env.spoken[1]!.text).toBe("Süpersin!");
+  });
+
+  it("konuşma hızı doğal ve çocuklara uygun: hızlı değil, ton çok tiz değil", async () => {
+    const local = { lang: "tr-TR", localService: true };
+    const env = installFakeBrowser({ voices: [local] });
+    const audio = await import("@/game/audio");
+    audio.unlockAudio();
+    for (let i = 0; i < 12; i++) {
+      audio.sfx.yay(i);
+      vi.advanceTimersByTime(audio.SPEECH.delayMs + 10);
+    }
+    expect(env.spoken).toHaveLength(12);
+    for (const u of env.spoken) {
+      expect(u.rate).toBeGreaterThanOrEqual(0.8);
+      expect(u.rate).toBeLessThanOrEqual(1.0); // normal hızdan hızlı değil
+      expect(u.pitch).toBeGreaterThanOrEqual(1.1);
+      expect(u.pitch).toBeLessThanOrEqual(1.5);
+    }
+  });
+
+  it("övgüler kısa, olumlu ve çeşitli; oyun sonunda kahramanlık cümlesi vardır", async () => {
+    const audio = await import("@/game/audio");
+    expect(new Set(audio.CHEERS).size).toBe(audio.CHEERS.length);
+    for (const c of audio.CHEERS) expect(c.length).toBeLessThanOrEqual(14);
+    expect(audio.FINAL_CHEER).toContain("Diş kahramanı");
   });
 });

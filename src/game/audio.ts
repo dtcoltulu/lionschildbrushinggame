@@ -112,6 +112,9 @@ function whoosh(): void {
 
 // ---- Konuşma ("Yuppi!") – yalnızca cihazın YEREL Türkçe sesiyle ----------------------
 // Bulut sesleri metni bir sunucuya gönderebilir; gizlilik için yerel olmayan sesler kullanılmaz.
+/** Konuşma ayarları: rate 1 = cihazın normal hızı. Çocuklar için biraz daha yavaş ve net. */
+export const SPEECH = { rate: 0.88, pitchMin: 1.2, pitchMax: 1.4, volume: 0.9, delayMs: 320 } as const;
+
 let trVoice: SpeechSynthesisVoice | null = null;
 let voicesLoaded = false;
 
@@ -134,9 +137,10 @@ function speak(text: string): void {
     const u = new SpeechSynthesisUtterance(text);
     u.voice = trVoice;
     u.lang = trVoice.lang;
-    u.pitch = 1.7;
-    u.rate = 1.08;
-    u.volume = 0.85;
+    // Doğal, rahat hız (çocuklar anlasın) ve hafif tiz, canlı ton; her seferinde küçük bir çeşitleme.
+    u.pitch = SPEECH.pitchMin + Math.random() * (SPEECH.pitchMax - SPEECH.pitchMin);
+    u.rate = SPEECH.rate;
+    u.volume = SPEECH.volume;
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(u);
   } catch {
@@ -144,7 +148,9 @@ function speak(text: string): void {
   }
 }
 
-const CHEERS = ["Yuppi!", "Harika!", "Aferin!", "Süper!", "Bravo!", "Yaşasın!"];
+/** Alfa kuşağının (4-12 yaş) sevdiği, enerjik ve olumlu kısa övgüler. */
+export const CHEERS = ["Yuppi!", "Efsane!", "Süpersin!", "Yaşasın!", "Bomba!", "Harikasın!", "Şahane!", "Bravo sana!"] as const;
+export const FINAL_CHEER = "Diş kahramanı oldun! Efsanesin!";
 
 export const sfx = {
   tap: () => tone(520, 0, 0.09, "triangle", 0.06),
@@ -163,7 +169,9 @@ export const sfx = {
     vocalGlide(0, 0.16, 330, 620, 700, 1800);
     vocalGlide(0.19, 0.22, 520, 980, 900, 2400, 0.08);
     [1047, 1319, 1568, 2093].forEach((f, i) => tone(f, 0.12 + i * 0.07, 0.2, "sine", 0.05));
-    speak(CHEERS[phaseIndex % CHEERS.length]!);
+    // Önce ses efekti duyulsun, konuşma biraz sonra gelsin (üst üste binip hızlı/karışık duyulmasın).
+    const text = CHEERS[phaseIndex % CHEERS.length]!;
+    setTimeout(() => speak(text), SPEECH.delayMs);
   },
   /** Yüz dönerken. */
   turn: () => whoosh(),
@@ -173,6 +181,6 @@ export const sfx = {
   fanfare: () => {
     [523, 659, 784, 1047, 784, 1047, 1319, 1568].forEach((f, i) => tone(f, i * 0.11, 0.24, "triangle", 0.08));
     vocalGlide(0.5, 0.25, 400, 1100, 800, 2600, 0.09);
-    speak("Diş kahramanı oldun!");
+    setTimeout(() => speak(FINAL_CHEER), SPEECH.delayMs + 250);
   },
 };
