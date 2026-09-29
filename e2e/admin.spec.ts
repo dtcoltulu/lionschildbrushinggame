@@ -19,7 +19,8 @@ test.describe("Yönetici erişimi", () => {
     await page.goto("/admin/login");
     await page.getByLabel("Parola").fill("yanlis-parola-123");
     await page.getByRole("button", { name: "Giriş yap" }).click();
-    await expect(page.getByRole("alert")).toContainText("Parola hatalı");
+    // Next.js'in gizli "route announcer" öğesi de role=alert taşır; yalnızca sayfamızdaki uyarıyı hedefle.
+    await expect(page.locator("main [role=alert]")).toContainText("Parola hatalı");
     await page.goto("/oyun");
     await expect(page.getByTestId("start")).toBeVisible();
   });
