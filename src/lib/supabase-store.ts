@@ -29,8 +29,11 @@ export class SupabaseStore implements EventStore {
   readonly kind = "supabase" as const;
   private db: SupabaseClient;
 
-  constructor(url: string, serviceKey: string) {
-    this.db = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  constructor(url: string, serviceKey: string, options: { fetch?: typeof fetch } = {}) {
+    this.db = createClient(url, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      ...(options.fetch ? { global: { fetch: options.fetch } } : {}),
+    });
   }
 
   async insertBatch(input: Parameters<EventStore["insertBatch"]>[0]): Promise<void> {

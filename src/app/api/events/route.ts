@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { MAX_BODY_BYTES, normalizeBatch, validateBatch } from "@/analytics/server/validate";
 import { getStore } from "@/lib/get-store";
+import { describeStoreError } from "@/lib/store-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     // Ayrıntıyı (kimlik içerebilir) loglamıyoruz; istemci kuyrukta tutup tekrar dener.
-    console.error("events insert failed:", err instanceof Error ? err.message : "unknown");
+    console.error("events insert failed:", describeStoreError(err));
     return NextResponse.json({ error: "store_error" }, { status: 503, headers: NO_STORE });
   }
   return NextResponse.json({ ok: true, stored: events.length }, { headers: NO_STORE });
