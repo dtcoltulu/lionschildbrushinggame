@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createAnalytics, detectDeviceClass, type Analytics } from "@/analytics/client";
 import type { CampaignConfig } from "@/config/campaigns";
-import { sfx, unlockAudio } from "@/game/audio";
+import { installAudioUnlock, sfx, unlockAudio } from "@/game/audio";
 import { Landing } from "./Landing";
 import { PlayScreen } from "./PlayScreen";
 import { RewardScreen } from "./RewardScreen";
@@ -34,6 +34,9 @@ export function GameApp({ campaigns, defaultCampaignId }: Props) {
   const analytics = useRef<Analytics | null>(null);
   const play = useRef<PlayInfo | null>(null);
   const finished = useRef(false);
+
+  // Telefonda ses: her dokunuşta ses bağlamı (askıdaysa) yeniden açılır
+  useEffect(() => installAudioUnlock(), []);
 
   // Analytics başlatma + landing_view
   useEffect(() => {

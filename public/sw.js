@@ -7,7 +7,7 @@
 const VERSION = "v1";
 const STATIC_CACHE = "lions-static-" + VERSION;
 const PAGE_CACHE = "lions-pages-" + VERSION;
-const PRECACHE = ["/oyun", "/gizlilik", "/manifest.webmanifest", "/icon.svg", "/assets/lions-logo.svg"];
+const PRECACHE = ["/oyun", "/gizlilik", "/ses-testi", "/manifest.webmanifest", "/icon.svg", "/assets/lions-logo.svg"];
 const NETWORK_TIMEOUT_MS = 3000;
 
 self.addEventListener("install", (event) => {
@@ -98,7 +98,7 @@ self.addEventListener("fetch", (event) => {
         const key = url.pathname === "/" ? "/oyun" : url.pathname;
         try {
           const res = await withTimeout(fetch(req), NETWORK_TIMEOUT_MS);
-          if (res.ok && res.type === "basic" && !res.redirected && (key === "/oyun" || key === "/gizlilik")) {
+          if (res.ok && res.type === "basic" && !res.redirected && (key === "/oyun" || key === "/gizlilik" || key === "/ses-testi")) {
             cache.put(key, res.clone());
           }
           return res;

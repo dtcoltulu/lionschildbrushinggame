@@ -8,6 +8,8 @@ const csp = [
   `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
+  // iPhone sessiz düğmesini aşmak için kullanılan sessiz <audio> (data URI)
+  "media-src 'self' data: blob:",
   "font-src 'self'",
   "connect-src 'self'",
   "worker-src 'self'",
