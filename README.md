@@ -4,7 +4,7 @@
 
 - Üyelik, isim, telefon, e-posta **yok**. Reklam ve üçüncü taraf takip aracı **yok**.
 - Telefon öncelikli, 45–90 saniyelik oyun; kaybetme ve skor yarışı yok.
-- Oyun akışı (6 aşama, 24 diş: üst çene 12 + alt çene 12): dış yüzeyler (çikolata, cips, plak, mikrop) → diş araları ve diş eti kenarı ("Detaylı temizle!") → iç yüzeyler ("Bitmedi!") → çiğneme yüzeyleri → dil → diş ipi. Aşamalar `src/game/layout.ts` içinde tanımlıdır.
+- Oyun akışı (6 aşama, 24 diş: üst çene 12 + alt çene 12): dış yüzeyler (çikolata, cips, plak, mikrop) → diş araları ve diş eti kenarı ("Detaylı temizle!") → iç yüzeyler ("Bitmedi!") → çiğneme yüzeyleri → dil → diş ipi. Aşamalar `src/game/layout.ts` içinde tanımlıdır. Her aşama bitince neşeli "yu-up-pi" sesi çalar; diş araları bitince yüz dönerek iç yüzeye geçilir.
 - Anonim analytics + yönetici paneli + CSV / yazdırılabilir rapor + QR üretici.
 - Etkinlik bilgileri konfigürasyondan değişir; başka Lions etkinliklerinde yeniden kullanılabilir.
 

@@ -6,6 +6,7 @@ import {
   MIN_STROKE,
   PHASE_EASY_ALL_MS,
   PHASE_TRANSITION_MS,
+  TURN_TRANSITION_MS,
   SWIPES_PER_PATCH,
 } from "./constants";
 import { StrokeTracker, type Swipe } from "./brush";
@@ -55,8 +56,24 @@ export class GameEngine {
     return this.phases[Math.min(this.phaseIndex, this.phases.length - 1)]!.kind;
   }
 
+  /** Geçiş yüzün dönmesiyle mi yapılıyor? (yalnızca iç yüzeye geçerken) */
+  turning = false;
+  private swapped = false;
+
+  private get transitionDuration(): number {
+    return this.turning ? TURN_TRANSITION_MS : PHASE_TRANSITION_MS;
+  }
+
   get transitionProgress(): number {
-    return Math.min(1, this.transitionElapsed / PHASE_TRANSITION_MS);
+    return Math.min(1, this.transitionElapsed / this.transitionDuration);
+  }
+
+  /** Yüzün yatay ölçeği: 1 → 0 (yan dönüş) → 1. Sahne tam ortada değişir. Dönme yokken 1. */
+  get turnScale(): number {
+    if (this.status !== "transition" || !this.turning) return 1;
+    const p = this.transitionProgress;
+    // Yumuşatılmış (ease-in-out) cos: yan tarafa doğru yavaşlar, döndükten sonra açılır
+    return Math.max(0.03, Math.abs(Math.cos(p * Math.PI)));
   }
 
   start(): void {
@@ -135,7 +152,8 @@ export class GameEngine {
     } else if (this.status === "transition") {
       this.totalElapsed += dt;
       this.transitionElapsed += dt;
-      if (this.transitionElapsed >= PHASE_TRANSITION_MS) this.advance();
+      if (this.turning && !this.swapped && this.transitionElapsed >= this.transitionDuration / 2) this.swapToNext();
+      if (this.transitionElapsed >= this.transitionDuration) this.advance();
     }
   }
 
@@ -233,6 +251,9 @@ export class GameEngine {
   private completePhase(): void {
     this.status = "transition";
     this.transitionElapsed = 0;
+    this.swapped = false;
+    const next = this.phases[this.phaseIndex + 1];
+    this.turning = next !== undefined && next.kind === "inner";
     this.hintIndex = null;
     this.brushDown = false;
     this.tracker.reset();
@@ -240,7 +261,22 @@ export class GameEngine {
     this.cb.onPhaseComplete?.(this.phaseIndex, Math.round(this.phaseElapsed));
   }
 
+  /** Yüz yan dönünce: sonraki aşamanın sahnesi ve lekeleri yüklenir (oynanış geçişin sonunda başlar). */
+  private swapToNext(): void {
+    this.swapped = true;
+    this.phaseIndex += 1;
+    this.loadPhase(this.phaseIndex);
+    this.cb.onTurn?.();
+    this.cb.onPhaseStart?.(this.phaseIndex);
+  }
+
   private advance(): void {
+    if (this.swapped) {
+      this.status = "playing";
+      this.turning = false;
+      this.swapped = false;
+      return;
+    }
     if (this.phaseIndex >= this.phases.length - 1) {
       this.status = "done";
       this.cb.onComplete?.(Math.round(this.completionMs));
@@ -249,6 +285,7 @@ export class GameEngine {
     this.phaseIndex += 1;
     this.loadPhase(this.phaseIndex);
     this.status = "playing";
+    this.turning = false;
     this.cb.onPhaseStart?.(this.phaseIndex);
   }
 

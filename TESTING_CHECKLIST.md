@@ -42,6 +42,9 @@ Gerçek cihaz gerektirir; bu depoda otomatikleştirilemez. Test için hep `…/o
 - [ ] **Gerçek çocuklarla** (6–14 yaş, en az 5 çocuk, farklı yaşlardan) süre ölçün: hedef 45–90 sn. Çok kısa/uzunsa `src/game/constants.ts` (`SWIPES_PER_PATCH`, aşama sabitleri) ayarlanır.
 - [ ] Ekranı dikey/yatay çevirince bozulmuyor (dikey önerilir).
 - [ ] Ses: 🔊/🔇 çalışıyor, ilk dokunuştan sonra ses geliyor, sessizde oyun tam anlaşılıyor, sessiz anahtarı (iPhone) açıkken çok rahatsız etmiyor.
+- [ ] **Aşama bitince "yu-up-pi!" sesi** (kayan ses + parıltı) geliyor. Bu sesler kodla üretilir; **gerçek telefonda kulakla** dinleyin ve gerekirse `src/game/audio.ts` içindeki `yay` sesini ayarlayın.
+- [ ] Telefonda **yerel Türkçe ses** kurulu ise kısa bir övgü ("Yuppi!", "Aferin!" …) de söylenir. Ses yoksa yalnızca efekt çalar. Bulut (çevrim içi) sesler bilerek kullanılmaz; gizlilik için metin dışarı gitmez.
+- [ ] **Yüz dönme:** diş araları bitince yüz yana dönüp iç yüzeye ("Bitmedi!") geçiyor; takılma ya da titreme yok.
 - [ ] Türkçe karakterler (ç ğ ı İ ö ş ü) her ekranda doğru.
 - [ ] Ödül ekranı: "TEBRİKLER! DİŞ KAHRAMANI OLDUN!", görevliye göster, diş macunu, 3 mesaj net; canlı saat akıyor; "Tekrar Oyna" çalışıyor.
 

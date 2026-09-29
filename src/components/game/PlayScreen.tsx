@@ -53,7 +53,7 @@ export function PlayScreen({ onPhaseComplete, onComplete }: Props) {
       if (call) calloutTimer.current = setTimeout(() => setCallout(""), 1700);
     },
     onPhaseComplete: (i: number, ms: number) => {
-      sfx.phase();
+      sfx.yay(i);
       if (flash.current) clearTimeout(flash.current);
       const text = tr.phases[i]?.done ?? "";
       setMessage(text);
@@ -66,6 +66,7 @@ export function PlayScreen({ onPhaseComplete, onComplete }: Props) {
       onComplete(ms);
     },
     onSwipe: () => sfx.swipe(),
+    onTurn: () => sfx.turn(),
     onPatchCleaned: () => {
       sfx.clean();
       cleaned.current += 1;

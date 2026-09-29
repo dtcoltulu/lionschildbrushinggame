@@ -174,3 +174,93 @@ describe("GameEngine", () => {
     expect(b.sparkles.length).toBeLessThan(a.sparkles.length);
   });
 });
+
+describe("Yüz dönme geçişi (diş araları → iç yüzey)", () => {
+  /** TypeScript döngü sonrası durumu daraltmasın diye ayrı işlev. */
+  const inTransition = (e: GameEngine): boolean => e.status === "transition";
+
+  /** Sıradaki aşamayı Yardım ile bitirir; geçişe girince durur. */
+  function finishPhaseByAssist(e: GameEngine) {
+    let guard = 0;
+    while (e.status === "playing" && guard++ < 400) e.assistClean();
+  }
+
+  it("yalnızca iç yüzeye geçerken döner; ilk geçişte (dış→diş araları) dönmez", () => {
+    const turns: number[] = [];
+    const starts: number[] = [];
+    const e = new GameEngine(buildPhases(), { onTurn: () => turns.push(e.phaseIndex), onPhaseStart: (i) => starts.push(i) });
+    e.start();
+    finishPhaseByAssist(e); // aşama 0 → geçiş
+    expect(inTransition(e)).toBe(true);
+    expect(e.turning).toBe(false);
+    expect(e.turnScale).toBe(1);
+    while (inTransition(e)) e.update(50);
+    expect(turns).toEqual([]);
+    expect(e.currentKind).toBe("gaps");
+
+    finishPhaseByAssist(e); // aşama 1 (diş araları) → iç yüzeye dönerek geçiş
+    expect(inTransition(e)).toBe(true);
+    expect(e.turning).toBe(true);
+    expect(e.currentKind).toBe("gaps"); // henüz eski sahne
+    expect(starts).toEqual([0, 1]);
+  });
+
+  it("yarıda sahne değişir, yüz yana bakar (ölçek ~0), sonunda oynanış başlar", () => {
+    const turns: string[] = [];
+    const starts: number[] = [];
+    const e = new GameEngine(buildPhases(), { onTurn: () => turns.push(e.currentKind), onPhaseStart: (i) => starts.push(i) });
+    e.start();
+    finishPhaseByAssist(e);
+    while (inTransition(e)) e.update(50);
+    finishPhaseByAssist(e);
+
+    let minScale = 1;
+    let swappedAtScale = -1;
+    let guard = 0;
+    while (inTransition(e) && guard++ < 500) {
+      e.update(16);
+      minScale = Math.min(minScale, e.turnScale);
+      if (turns.length === 1 && swappedAtScale < 0) swappedAtScale = e.turnScale;
+    }
+    expect(minScale).toBeLessThan(0.1); // tam yan dönüş
+    expect(swappedAtScale).toBeLessThan(0.15); // sahne yan dönükken değişti (kesme görünmez)
+    expect(turns).toEqual(["inner"]); // onTurn bir kez, yeni sahneyle
+    expect(starts).toEqual([0, 1, 2]); // aşama 2 (iç yüzey) bir kez başladı
+    expect(e.status).toBe("playing");
+    expect(e.turning).toBe(false);
+    expect(e.turnScale).toBe(1);
+    expect(e.currentKind).toBe("inner");
+    expect(e.patches.every((p) => !p.done)).toBe(true); // temiz sayfa, lekeler dolu
+  });
+
+  it("dönme sırasında fırçalama sayılmaz ve ilerleme geriye gitmez", () => {
+    const seen: number[] = [];
+    const e = new GameEngine(buildPhases(), { onProgress: (v) => seen.push(v) });
+    e.start();
+    finishPhaseByAssist(e);
+    while (inTransition(e)) e.update(50);
+    finishPhaseByAssist(e);
+    const before = e.overallProgress();
+    for (let i = 0; i < 60 && inTransition(e); i++) {
+      e.pointerDown({ x: 180, y: 250 });
+      e.pointerMove({ x: 240, y: 250 });
+      e.pointerMove({ x: 120, y: 250 });
+      e.pointerUp();
+      e.update(16);
+      expect(e.overallProgress()).toBeGreaterThanOrEqual(before - 1e-9);
+    }
+    while (inTransition(e)) e.update(50);
+    for (let i = 1; i < seen.length; i++) expect(seen[i]!).toBeGreaterThanOrEqual(seen[i - 1]! - 1e-9);
+  });
+
+  it("tam oyun yine 6 aşamayla biter ve onComplete bir kez çağrılır", () => {
+    let completes = 0;
+    const turnCount = { n: 0 };
+    const e = new GameEngine(buildPhases(), { onComplete: () => completes++, onTurn: () => turnCount.n++ });
+    e.start();
+    playAll(e);
+    expect(e.status).toBe("done");
+    expect(completes).toBe(1);
+    expect(turnCount.n).toBe(1); // tüm oyunda tek kez döner
+  });
+});

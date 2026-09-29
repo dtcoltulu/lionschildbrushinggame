@@ -4,6 +4,9 @@ import { captureEvents, finishGameWithHelp, scrubWholeCanvas } from "./helpers";
 test.describe("Oyun akışı", () => {
   test("QR adresi → öğretici → 6 aşama → ödül → tekrar oyna; olaylar doğru", async ({ page }) => {
     const cap = captureEvents(page);
+    // Ses, animasyon ve yüz dönme dahil hiçbir yakalanmamış JS hatası olmamalı.
+    const pageErrors: string[] = [];
+    page.on("pageerror", (err) => pageErrors.push(err.message));
     await page.goto("/oyun");
     await expect(page.getByRole("heading", { name: "Diş Kahramanı Ol!" })).toBeVisible();
     await expect(page.getByText("Bu içerik ağız ve diş sağlığı farkındalığı amacıyla hazırlanmıştır.")).toBeVisible();
@@ -51,6 +54,7 @@ test.describe("Oyun akışı", () => {
     await page.evaluate(() => window.dispatchEvent(new Event("pagehide")));
     await expect.poll(() => cap.names.filter((n) => n === "phase_completed").length, { timeout: 15_000 }).toBe(6);
 
+    expect(pageErrors).toEqual([]);
     const count = (n: string) => cap.names.filter((x) => x === n).length;
     expect(count("landing_view")).toBe(1);
     expect(count("tutorial_started")).toBe(1);
