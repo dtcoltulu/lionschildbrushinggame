@@ -64,6 +64,88 @@ function tone(freq: number, start: number, dur: number, type: OscillatorType = "
   osc.stop(t0 + dur + 0.02);
 }
 
+/** "Yu-up-pi!" benzeri, ünlü harf hissi veren iki kısa kayan ses (testere dişi dalga + gezinen süzgeç). */
+function vocalGlide(start: number, dur: number, f0: number, f1: number, formant0: number, formant1: number, gain = 0.07): void {
+  if (!ctx || muted) return;
+  const t0 = ctx.currentTime + start;
+  const osc = ctx.createOscillator();
+  const filt = ctx.createBiquadFilter();
+  const g = ctx.createGain();
+  osc.type = "sawtooth";
+  osc.frequency.setValueAtTime(f0, t0);
+  osc.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
+  filt.type = "bandpass";
+  filt.Q.value = 3.5;
+  filt.frequency.setValueAtTime(formant0, t0);
+  filt.frequency.exponentialRampToValueAtTime(formant1, t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(gain, t0 + 0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(filt).connect(g).connect(ctx.destination);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.03);
+}
+
+/** Süzülen kısa "vınn": yüz dönerken. */
+function whoosh(): void {
+  if (!ctx || muted) return;
+  const t0 = ctx.currentTime;
+  const len = Math.floor(ctx.sampleRate * 0.5);
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  const filt = ctx.createBiquadFilter();
+  filt.type = "bandpass";
+  filt.Q.value = 1.2;
+  filt.frequency.setValueAtTime(300, t0);
+  filt.frequency.exponentialRampToValueAtTime(2200, t0 + 0.28);
+  filt.frequency.exponentialRampToValueAtTime(500, t0 + 0.5);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(0.08, t0 + 0.12);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.5);
+  src.connect(filt).connect(g).connect(ctx.destination);
+  src.start(t0);
+}
+
+// ---- Konuşma ("Yuppi!") – yalnızca cihazın YEREL Türkçe sesiyle ----------------------
+// Bulut sesleri metni bir sunucuya gönderebilir; gizlilik için yerel olmayan sesler kullanılmaz.
+let trVoice: SpeechSynthesisVoice | null = null;
+let voicesLoaded = false;
+
+function pickVoice(): void {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) return;
+  voicesLoaded = true;
+  trVoice = voices.find((v) => v.lang.toLowerCase().startsWith("tr") && v.localService) ?? null;
+}
+
+function speak(text: string): void {
+  if (muted || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  try {
+    if (!voicesLoaded) {
+      pickVoice();
+      window.speechSynthesis.addEventListener?.("voiceschanged", pickVoice, { once: true });
+    }
+    if (!trVoice) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.voice = trVoice;
+    u.lang = trVoice.lang;
+    u.pitch = 1.7;
+    u.rate = 1.08;
+    u.volume = 0.85;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+  } catch {
+    /* konuşma desteklenmiyorsa sessizce geç */
+  }
+}
+
+const CHEERS = ["Yuppi!", "Harika!", "Aferin!", "Süper!", "Bravo!", "Yaşasın!"];
+
 export const sfx = {
   tap: () => tone(520, 0, 0.09, "triangle", 0.06),
   swipe: () => {
@@ -76,10 +158,21 @@ export const sfx = {
     tone(784, 0, 0.12, "sine", 0.07);
     tone(1047, 0.07, 0.16, "sine", 0.06);
   },
+  /** Bir yüzey/aşama bitince: "yu-up-pi!" + parıltı + (varsa yerel Türkçe ses) kısa övgü. */
+  yay: (phaseIndex = 0) => {
+    vocalGlide(0, 0.16, 330, 620, 700, 1800);
+    vocalGlide(0.19, 0.22, 520, 980, 900, 2400, 0.08);
+    [1047, 1319, 1568, 2093].forEach((f, i) => tone(f, 0.12 + i * 0.07, 0.2, "sine", 0.05));
+    speak(CHEERS[phaseIndex % CHEERS.length]!);
+  },
+  /** Yüz dönerken. */
+  turn: () => whoosh(),
   phase: () => {
     [523, 659, 784].forEach((f, i) => tone(f, i * 0.09, 0.18, "triangle", 0.07));
   },
   fanfare: () => {
-    [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, i * 0.11, 0.22, "triangle", 0.08));
+    [523, 659, 784, 1047, 784, 1047, 1319, 1568].forEach((f, i) => tone(f, i * 0.11, 0.24, "triangle", 0.08));
+    vocalGlide(0.5, 0.25, 400, 1100, 800, 2600, 0.09);
+    speak("Diş kahramanı oldun!");
   },
 };

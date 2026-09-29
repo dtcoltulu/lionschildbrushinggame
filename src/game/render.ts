@@ -555,6 +555,15 @@ export function renderFrame(ctx: Ctx, engine: GameEngine, t: number, opts: Rende
   ctx.fillStyle = bg;
   ctx.fillRect(-2000, -2000, 4000 + WORLD_W, 4000 + WORLD_H);
 
+  // Yüz dönerken (dış/diş araları → iç yüzey) sahne ve lekeler yatayda daralıp yeniden açılır.
+  const sx = opts.reducedMotion ? 1 : engine.turnScale;
+  ctx.save();
+  if (sx !== 1) {
+    const hop = Math.sin(engine.transitionProgress * Math.PI) * -10; // dönerken hafifçe yukarı
+    ctx.translate(WORLD_W / 2, WORLD_H / 2 + hop);
+    ctx.scale(sx, 1);
+    ctx.translate(-WORLD_W / 2, -WORLD_H / 2);
+  }
   SCENES[kind](ctx);
 
   for (const p of engine.patches) {
@@ -562,8 +571,9 @@ export function renderFrame(ctx: Ctx, engine: GameEngine, t: number, opts: Rende
     drawDebris(ctx, p, fade);
   }
   for (const p of engine.patches) if (p.kind === "germ") drawGerm(ctx, p, t, opts.reducedMotion);
+  ctx.restore();
 
-  if (engine.status === "transition" && !opts.reducedMotion) drawSheen(ctx, engine.transitionProgress);
+  if (engine.status === "transition" && !engine.turning && !opts.reducedMotion) drawSheen(ctx, engine.transitionProgress);
 
   const floss = kind === "floss";
   if (engine.hintIndex !== null && engine.status === "playing") {

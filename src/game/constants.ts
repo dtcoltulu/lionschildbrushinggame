@@ -18,6 +18,8 @@ export const EASY_AFTER_MS = 11000;
 export const PHASE_EASY_ALL_MS = 24000;
 
 export const PHASE_TRANSITION_MS = 1400;
+/** Yüz dönme geçişi (dış yüzey/diş aralarından iç yüzeye geçerken): yarısında sahne değişir. */
+export const TURN_TRANSITION_MS = 1900;
 export const START_DELAY_MS = 900;
 /** Arka plandan dönüşte sürenin şişmemesi için tek karede en fazla sayılan süre. */
 export const MAX_DT_MS = 100;

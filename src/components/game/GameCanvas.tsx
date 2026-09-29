@@ -45,6 +45,7 @@ export function GameCanvas({ mode, callbacks, controlRef }: Props) {
         onComplete: (ms) => cbRef.current.onComplete?.(ms),
         onSwipe: () => cbRef.current.onSwipe?.(),
         onPatchCleaned: () => cbRef.current.onPatchCleaned?.(),
+        onTurn: () => cbRef.current.onTurn?.(),
       },
       { reducedMotion: reduced, swipesPerPatch: mode === "tutorial" ? 3 : undefined },
     );

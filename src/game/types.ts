@@ -58,4 +58,6 @@ export interface EngineCallbacks {
   onComplete?: (totalMs: number) => void;
   onSwipe?: () => void;
   onPatchCleaned?: () => void;
+  /** Yüz dönerken, sahnenin değiştiği anda bir kez çağrılır. */
+  onTurn?: () => void;
 }
