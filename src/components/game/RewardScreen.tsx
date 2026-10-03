@@ -3,23 +3,47 @@ import { useEffect, useState } from "react";
 import type { CampaignConfig } from "@/config/campaigns";
 import { tr } from "@/content/tr";
 import { EventBadge } from "@/components/brand/EventBadge";
+import { formatStamp } from "@/lib/stamp";
 import { Mascot } from "./Mascot";
 
-/** Canlı saat: ekran görüntüsüyle ödül alınmasını zorlaştırır. */
-function LiveStrip() {
-  const [now, setNow] = useState<string>("");
+/**
+ * Tarih-saat şeridi: eski bir ekran görüntüsüyle ödül alınmasını zorlaştırır.
+ * Saniye AKMAZ: eskiden saniye sayacı vardı, çocuklar "oyun hâlâ süre tutuyor" sandı. Şimdi şerit bir "bilet damgası"
+ * gibi durur; görevli yine de canlı ekranı ayırt eder (parıltı ve yıldızlar hareket eder, tarih/saat bugüne uyar).
+ */
+function StampStrip({ timeZone }: { timeZone: string }) {
+  const [stamp, setStamp] = useState<string>("");
   useEffect(() => {
-    const tick = () => setNow(new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const tick = () => {
+      const now = new Date();
+      setStamp(formatStamp(now, timeZone));
+      // Bir sonraki dakika başında yeniden çalış: yazı dakika değişince tam zamanında güncellenir, arada hiç oynamaz.
+      timer = setTimeout(tick, 60_000 - (now.getTime() % 60_000) + 50);
+    };
+    // Telefon kilidinden / başka uygulamadan dönünce bekleme, hemen güncelle.
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      clearTimeout(timer);
+      tick();
+    };
     tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, []);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [timeZone]);
   return (
     <div
       aria-hidden="true"
-      className="anim-shine mx-auto mt-2 flex w-full max-w-xs items-center justify-center rounded-full bg-gradient-to-r from-gold via-white to-gold px-4 py-1 text-lg font-extrabold tabular-nums text-ink"
+      className="anim-shine mx-auto mt-2 flex w-full max-w-xs items-center justify-center gap-2 rounded-full bg-gradient-to-r from-gold via-white to-gold px-4 py-1 text-lg font-extrabold tabular-nums text-ink"
     >
-      {now || " "}
+      <span className="anim-twinkle">⭐</span>
+      {stamp || "\u00a0"}
+      <span className="anim-twinkle" style={{ animationDelay: "0.8s" }}>
+        ⭐
+      </span>
     </div>
   );
 }
@@ -41,7 +65,7 @@ export function RewardScreen({ campaign, onReplay }: { campaign: CampaignConfig;
           {tr.reward.title}
           <span className="block text-gold">{tr.reward.subtitle}</span>
         </h1>
-        <LiveStrip />
+        <StampStrip timeZone={campaign.timezone} />
 
         <div className="mt-2 w-full rounded-3xl bg-white p-4 text-ink shadow-xl">
           <p className="text-xl font-extrabold">{tr.reward.showStaff}</p>
