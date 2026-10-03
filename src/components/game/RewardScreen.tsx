@@ -3,11 +3,11 @@ import { useEffect, useState } from "react";
 import type { CampaignConfig } from "@/config/campaigns";
 import { tr } from "@/content/tr";
 import { EventBadge } from "@/components/brand/EventBadge";
-import { describeDuration, formatStamp } from "@/lib/stamp";
+import { brushVerdict, formatDuration, formatStamp } from "@/lib/stamp";
 import { Mascot } from "./Mascot";
 
 /**
- * Ödül şeridi: üstte "kaç dakikada bitirdin" (oyun bitince donar, akmaz), altta bugünün tarihi ve saati.
+ * Ödül şeridi: üstte oyun süresi (oyun bitince donar, akmaz), altta bugünün tarihi ve saati (saniyesiz).
  * Eskiden saniye sayacı akıyordu; çocuklar "oyun hâlâ süre tutuyor" sandı. Şimdi hiçbir sayı saniye saniye akmaz.
  * Görevli yine de canlı ekranı ayırt eder: parıltı/yıldızlar hareket eder, tarih ve saat bugüne uyar.
  */
@@ -38,7 +38,7 @@ function RewardStrip({ timeZone, took }: { timeZone: string; took: string | null
     <div className="anim-shine mx-auto mt-2 flex w-full max-w-xs flex-col items-center justify-center gap-0.5 rounded-3xl bg-gradient-to-r from-gold via-white to-gold px-4 py-1.5 text-ink">
       {took && (
         <p className="text-balance text-base font-extrabold leading-tight" data-testid="took">
-          🏁 {took}
+          🏁 {tr.reward.took} {took}
         </p>
       )}
       <p aria-hidden="true" className="flex items-center gap-2 text-sm font-extrabold tabular-nums" data-testid="stamp">
@@ -53,6 +53,7 @@ function RewardStrip({ timeZone, took }: { timeZone: string; took: string | null
 }
 
 export function RewardScreen({ campaign, durationMs, onReplay }: { campaign: CampaignConfig; durationMs?: number | null; onReplay: () => void }) {
+  const verdict = brushVerdict(durationMs);
   return (
     <main className="screen flex flex-col items-center bg-gradient-to-b from-purple to-ink px-5 pb-6 pt-4 text-center text-white" data-testid="reward-screen">
       <div className="w-full max-w-md">
@@ -69,7 +70,19 @@ export function RewardScreen({ campaign, durationMs, onReplay }: { campaign: Cam
           {tr.reward.title}
           <span className="block text-gold">{tr.reward.subtitle}</span>
         </h1>
-        <RewardStrip timeZone={campaign.timezone} took={describeDuration(durationMs)} />
+        <RewardStrip timeZone={campaign.timezone} took={formatDuration(durationMs)} />
+        {verdict && (
+          <p
+            data-testid="verdict"
+            data-verdict={verdict}
+            className={`w-full max-w-xs rounded-2xl px-4 py-2 text-base font-extrabold leading-snug ${
+              verdict === "quick" ? "bg-gold/20 text-gold ring-2 ring-gold/60" : "bg-mint/20 text-mint ring-2 ring-mint/60"
+            }`}
+          >
+            {verdict === "quick" ? "🦠 " : "🎉 "}
+            {verdict === "quick" ? tr.reward.quick : tr.reward.ideal}
+          </p>
+        )}
 
         <div className="mt-2 w-full rounded-3xl bg-white p-4 text-ink shadow-xl">
           <p className="text-xl font-extrabold">{tr.reward.showStaff}</p>

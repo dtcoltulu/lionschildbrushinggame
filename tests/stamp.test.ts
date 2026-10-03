@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeDuration, formatStamp } from "@/lib/stamp";
+import { brushVerdict, formatDuration, formatStamp, IDEAL_BRUSH_MS } from "@/lib/stamp";
 
 describe("ödül ekranı tarih-saat şeridi", () => {
   it("kampanya saat diliminde tarih ve saat verir (saniye YOK)", () => {
@@ -29,31 +29,30 @@ describe("ödül ekranı tarih-saat şeridi", () => {
   });
 });
 
-describe("ödül ekranı: kaç dakikada bitirdin", () => {
-  it("60 sn altı hepsi 'bir dakikadan kısa' (saniye gösterilmez)", () => {
-    for (const ms of [1, 20_000, 27_300, 45_000, 59_400]) {
-      expect(describeDuration(ms)).toBe("Bir dakikadan kısa sürede bitirdin!");
-    }
-  });
-
-  it("60 sn ve üstü en yakın dakikaya yuvarlanır", () => {
-    expect(describeDuration(59_500)).toBe("Yaklaşık 1 dakikada bitirdin!");
-    expect(describeDuration(60_000)).toBe("Yaklaşık 1 dakikada bitirdin!");
-    expect(describeDuration(89_000)).toBe("Yaklaşık 1 dakikada bitirdin!");
-    expect(describeDuration(90_000)).toBe("Yaklaşık 2 dakikada bitirdin!");
-    expect(describeDuration(125_000)).toBe("Yaklaşık 2 dakikada bitirdin!");
-    expect(describeDuration(185_000)).toBe("Yaklaşık 3 dakikada bitirdin!");
-  });
-
-  it("skor rekabeti olmasın: cümlede saniye ya da ayrıntılı sayı yok", () => {
-    for (const ms of [40_000, 72_000, 118_000]) {
-      expect(describeDuration(ms)).not.toMatch(/saniye|sn\b|\d{2}/);
-    }
+describe("ödül ekranı: oyun süresi", () => {
+  it("süreyi dk/sn olarak yazar", () => {
+    expect(formatDuration(45_000)).toBe("45 sn");
+    expect(formatDuration(72_000)).toBe("1 dk 12 sn");
+    expect(formatDuration(120_000)).toBe("2 dk");
+    expect(formatDuration(125_400)).toBe("2 dk 5 sn");
+    expect(formatDuration(200)).toBe("1 sn");
   });
 
   it("geçersiz ya da sıfır süre → null (satır gizlenir)", () => {
     for (const ms of [null, undefined, 0, -5, Number.NaN, Number.POSITIVE_INFINITY]) {
-      expect(describeDuration(ms)).toBeNull();
+      expect(formatDuration(ms)).toBeNull();
+      expect(brushVerdict(ms)).toBeNull();
     }
+  });
+});
+
+describe("ödül ekranı: 2 dakika geri bildirimi", () => {
+  it("2 dakikadan kısa → quick (mikroplar kalmış olabilir uyarısı)", () => {
+    expect(IDEAL_BRUSH_MS).toBe(120_000);
+    for (const ms of [1, 27_000, 56_000, 90_000, 119_999]) expect(brushVerdict(ms)).toBe("quick");
+  });
+
+  it("2 dakika ve üzeri → ideal (tebrik)", () => {
+    for (const ms of [120_000, 125_000, 300_000]) expect(brushVerdict(ms)).toBe("ideal");
   });
 });

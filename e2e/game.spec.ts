@@ -46,8 +46,9 @@ test.describe("Oyun akışı", () => {
     await expect(reward).toContainText("Yaklaşık 2 dakika fırçala");
     await expect(reward).toContainText("Dişlerini düzenli kontrol ettir");
     await expect(reward).toContainText("Tekrar Oyna");
-    // "Kaç dakikada bitirdin" (kaba, saniyesiz) + tarih/saat damgası; hiçbir şey saniye saniye akmaz.
-    await expect(reward.getByTestId("took")).toHaveText(/^🏁 (Bir dakikadan kısa sürede|Yaklaşık \d+ dakikada) bitirdin!$/);
+    // Oyun süresi + 2 dakika geri bildirimi + tarih/saat damgası; hiçbir şey saniye saniye akmaz.
+    await expect(reward.getByTestId("took")).toHaveText(/^🏁 Süren: (\d+ dk)?( ?\d+ sn)?$/);
+    await expect(reward.getByTestId("verdict")).toHaveText(/Hızlı fırçaladın!|ideal süreye ulaştın!/);
     await expect(reward.getByTestId("stamp")).toHaveText(/\d{1,2} \p{L}+ · \d{2}:\d{2}/u);
     await expect(reward.getByTestId("stamp")).not.toHaveText(/\d{2}:\d{2}:\d{2}/);
 
