@@ -31,6 +31,8 @@ export function GameApp({ campaigns, defaultCampaignId }: Props) {
   const campaign = campaigns.find((c) => c.campaignId === requested) ?? fallback;
   const [screen, setScreen] = useState<Screen>("landing");
   const [playKey, setPlayKey] = useState(0);
+  /** Son oyunun gerçek oynama süresi (ms): ödül ekranında kaba biçimde gösterilir, panele de aynı değer gider. */
+  const [playMs, setPlayMs] = useState<number | null>(null);
   const analytics = useRef<Analytics | null>(null);
   const play = useRef<PlayInfo | null>(null);
   const finished = useRef(false);
@@ -113,6 +115,7 @@ export function GameApp({ campaigns, defaultCampaignId }: Props) {
     const a = analytics.current;
     a?.track("game_completed", { playId: p?.playId, playIndex: p?.playIndex, durationMs: totalMs });
     a?.track("reward_screen_viewed", { playId: p?.playId, playIndex: p?.playIndex });
+    setPlayMs(totalMs);
     setScreen("reward");
   }, []);
 
@@ -127,6 +130,7 @@ export function GameApp({ campaigns, defaultCampaignId }: Props) {
       return (
         <RewardScreen
           campaign={campaign}
+          durationMs={playMs}
           onReplay={() => {
             unlockAudio();
             sfx.tap();

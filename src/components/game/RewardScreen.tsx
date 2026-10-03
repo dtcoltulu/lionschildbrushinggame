@@ -3,28 +3,57 @@ import { useEffect, useState } from "react";
 import type { CampaignConfig } from "@/config/campaigns";
 import { tr } from "@/content/tr";
 import { EventBadge } from "@/components/brand/EventBadge";
+import { brushVerdict, formatDuration, formatStamp } from "@/lib/stamp";
 import { Mascot } from "./Mascot";
 
-/** Canlı saat: ekran görüntüsüyle ödül alınmasını zorlaştırır. */
-function LiveStrip() {
-  const [now, setNow] = useState<string>("");
+/**
+ * Ödül şeridi: üstte oyun süresi (oyun bitince donar, akmaz), altta bugünün tarihi ve saati (saniyesiz).
+ * Eskiden saniye sayacı akıyordu; çocuklar "oyun hâlâ süre tutuyor" sandı. Şimdi hiçbir sayı saniye saniye akmaz.
+ * Görevli yine de canlı ekranı ayırt eder: parıltı/yıldızlar hareket eder, tarih ve saat bugüne uyar.
+ */
+function RewardStrip({ timeZone, took }: { timeZone: string; took: string | null }) {
+  const [stamp, setStamp] = useState<string>("");
   useEffect(() => {
-    const tick = () => setNow(new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const tick = () => {
+      const now = new Date();
+      setStamp(formatStamp(now, timeZone));
+      // Bir sonraki dakika başında yeniden çalış: yazı dakika değişince tam zamanında güncellenir, arada hiç oynamaz.
+      timer = setTimeout(tick, 60_000 - (now.getTime() % 60_000) + 50);
+    };
+    // Telefon kilidinden / başka uygulamadan dönünce bekleme, hemen güncelle.
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      clearTimeout(timer);
+      tick();
+    };
     tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, []);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [timeZone]);
   return (
-    <div
-      aria-hidden="true"
-      className="anim-shine mx-auto mt-2 flex w-full max-w-xs items-center justify-center rounded-full bg-gradient-to-r from-gold via-white to-gold px-4 py-1 text-lg font-extrabold tabular-nums text-ink"
-    >
-      {now || " "}
+    <div className="anim-shine mx-auto mt-2 flex w-full max-w-xs flex-col items-center justify-center gap-0.5 rounded-3xl bg-gradient-to-r from-gold via-white to-gold px-4 py-1.5 text-ink">
+      {took && (
+        <p className="text-balance text-base font-extrabold leading-tight" data-testid="took">
+          🏁 {tr.reward.took} {took}
+        </p>
+      )}
+      <p aria-hidden="true" className="flex items-center gap-2 text-sm font-extrabold tabular-nums" data-testid="stamp">
+        <span className="anim-twinkle">⭐</span>
+        {stamp || "\u00a0"}
+        <span className="anim-twinkle" style={{ animationDelay: "0.8s" }}>
+          ⭐
+        </span>
+      </p>
     </div>
   );
 }
 
-export function RewardScreen({ campaign, onReplay }: { campaign: CampaignConfig; onReplay: () => void }) {
+export function RewardScreen({ campaign, durationMs, onReplay }: { campaign: CampaignConfig; durationMs?: number | null; onReplay: () => void }) {
+  const verdict = brushVerdict(durationMs);
   return (
     <main className="screen flex flex-col items-center bg-gradient-to-b from-purple to-ink px-5 pb-6 pt-4 text-center text-white" data-testid="reward-screen">
       <div className="w-full max-w-md">
@@ -41,7 +70,19 @@ export function RewardScreen({ campaign, onReplay }: { campaign: CampaignConfig;
           {tr.reward.title}
           <span className="block text-gold">{tr.reward.subtitle}</span>
         </h1>
-        <LiveStrip />
+        <RewardStrip timeZone={campaign.timezone} took={formatDuration(durationMs)} />
+        {verdict && (
+          <p
+            data-testid="verdict"
+            data-verdict={verdict}
+            className={`w-full max-w-xs rounded-2xl px-4 py-2 text-base font-extrabold leading-snug ${
+              verdict === "quick" ? "bg-gold/20 text-gold ring-2 ring-gold/60" : "bg-mint/20 text-mint ring-2 ring-mint/60"
+            }`}
+          >
+            {verdict === "quick" ? "🦠 " : "🎉 "}
+            {verdict === "quick" ? tr.reward.quick : tr.reward.ideal}
+          </p>
+        )}
 
         <div className="mt-2 w-full rounded-3xl bg-white p-4 text-ink shadow-xl">
           <p className="text-xl font-extrabold">{tr.reward.showStaff}</p>

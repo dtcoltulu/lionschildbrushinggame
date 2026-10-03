@@ -213,7 +213,7 @@ describe("sesler", () => {
     env.fireVoicesChanged();
     audio.sfx.yay(1);
     vi.advanceTimersByTime(audio.SPEECH.delayMs + 10);
-    expect(env.said().map((u) => u.text)).toEqual(["Büyü tuttu!"]);
+    expect(env.said().map((u) => u.text)).toEqual(["Süper güç!"]);
   });
 
   it("aşama sesleri çift/tek sayılı aşamada farklı tarzda çalar (oyun: kare dalga / büyü: yumuşak)", async () => {

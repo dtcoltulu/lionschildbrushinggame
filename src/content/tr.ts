@@ -74,6 +74,9 @@ export const tr = {
       { icon: "😁", text: "Dişlerini düzenli kontrol ettir" },
     ],
     replay: "Tekrar Oyna",
+    took: "Süren:",
+    quick: "Hızlı fırçaladın! Minimum 2 dakika fırçala, mikroplar kalmış olabilir!",
+    ideal: "Tebrikler, ideal süreye ulaştın! Yine de dişlerini düzenli kontrol ettirmeyi unutma.",
   },
   privacyPage: {
     title: "Gizlilik",
