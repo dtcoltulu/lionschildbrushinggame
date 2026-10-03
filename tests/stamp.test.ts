@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatStamp } from "@/lib/stamp";
+import { describeDuration, formatStamp } from "@/lib/stamp";
 
 describe("ödül ekranı tarih-saat şeridi", () => {
   it("kampanya saat diliminde tarih ve saat verir (saniye YOK)", () => {
@@ -26,5 +26,34 @@ describe("ödül ekranı tarih-saat şeridi", () => {
   it("geçersiz saat diliminde çökmez, cihaz saatine düşer", () => {
     const s = formatStamp(new Date("2026-10-11T11:32:09Z"), "Mars/Olympus");
     expect(s).toMatch(/^\d{1,2} \p{L}+ · \d{2}:\d{2}$/u);
+  });
+});
+
+describe("ödül ekranı: kaç dakikada bitirdin", () => {
+  it("60 sn altı hepsi 'bir dakikadan kısa' (saniye gösterilmez)", () => {
+    for (const ms of [1, 20_000, 27_300, 45_000, 59_400]) {
+      expect(describeDuration(ms)).toBe("Bir dakikadan kısa sürede bitirdin!");
+    }
+  });
+
+  it("60 sn ve üstü en yakın dakikaya yuvarlanır", () => {
+    expect(describeDuration(59_500)).toBe("Yaklaşık 1 dakikada bitirdin!");
+    expect(describeDuration(60_000)).toBe("Yaklaşık 1 dakikada bitirdin!");
+    expect(describeDuration(89_000)).toBe("Yaklaşık 1 dakikada bitirdin!");
+    expect(describeDuration(90_000)).toBe("Yaklaşık 2 dakikada bitirdin!");
+    expect(describeDuration(125_000)).toBe("Yaklaşık 2 dakikada bitirdin!");
+    expect(describeDuration(185_000)).toBe("Yaklaşık 3 dakikada bitirdin!");
+  });
+
+  it("skor rekabeti olmasın: cümlede saniye ya da ayrıntılı sayı yok", () => {
+    for (const ms of [40_000, 72_000, 118_000]) {
+      expect(describeDuration(ms)).not.toMatch(/saniye|sn\b|\d{2}/);
+    }
+  });
+
+  it("geçersiz ya da sıfır süre → null (satır gizlenir)", () => {
+    for (const ms of [null, undefined, 0, -5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(describeDuration(ms)).toBeNull();
+    }
   });
 });

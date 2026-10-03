@@ -15,3 +15,14 @@ export function formatStamp(date: Date, timeZone?: string): string {
     return make(undefined);
   }
 }
+
+/**
+ * "Kaç dakikada bitirdin?" cümlesi (ödül ekranı). Bilerek KABA: "skor rekabeti olmasın" ilkesi gereği saniye gösterilmez.
+ * 60 sn altı hepsi "bir dakikadan kısa"; sonrası en yakın dakikaya yuvarlanır. Geçersiz/sıfır süre → null (satır gizlenir).
+ */
+export function describeDuration(ms: number | null | undefined): string | null {
+  if (ms === null || ms === undefined || !Number.isFinite(ms) || ms <= 0) return null;
+  const sec = Math.round(ms / 1000);
+  if (sec < 60) return "Bir dakikadan kısa sürede bitirdin!";
+  return `Yaklaşık ${Math.round(sec / 60)} dakikada bitirdin!`;
+}

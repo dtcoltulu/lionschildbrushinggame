@@ -3,15 +3,15 @@ import { useEffect, useState } from "react";
 import type { CampaignConfig } from "@/config/campaigns";
 import { tr } from "@/content/tr";
 import { EventBadge } from "@/components/brand/EventBadge";
-import { formatStamp } from "@/lib/stamp";
+import { describeDuration, formatStamp } from "@/lib/stamp";
 import { Mascot } from "./Mascot";
 
 /**
- * Tarih-saat şeridi: eski bir ekran görüntüsüyle ödül alınmasını zorlaştırır.
- * Saniye AKMAZ: eskiden saniye sayacı vardı, çocuklar "oyun hâlâ süre tutuyor" sandı. Şimdi şerit bir "bilet damgası"
- * gibi durur; görevli yine de canlı ekranı ayırt eder (parıltı ve yıldızlar hareket eder, tarih/saat bugüne uyar).
+ * Ödül şeridi: üstte "kaç dakikada bitirdin" (oyun bitince donar, akmaz), altta bugünün tarihi ve saati.
+ * Eskiden saniye sayacı akıyordu; çocuklar "oyun hâlâ süre tutuyor" sandı. Şimdi hiçbir sayı saniye saniye akmaz.
+ * Görevli yine de canlı ekranı ayırt eder: parıltı/yıldızlar hareket eder, tarih ve saat bugüne uyar.
  */
-function StampStrip({ timeZone }: { timeZone: string }) {
+function RewardStrip({ timeZone, took }: { timeZone: string; took: string | null }) {
   const [stamp, setStamp] = useState<string>("");
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -35,20 +35,24 @@ function StampStrip({ timeZone }: { timeZone: string }) {
     };
   }, [timeZone]);
   return (
-    <div
-      aria-hidden="true"
-      className="anim-shine mx-auto mt-2 flex w-full max-w-xs items-center justify-center gap-2 rounded-full bg-gradient-to-r from-gold via-white to-gold px-4 py-1 text-lg font-extrabold tabular-nums text-ink"
-    >
-      <span className="anim-twinkle">⭐</span>
-      {stamp || "\u00a0"}
-      <span className="anim-twinkle" style={{ animationDelay: "0.8s" }}>
-        ⭐
-      </span>
+    <div className="anim-shine mx-auto mt-2 flex w-full max-w-xs flex-col items-center justify-center gap-0.5 rounded-3xl bg-gradient-to-r from-gold via-white to-gold px-4 py-1.5 text-ink">
+      {took && (
+        <p className="text-balance text-base font-extrabold leading-tight" data-testid="took">
+          🏁 {took}
+        </p>
+      )}
+      <p aria-hidden="true" className="flex items-center gap-2 text-sm font-extrabold tabular-nums" data-testid="stamp">
+        <span className="anim-twinkle">⭐</span>
+        {stamp || "\u00a0"}
+        <span className="anim-twinkle" style={{ animationDelay: "0.8s" }}>
+          ⭐
+        </span>
+      </p>
     </div>
   );
 }
 
-export function RewardScreen({ campaign, onReplay }: { campaign: CampaignConfig; onReplay: () => void }) {
+export function RewardScreen({ campaign, durationMs, onReplay }: { campaign: CampaignConfig; durationMs?: number | null; onReplay: () => void }) {
   return (
     <main className="screen flex flex-col items-center bg-gradient-to-b from-purple to-ink px-5 pb-6 pt-4 text-center text-white" data-testid="reward-screen">
       <div className="w-full max-w-md">
@@ -65,7 +69,7 @@ export function RewardScreen({ campaign, onReplay }: { campaign: CampaignConfig;
           {tr.reward.title}
           <span className="block text-gold">{tr.reward.subtitle}</span>
         </h1>
-        <StampStrip timeZone={campaign.timezone} />
+        <RewardStrip timeZone={campaign.timezone} took={describeDuration(durationMs)} />
 
         <div className="mt-2 w-full rounded-3xl bg-white p-4 text-ink shadow-xl">
           <p className="text-xl font-extrabold">{tr.reward.showStaff}</p>

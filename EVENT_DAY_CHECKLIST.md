@@ -71,7 +71,8 @@ Yazdırıp standda bulundurun. Kutuları işaretleyin.
 
 - [ ] "TEBRİKLER! DİŞ KAHRAMANI OLDUN!" görünüyor
 - [ ] "Bu ekranı Lions standındaki görevliye göster." ve "Diş macunu hediyeni al." görünüyor
-- [ ] **Şeritteki tarih ve saat doğru** ve parıltı/yıldızlar **hareket ediyor** (görevliler eski ekran görüntüsünü böyle ayırt eder: görüntüde hareket yoktur, tarih/saat bugüne uymaz). Saniye sayacı bilerek yok: çocuklar "süre hâlâ akıyor" diye şaşırdı.
+- [ ] Altın şeritte **"Bir dakikadan kısa sürede / Yaklaşık N dakikada bitirdin!"** yazıyor (oyunun gerçek süresi, kaba: yarışmaya dönmesin diye saniye yok) ve altında **bugünün tarihi ve saati** var
+- [ ] **Şeritteki tarih/saat doğru** ve parıltı/yıldızlar **hareket ediyor** (görevliler eski ekran görüntüsünü böyle ayırt eder: görüntüde hareket yoktur, tarih/saat bugüne uymaz). Saniye sayacı bilerek yok: çocuklar "süre hâlâ akıyor" diye şaşırdı.
 - [ ] Görevliler bilgilendirildi: ödül ekranı = 1 diş macunu; "Tekrar Oyna" ile gelen ekran için ekibin ortak kararı (ör. aynı çocuğa tekrar verilmez)
 
 ## 🎈 Etkinlik sırasında
