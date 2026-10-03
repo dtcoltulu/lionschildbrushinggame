@@ -20,7 +20,7 @@ Süre: çocuk başına yaklaşık 5 dakika. En az **5 çocuk**, farklı yaşlard
 - **Fırçalama:** Hareketi doğal buldu mu? Küçük çocuklar leke kaçırıyor mu? Ekran kayıyor ya da sayfa yenileniyor mu?
 - **Süre:** Toplam süre 45–90 sn aralığında mı? Çok kısaysa `SWIPES_PER_PATCH` artırılır, çok uzunsa azaltılır (`src/game/constants.ts`).
 - **Yüz dönme:** Diş araları bittikten sonra yüzün dönmesi ve "Bitmedi!" yazısı hoşuna gitti mi, şaşırdı mı?
-- **Sesler:** "Yuppi", "Büyü tuttu" gibi sözleri fark etti mi, güldü mü? Sesi rahatsız edici buldu mu? Ses seviyesi yeterli mi?
+- **Sesler:** "Yuppi", "Süper güç" gibi sözleri fark etti mi, güldü mü? Sesi rahatsız edici buldu mu? Ses seviyesi yeterli mi?
 - **Ödül ekranı:** "Diş macunu hediyeni al" mesajını okudu/anladı mı? Görevliye göstermesi gerektiğini biliyor mu? Şeritteki "Süren" yazısını, tarih/saati ve "Hızlı fırçaladın!" / "ideal süreye ulaştın!" mesajını fark etti mi, anladı mı, "bu ne?" diye sordu mu? (İlk denemede saniye sayacı "süre hâlâ akıyor" diye şaşırtmıştı; şimdi saniye akmıyor.) Çocuklar süreleri birbiriyle yarıştırıyor mu?
 - **Dikkat:** En sıkıldığı yer neresi? Oyunu yarıda bırakan oldu mu (hangi aşamada)?
 

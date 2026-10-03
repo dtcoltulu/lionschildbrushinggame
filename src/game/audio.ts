@@ -315,7 +315,7 @@ function speak(text: string): void {
  * Oyun dünyası tarzında (seviye atlama, yıldız, büyü) kısa ve telaffuzu kolay Türkçe övgüler.
  * Sıra: 6 aşamanın her biri için biri; tekrar oynamada baştan.
  */
-export const CHEERS = ["Yuppi!", "Büyü tuttu!", "Seviye atladın!", "Sihirbaz gibisin!", "Bir yıldız daha!", "Pırıl pırıl!"] as const;
+export const CHEERS = ["Yuppi!", "Süper güç!", "Seviye atladın!", "Sihirbaz gibisin!", "Bir yıldız daha!", "Pırıl pırıl!"] as const;
 export const FINAL_CHEER = "Diş kahramanı oldun! Bravo sana!";
 
 /** Oyun tarzı 8-bit "madeni para/yıldız": iki kısa, yüksek kare dalga notası. */
