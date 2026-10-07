@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Diş Kahramanı Ol! – A4 stand afişi</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 210mm; height: 297mm; }
+  body { font-family: "Liberation Sans", "Helvetica Neue", Arial, sans-serif; background: #fff; color: #1c1038; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .sheet { width: 210mm; height: 297mm; padding: 7mm; }
+  /* Ofis yazıcıları kenarı basamaz: renkli panel kenardan 7 mm içeride durur */
+  .panel { position: relative; width: 196mm; height: 283mm; border-radius: 10mm; overflow: hidden; color: #fff;
+    background:
+      radial-gradient(circle at 85% 12%, rgba(245,184,0,.28), transparent 38%),
+      radial-gradient(circle at 8% 60%, rgba(35,199,154,.22), transparent 34%),
+      linear-gradient(170deg, #5b3fa8 0%, #2e1a5e 45%, #1c1038 100%); }
+  .deco { position: absolute; inset: 0; pointer-events: none; }
+  .content { position: relative; height: 100%; padding: 8mm 11mm 6mm; display: flex; flex-direction: column; align-items: center; text-align: center; }
+
+  .top { width: 100%; display: flex; align-items: center; gap: 4mm; text-align: left; }
+  .badge { width: 21mm; height: 21mm; background: #fff; border-radius: 5mm; display: grid; place-items: center; flex: none; box-shadow: 0 1mm 3mm rgba(0,0,0,.25); }
+  .badge img { width: 17mm; height: auto; }
+  .top .org { font-size: 5.2mm; font-weight: 700; line-height: 1.2; }
+  .top .org small { display: block; font-size: 3.9mm; font-weight: 400; opacity: .85; }
+  .top .day { margin-left: auto; text-align: right; font-size: 4mm; line-height: 1.25; opacity: .95; }
+  .top .day b { color: #f5b800; font-size: 4.6mm; display: block; }
+
+  .hero { position: relative; width: 100%; margin-top: 2mm; display: flex; align-items: center; justify-content: center; gap: 2mm; }
+  .title { text-align: left; }
+  .title .l1 { font-size: 17mm; line-height: .95; font-weight: 700; color: #f5b800; letter-spacing: -.2mm; text-shadow: 0 1.2mm 0 #a87800; }
+  .title .l2 { font-size: 27mm; line-height: .92; font-weight: 700; color: #fff; text-shadow: 0 1.5mm 0 rgba(0,0,0,.28); }
+  .mascot { width: 66mm; height: 56mm; flex: none; }
+
+  .lead { margin-top: 0; font-size: 6.6mm; line-height: 1.2; font-weight: 700; }
+  .lead em { font-style: normal; color: #f5b800; }
+
+  .ribbon { margin-top: 3.5mm; background: #f5b800; color: #1c1038; font-weight: 700; font-size: 6.4mm; padding: 2.2mm 9mm; border-radius: 99mm; box-shadow: 0 1.2mm 0 #a87800; position: relative; z-index: 2; }
+  .qrcard { margin-top: -4mm; background: #fff; border: 2.2mm solid #f5b800; border-radius: 9mm; padding: 8mm 4mm 4mm; box-shadow: 0 2mm 6mm rgba(0,0,0,.35); }
+  .qrcard img { display: block; width: 84mm; height: 84mm; }
+
+  .steps { margin-top: 4mm; width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+  .step { background: rgba(255,255,255,.12); border: .4mm solid rgba(255,255,255,.35); border-radius: 5mm; padding: 2.4mm 3mm 2.6mm; font-size: 4.3mm; line-height: 1.2; font-weight: 700; }
+  .step .n { width: 9mm; height: 9mm; margin: 0 auto 1.6mm; border-radius: 50%; background: #23c79a; color: #0b3b2e; display: grid; place-items: center; font-size: 5.8mm; font-weight: 700; }
+  .step:nth-child(3) .n { background: #f5b800; color: #1c1038; }
+
+  .foot { margin-top: auto; width: 100%; }
+  .url { display: inline-block; background: #fff; color: #2e1a5e; font-weight: 700; font-size: 7mm; padding: 1.4mm 8mm; border-radius: 99mm; }
+  .url-note { font-size: 3.8mm; opacity: .85; margin-bottom: 1.6mm; }
+  .place { margin-top: 2mm; font-size: 4.2mm; font-weight: 700; }
+  .fine { margin-top: 1.4mm; font-size: 2.9mm; opacity: .7; }
+</style>
+</head>
+<body>
+<div class="sheet"><div class="panel">
+
+  <svg class="deco" viewBox="0 0 196 283" preserveAspectRatio="none" aria-hidden="true">
+    <g fill="#f5b800" opacity=".9">
+      <path d="M20 98l2.2 5.2 5.2 2.2-5.2 2.2L20 113l-2.2-5.4-5.2-2.2 5.2-2.2z"/>
+      <path d="M176 112l2.6 6.2 6.2 2.6-6.2 2.6-2.6 6.2-2.6-6.2-6.2-2.6 6.2-2.6z"/>
+      <path d="M12 168l1.8 4.4 4.4 1.8-4.4 1.8L12 180.4l-1.8-4.4-4.4-1.8 4.4-1.8z"/>
+      <path d="M184 196l1.8 4.4 4.4 1.8-4.4 1.8-1.8 4.4-1.8-4.4-4.4-1.8 4.4-1.8z"/>
+      <path d="M96 76l1.6 3.8 3.8 1.6-3.8 1.6L96 86.8l-1.6-3.8-3.8-1.6 3.8-1.6z" opacity=".7"/>
+    </g>
+    <g fill="#fff" opacity=".14">
+      <circle cx="182" cy="34" r="12"/><circle cx="8" cy="176" r="14"/><circle cx="190" cy="168" r="9"/><circle cx="40" cy="132" r="6"/>
+    </g>
+  </svg>
+
+  <div class="content">
+    <div class="top">
+      <div class="badge"><img src="../public/assets/lions-logo-hd.png" alt="Lions"></div>
+      <div class="org">118-Y Lions<small>Ağız ve Diş Sağlığı Komitesi</small></div>
+      <div class="day"><b>11 Ekim 2026</b>Dünya Lions Hizmet Günü</div>
+    </div>
+
+    <div class="hero">
+      <div class="title"><div class="l1">DİŞ KAHRAMANI</div><div class="l2">OL!</div></div>
+      <svg class="mascot" viewBox="-4 -4 146 124" aria-label="Gülen diş karakteri">
+        <ellipse cx="60" cy="112" rx="34" ry="5" fill="rgba(0,0,0,.25)"/>
+        <!-- diş fırçası -->
+        <g transform="translate(104 104) rotate(24) scale(.56)">
+          <rect x="-4.2" y="-86" width="8.4" height="68" rx="4.2" fill="#23c79a"/>
+          <rect x="-4.2" y="-86" width="8.4" height="14" rx="4.2" fill="#0f8f6c"/>
+          <rect x="-8.4" y="-130" width="16.8" height="46" rx="5" fill="#f5b800"/>
+          <g stroke="#fff" stroke-width="2.6" stroke-linecap="round">
+            <path d="M-5 -127v-12M0 -127v-14M5 -127v-12"/><path d="M-5 -112v-1M0 -112v-1M5 -112v-1" stroke="none"/>
+          </g>
+          <rect x="-7" y="-146" width="14" height="22" rx="4" fill="#fff"/>
+          <g stroke="#cfe6ff" stroke-width="1.4"><path d="M-3 -143v16M0 -143v16M3 -143v16"/></g>
+        </g>
+        <!-- diş -->
+        <path d="M60 12c-14-9-38-2-38 24 0 16 8 22 9 40 1 16 12 20 15 6 2-9 12-9 14 0 3 14 14 10 15-6 1-18 9-24 9-40 0-26-24-33-24-24z" fill="#fffdf6" stroke="#cfc5ac" stroke-width="3" transform="translate(0,-2)"/>
+        <path d="M36 30c2-8 9-12 15-12" stroke="#fff" stroke-width="6" stroke-linecap="round" fill="none"/>
+        <circle cx="48" cy="52" r="5" fill="#1c1038"/><circle cx="72" cy="52" r="5" fill="#1c1038"/>
+        <circle cx="49.5" cy="50.5" r="1.7" fill="#fff"/><circle cx="73.5" cy="50.5" r="1.7" fill="#fff"/>
+        <circle cx="40" cy="64" r="5" fill="#ff8fa3" opacity=".7"/><circle cx="80" cy="64" r="5" fill="#ff8fa3" opacity=".7"/>
+        <path d="M48 64q12 14 24 0z" fill="#5a1a2e" stroke="#1c1038" stroke-width="3" stroke-linejoin="round"/>
+        <g fill="#f5b800"><path d="M104 22l3 7 7 3-7 3-3 7-3-7-7-3 7-3z"/><path d="M12 70l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/></g>
+      </svg>
+    </div>
+
+    <p class="lead">Telefonunla okut, dişleri <em>parlat</em>,<br>diş macunu hediyeni <em>kap!</em></p>
+
+    <div class="ribbon">📱 TELEFONUNLA QR KODU OKUT</div>
+    <div class="qrcard"><img src="../qr-kodlar/diskahramani-qr.svg" alt="QR kod: www.diskahramani.com/oyun"></div>
+
+    <div class="steps">
+      <div class="step"><div class="n">1</div>QR kodu<br>okut</div>
+      <div class="step"><div class="n">2</div>Dişleri parmağınla<br>fırçala, oyunu bitir</div>
+      <div class="step"><div class="n">3</div>Ekranı standdaki<br>görevliye göster</div>
+    </div>
+
+    <div class="foot">
+      <div class="url-note">QR okunmazsa tarayıcıya şu adresi yaz:</div>
+      <div class="url">www.diskahramani.com</div>
+      <div class="place">Özgürlük Parkı, Kadıköy · Lions standında seni bekliyoruz!</div>
+      <div class="fine">İsim, telefon ya da kayıt istenmez. Bu içerik ağız ve diş sağlığı farkındalığı amacıyla hazırlanmıştır.</div>
+    </div>
+  </div>
+</div></div>
+</body>
+</html>
