@@ -18,37 +18,40 @@
   .deco { position: absolute; inset: 0; pointer-events: none; }
   .content { position: relative; height: 100%; padding: 8mm 11mm 6mm; display: flex; flex-direction: column; align-items: center; text-align: center; }
 
-  .top { width: 100%; display: flex; align-items: center; gap: 4mm; text-align: left; }
-  .badge { width: 21mm; height: 21mm; background: #fff; border-radius: 5mm; display: grid; place-items: center; flex: none; box-shadow: 0 1mm 3mm rgba(0,0,0,.25); }
-  .badge img { width: 17mm; height: auto; }
-  .top .org { font-size: 5.2mm; font-weight: 700; line-height: 1.2; }
-  .top .org small { display: block; font-size: 3.9mm; font-weight: 400; opacity: .85; }
-  .top .day { margin-left: auto; text-align: right; font-size: 4mm; line-height: 1.25; opacity: .95; }
-  .top .day b { color: #f5b800; font-size: 4.6mm; display: block; }
-
+  .logos { width: 100%; display: flex; justify-content: center; align-items: center; gap: 9mm; }
+  .plate { width: 29mm; height: 29mm; border-radius: 50%; background: #fff; border: 1mm solid #f5b800; display: grid; place-items: center; flex: none; box-shadow: 0 1mm 3mm rgba(0,0,0,.3); overflow: hidden; }
+  .plate img { display: block; width: 23.5mm; height: 23.5mm; object-fit: contain; }
+  .plate.lions img { width: 20.5mm; height: auto; }
+  .plate.cevre img { width: 22.5mm; height: 23.8mm; }
   .hero { position: relative; width: 100%; margin-top: 2mm; display: flex; align-items: center; justify-content: center; gap: 2mm; }
   .title { text-align: left; }
   .title .l1 { font-size: 17mm; line-height: .95; font-weight: 700; color: #f5b800; letter-spacing: -.2mm; text-shadow: 0 1.2mm 0 #a87800; }
-  .title .l2 { font-size: 27mm; line-height: .92; font-weight: 700; color: #fff; text-shadow: 0 1.5mm 0 rgba(0,0,0,.28); }
-  .mascot { width: 66mm; height: 56mm; flex: none; }
+  .title .l2 { font-size: 24mm; line-height: .92; font-weight: 700; color: #fff; text-shadow: 0 1.5mm 0 rgba(0,0,0,.28); }
+  .mascot { width: 62mm; height: 52mm; flex: none; }
 
   .lead { margin-top: 0; font-size: 6.6mm; line-height: 1.2; font-weight: 700; }
   .lead em { font-style: normal; color: #f5b800; }
 
   .ribbon { margin-top: 3.5mm; background: #f5b800; color: #1c1038; font-weight: 700; font-size: 6.4mm; padding: 2.2mm 9mm; border-radius: 99mm; box-shadow: 0 1.2mm 0 #a87800; position: relative; z-index: 2; }
   .qrcard { margin-top: -4mm; background: #fff; border: 2.2mm solid #f5b800; border-radius: 9mm; padding: 8mm 4mm 4mm; box-shadow: 0 2mm 6mm rgba(0,0,0,.35); }
-  .qrcard img { display: block; width: 84mm; height: 84mm; }
+  .qrcard img { display: block; width: 76mm; height: 76mm; }
 
-  .steps { margin-top: 4mm; width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
-  .step { background: rgba(255,255,255,.12); border: .4mm solid rgba(255,255,255,.35); border-radius: 5mm; padding: 2.4mm 3mm 2.6mm; font-size: 4.3mm; line-height: 1.2; font-weight: 700; }
-  .step .n { width: 9mm; height: 9mm; margin: 0 auto 1.6mm; border-radius: 50%; background: #23c79a; color: #0b3b2e; display: grid; place-items: center; font-size: 5.8mm; font-weight: 700; }
+  .steps { margin-top: 4mm; width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; }
+  .step { display: flex; align-items: center; gap: 2.4mm; text-align: left; background: rgba(255,255,255,.12); border: .4mm solid rgba(255,255,255,.35); border-radius: 4mm; padding: 2mm 3mm; font-size: 3.9mm; line-height: 1.15; font-weight: 700; }
+  .step .n { flex: none; width: 8mm; height: 8mm; border-radius: 50%; background: #23c79a; color: #0b3b2e; display: grid; place-items: center; font-size: 5mm; font-weight: 700; }
   .step:nth-child(3) .n { background: #f5b800; color: #1c1038; }
 
   .foot { margin-top: auto; width: 100%; }
-  .url { display: inline-block; background: #fff; color: #2e1a5e; font-weight: 700; font-size: 7mm; padding: 1.4mm 8mm; border-radius: 99mm; }
-  .url-note { font-size: 3.8mm; opacity: .85; margin-bottom: 1.6mm; }
-  .place { margin-top: 2mm; font-size: 4.2mm; font-weight: 700; }
-  .fine { margin-top: 1.4mm; font-size: 2.9mm; opacity: .7; }
+  .urlrow { margin-top: 3mm; display: flex; align-items: center; justify-content: center; gap: 4mm; }
+  .urlrow .note { font-size: 4mm; opacity: .9; text-align: right; line-height: 1.15; }
+  .url { display: inline-block; background: #fff; color: #2e1a5e; font-weight: 700; font-size: 7mm; padding: 1.4mm 7mm; border-radius: 99mm; }
+  .place { margin-top: 2.2mm; font-size: 4.2mm; font-weight: 700; }
+  .place span { color: #f5b800; }
+
+  .clinic { margin: 3mm auto 0; width: 112mm; height: 20mm; background: #fff; border-radius: 6mm; display: flex; align-items: center; justify-content: center; gap: 5mm; box-shadow: 0 1mm 3mm rgba(0,0,0,.3); }
+  .clinic .tooth { height: 15.5mm; width: auto; }
+  .clinic .word { height: 10.4mm; width: auto; }
+  .fine { margin-top: 1.8mm; font-size: 2.9mm; opacity: .7; }
 </style>
 </head>
 <body>
@@ -68,10 +71,10 @@
   </svg>
 
   <div class="content">
-    <div class="top">
-      <div class="badge"><img src="../public/assets/lions-logo-hd.png" alt="Lions"></div>
-      <div class="org">118-Y Lions<small>Ağız ve Diş Sağlığı Komitesi</small></div>
-      <div class="day"><b>11 Ekim 2026</b>Dünya Lions Hizmet Günü</div>
+    <div class="logos">
+      <div class="plate cevre"><img src="logolar/yonetim-cevresi-118y.png" alt="118-Y Yönetim Çevresi 2026-2027"></div>
+      <div class="plate lions"><img src="../public/assets/lions-logo-hd.png" alt="Lions"></div>
+      <div class="plate"><img src="logolar/bagdat-lions.png" alt="İstanbul Bağdat Caddesi Lions Kulübü"></div>
     </div>
 
     <div class="hero">
@@ -107,14 +110,17 @@
 
     <div class="steps">
       <div class="step"><div class="n">1</div>QR kodu<br>okut</div>
-      <div class="step"><div class="n">2</div>Dişleri parmağınla<br>fırçala, oyunu bitir</div>
-      <div class="step"><div class="n">3</div>Ekranı standdaki<br>görevliye göster</div>
+      <div class="step"><div class="n">2</div>Parmağınla<br>dişleri fırçala</div>
+      <div class="step"><div class="n">3</div>Ekranı standda<br>görevliye göster</div>
     </div>
 
     <div class="foot">
-      <div class="url-note">QR okunmazsa tarayıcıya şu adresi yaz:</div>
-      <div class="url">www.diskahramani.com</div>
-      <div class="place">Özgürlük Parkı, Kadıköy · Lions standında seni bekliyoruz!</div>
+      <div class="urlrow"><div class="note">QR okunmazsa<br>tarayıcıya yaz:</div><div class="url">www.diskahramani.com</div></div>
+      <div class="place"><span>11 Ekim 2026</span> · Dünya Lions Hizmet Günü · Özgürlük Parkı, Kadıköy</div>
+      <div class="clinic">
+        <img class="tooth" src="logolar/kosuyolu-disi.png" alt="Koşuyolu Park diş simgesi">
+        <img class="word" src="logolar/kosuyolu-yazi.png" alt="Koşuyolu Park">
+      </div>
       <div class="fine">İsim, telefon ya da kayıt istenmez. Bu içerik ağız ve diş sağlığı farkındalığı amacıyla hazırlanmıştır.</div>
     </div>
   </div>
