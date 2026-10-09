@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Lions Hizmet Günü – Ağız ve Diş Sağlığı standı (Instagram, 3 sayfa)</title>
+<style>
+@font-face { font-family: "Baloo2"; font-weight: 800; src: url(fonts/baloo-2-latin-800-normal.woff2) format("woff2"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215; }
+@font-face { font-family: "Baloo2"; font-weight: 800; src: url(fonts/baloo-2-latin-ext-800-normal.woff2) format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+@font-face { font-family: "Nunito"; font-weight: 700; src: url(fonts/nunito-latin-700-normal.woff2) format("woff2"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215; }
+@font-face { font-family: "Nunito"; font-weight: 700; src: url(fonts/nunito-latin-ext-700-normal.woff2) format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+@font-face { font-family: "Nunito"; font-weight: 800; src: url(fonts/nunito-latin-800-normal.woff2) format("woff2"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215; }
+@font-face { font-family: "Nunito"; font-weight: 800; src: url(fonts/nunito-latin-ext-800-normal.woff2) format("woff2"); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --gold: #f5b800; --gold-d: #a87800; --mint: #23c79a; --red: #d7263d; --ink: #1c1038; --purple: #2e1a5e; }
+  body { width: 1080px; background: #222; font-family: "Nunito", "Liberation Sans", Arial, sans-serif; font-weight: 800; color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  h1, h2, .display { font-family: "Baloo2", "Nunito", sans-serif; font-weight: 800; }
+
+  .slide { position: relative; width: 1080px; height: 1350px; overflow: hidden; margin-bottom: 20px;
+    background:
+      radial-gradient(circle at 88% 8%, rgba(245,184,0,.30), transparent 36%),
+      radial-gradient(circle at 6% 62%, rgba(35,199,154,.22), transparent 34%),
+      linear-gradient(172deg, #5b3fa8 0%, #2e1a5e 46%, #1c1038 100%); }
+  .deco { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .inner { position: relative; height: 100%; padding: 46px 74px 44px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+
+  /* ---- ortak parçalar ---- */
+  .plate { width: 158px; height: 158px; border-radius: 50%; background: #fff; border: 7px solid var(--gold); display: grid; place-items: center; overflow: hidden; box-shadow: 0 8px 22px rgba(0,0,0,.35); flex: none; }
+  .plate img { display: block; object-fit: contain; }
+  .logos { display: flex; gap: 48px; align-items: center; justify-content: center; }
+  .clinic { background: #fff; border-radius: 30px; height: 76px; padding: 0 38px; display: inline-flex; align-items: center; gap: 22px; box-shadow: 0 6px 18px rgba(0,0,0,.3); }
+  .clinic .tooth { height: 50px; width: auto; }
+  .clinic .word { height: 33px; width: auto; }
+  .sign { font-size: 25px; line-height: 1.25; opacity: .92; font-weight: 700; }
+  .sign b { color: var(--gold); font-weight: 800; }
+  .swipe { position: absolute; right: 0; bottom: 4px; background: var(--gold); color: var(--ink); font-size: 30px; padding: 10px 26px 12px; border-radius: 99px; box-shadow: 0 5px 0 var(--gold-d); }
+
+  /* ---- 1. sayfa ---- */
+  .s1 .inner { justify-content: flex-start; }
+  .kicker { margin-top: 20px; background: #fff; color: var(--purple); border-radius: 26px; padding: 6px 36px 10px; box-shadow: 0 8px 0 rgba(0,0,0,.22); }
+  .kicker b { display: block; font-family: "Baloo2", sans-serif; font-size: 50px; line-height: 1.05; font-weight: 800; color: var(--purple); }
+  .kicker span { display: block; font-size: 27px; color: var(--red); margin-top: 2px; }
+  .hero { width: 100%; display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+  .title { text-align: left; }
+  .title .l1 { font-family: "Baloo2", sans-serif; font-size: 104px; line-height: .9; color: var(--gold); text-shadow: 0 7px 0 var(--gold-d); }
+  .title .l2 { font-family: "Baloo2", sans-serif; font-size: 172px; line-height: .8; color: #fff; text-shadow: 0 9px 0 rgba(0,0,0,.28); }
+  .hero .mascot { width: 305px; height: 256px; flex: none; margin-right: -6px; }
+  .lead { margin-top: 18px; font-size: 39px; text-wrap: balance; line-height: 1.22; font-weight: 800; }
+  .lead em { font-style: normal; color: var(--gold); }
+  .chips { margin-top: 24px; width: 100%; display: grid; grid-template-columns: 1fr 1fr 1.18fr; gap: 16px; }
+  .chip { background: #fff; color: var(--ink); border-radius: 24px; padding: 11px 12px 13px; display: flex; flex-direction: column; align-items: center; gap: 6px; box-shadow: 0 7px 0 rgba(0,0,0,.2); }
+  .chip svg { width: 48px; height: 48px; }
+  .chip b { font-size: 32px; line-height: 1.05; font-weight: 800; }
+  .chip small { font-size: 25px; font-weight: 700; color: #5b4a86; line-height: 1.05; }
+  .invite { margin-top: 28px; position: relative; background: var(--red); border: 6px solid #fff; border-radius: 24px; padding: 2px 44px 6px; transform: rotate(-1.6deg); box-shadow: 0 8px 0 rgba(0,0,0,.28); }
+  .invite span { font-family: "Baloo2", sans-serif; font-size: 62px; line-height: 1.1; }
+  .s1 .foot { margin-top: auto; width: 100%; position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 14px; }
+
+  /* ---- 2. ve 3. sayfa ---- */
+  .top { width: 100%; display: flex; align-items: center; justify-content: space-between; }
+  .brand { display: flex; align-items: center; gap: 16px; font-family: "Baloo2", sans-serif; font-size: 44px; color: var(--gold); }
+  .brand .mini { width: 92px; height: 78px; }
+  .page { background: rgba(255,255,255,.16); border: 3px solid rgba(255,255,255,.4); border-radius: 99px; padding: 4px 26px 6px; font-size: 32px; }
+  h2 { margin-top: 14px; font-size: 90px; line-height: .98; text-shadow: 0 6px 0 rgba(0,0,0,.28); }
+  h2 em { font-style: normal; color: var(--gold); text-shadow: 0 6px 0 var(--gold-d); }
+  .sub { margin-top: 12px; font-size: 38px; font-weight: 700; opacity: .95; }
+
+  .s2 .grid { margin-top: 30px; width: 100%; display: grid; grid-template-columns: 1fr 336px; gap: 28px; align-items: stretch; text-align: left; }
+  .steps { display: grid; gap: 18px; }
+  .step { display: grid; grid-template-columns: 78px 1fr; gap: 20px; align-items: center; background: rgba(255,255,255,.12); border: 3px solid rgba(255,255,255,.32); border-radius: 30px; padding: 18px 24px; }
+  .step .n { width: 78px; height: 78px; border-radius: 50%; background: var(--mint); color: #0b3b2e; display: grid; place-items: center; font-family: "Baloo2", sans-serif; font-size: 52px; line-height: 1; padding-bottom: 6px; }
+  .step:nth-child(4) .n { background: var(--gold); color: var(--ink); }
+  .step h3 { font-family: "Baloo2", sans-serif; font-size: 46px; line-height: 1; font-weight: 800; }
+  .step p { margin-top: 4px; font-size: 29px; line-height: 1.18; font-weight: 700; opacity: .95; }
+  .qrbox { background: #fff; border: 9px solid var(--gold); border-radius: 36px; padding: 14px 14px 18px; color: var(--ink); text-align: center; box-shadow: 0 10px 26px rgba(0,0,0,.35); }
+  .qrbox img { display: block; width: 280px; height: 280px; margin: 0 auto; }
+  .qrbox b { display: block; font-size: 26px; line-height: 1.1; color: var(--purple); margin-top: 6px; }
+  .qrbox .u { display: block; margin-top: 8px; font-size: 21px; letter-spacing: -.2px; font-weight: 800; background: var(--purple); color: #fff; border-radius: 99px; padding: 6px 4px 8px; }
+  .col { display: grid; grid-template-rows: auto 1fr; gap: 22px; }
+  .gift { background: linear-gradient(160deg, #ffd45a, #f5b800); color: var(--ink); border-radius: 32px; padding: 14px 18px 18px; text-align: center; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 8px 0 var(--gold-d); }
+  .gift .e { font-size: 92px; line-height: 1; }
+  .gift b { display: block; font-family: "Baloo2", sans-serif; font-size: 42px; line-height: 1; margin-top: 6px; }
+  .gift span { display: block; font-size: 24px; line-height: 1.1; margin-top: 6px; font-weight: 800; }
+  .trust { margin-top: 26px; width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .trust div { background: rgba(35,199,154,.2); border: 3px solid rgba(35,199,154,.7); border-radius: 24px; padding: 12px 10px 14px; font-size: 28px; line-height: 1.12; }
+  .trust div b { color: var(--mint); font-size: 40px; display: block; line-height: 1; }
+
+  .s3 .rules { margin-top: 22px; width: 100%; display: grid; gap: 14px; text-align: left; }
+  .rule { display: grid; grid-template-columns: 118px 1fr; align-items: center; gap: 22px; background: #fff; color: var(--ink); border-radius: 32px; padding: 12px 28px 14px 20px; box-shadow: 0 9px 0 rgba(0,0,0,.22); }
+  .rule .ic { width: 108px; height: 108px; border-radius: 50%; display: grid; place-items: center; font-size: 64px; background: var(--purple-soft, #ece6fa); }
+  .rule:nth-child(1) .ic { background: #dff7ef; }
+  .rule:nth-child(2) .ic { background: #fff2cc; }
+  .rule:nth-child(3) .ic { background: #ffe0e4; }
+  .rule h3 { font-family: "Baloo2", sans-serif; font-size: 52px; line-height: 1; font-weight: 800; color: var(--purple); }
+  .rule p { margin-top: 2px; font-size: 28px; line-height: 1.15; font-weight: 700; color: #4d3f78; }
+  .six { margin-top: 22px; width: 100%; }
+  .six h4 { font-family: "Baloo2", sans-serif; font-size: 44px; font-weight: 800; color: var(--gold); line-height: 1; }
+  .six .row { margin-top: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .six .row span { background: rgba(255,255,255,.14); border: 3px solid rgba(255,255,255,.34); border-radius: 22px; padding: 8px 6px 10px; font-size: 28px; line-height: 1.05; }
+  .six .row span i { font-style: normal; display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--mint); color: #0b3b2e; font-family: "Baloo2", sans-serif; font-size: 29px; margin-right: 8px; padding-bottom: 3px; }
+  .s3 .foot { margin-top: auto; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 18px; }
+  .closing { font-family: "Baloo2", sans-serif; font-size: 44px; line-height: 1.05; text-wrap: balance; }
+  .closing em { font-style: normal; color: var(--gold); }
+  .fine { font-size: 22px; font-weight: 700; opacity: .72; }
+  .s2 .foot { margin-top: auto; width: 100%; }
+</style>
+</head>
+<body>
+
+<!-- ===================== 1. SAYFA: DUYURU ===================== -->
+<section class="slide s1" id="s1">
+  <svg class="deco" viewBox="0 0 1080 1350" aria-hidden="true">
+    <g fill="#f5b800" opacity=".92">
+      <path d="M30 318l10 24 24 10-24 10-10 24-10-24-24-10 24-10z"/>
+      <path d="M1030 560l9 21 21 9-21 9-9 21-9-21-21-9 21-9z"/>
+      <path d="M40 1020l10 24 24 10-24 10-10 24-10-24-24-10 24-10z" opacity=".8"/>
+      <path d="M1002 330l9 21 21 9-21 9-9 21-9-21-21-9 21-9z" opacity=".8"/>
+    </g>
+    <g fill="#fff" opacity=".12"><circle cx="980" cy="1180" r="70"/><circle cx="70" cy="1230" r="90"/><circle cx="1010" cy="470" r="44"/></g>
+  </svg>
+  <div class="inner">
+    <div class="logos">
+      <div class="plate"><img src="../afis/logolar/yonetim-cevresi-118y.png" style="width:122px;height:128px" alt="118-Y Yönetim Çevresi"></div>
+      <div class="plate"><img src="../public/assets/lions-logo-hd.png" style="width:110px;height:auto" alt="Lions"></div>
+      <div class="plate"><img src="../afis/logolar/bagdat-lions.png" style="width:126px;height:126px" alt="Bağdat Caddesi Lions Kulübü"></div>
+    </div>
+
+    <div class="kicker"><b>Dünya Lions Hizmet Günü</b><span>Hizmet ve Farkındalık Şenliği</span></div>
+
+    <div class="hero">
+      <div class="title"><div class="l1">DİŞ</div><div class="l1">KAHRAMANI</div><div class="l2">OL!</div></div>
+      <svg class="mascot" viewBox="-4 -4 146 124" aria-label="Gülen diş karakteri">
+        <ellipse cx="60" cy="112" rx="34" ry="5" fill="rgba(0,0,0,.25)"/>
+        <!-- diş fırçası -->
+        <g transform="translate(104 104) rotate(24) scale(.56)">
+          <rect x="-4.2" y="-86" width="8.4" height="68" rx="4.2" fill="#23c79a"/>
+          <rect x="-4.2" y="-86" width="8.4" height="14" rx="4.2" fill="#0f8f6c"/>
+          <rect x="-8.4" y="-130" width="16.8" height="46" rx="5" fill="#f5b800"/>
+          <g stroke="#fff" stroke-width="2.6" stroke-linecap="round">
+            <path d="M-5 -127v-12M0 -127v-14M5 -127v-12"/><path d="M-5 -112v-1M0 -112v-1M5 -112v-1" stroke="none"/>
+          </g>
+          <rect x="-7" y="-146" width="14" height="22" rx="4" fill="#fff"/>
+          <g stroke="#cfe6ff" stroke-width="1.4"><path d="M-3 -143v16M0 -143v16M3 -143v16"/></g>
+        </g>
+        <!-- diş -->
+        <path d="M60 12c-14-9-38-2-38 24 0 16 8 22 9 40 1 16 12 20 15 6 2-9 12-9 14 0 3 14 14 10 15-6 1-18 9-24 9-40 0-26-24-33-24-24z" fill="#fffdf6" stroke="#cfc5ac" stroke-width="3" transform="translate(0,-2)"/>
+        <path d="M36 30c2-8 9-12 15-12" stroke="#fff" stroke-width="6" stroke-linecap="round" fill="none"/>
+        <circle cx="48" cy="52" r="5" fill="#1c1038"/><circle cx="72" cy="52" r="5" fill="#1c1038"/>
+        <circle cx="49.5" cy="50.5" r="1.7" fill="#fff"/><circle cx="73.5" cy="50.5" r="1.7" fill="#fff"/>
+        <circle cx="40" cy="64" r="5" fill="#ff8fa3" opacity=".7"/><circle cx="80" cy="64" r="5" fill="#ff8fa3" opacity=".7"/>
+        <path d="M48 64q12 14 24 0z" fill="#5a1a2e" stroke="#1c1038" stroke-width="3" stroke-linejoin="round"/>
+        <g fill="#f5b800"><path d="M104 22l3 7 7 3-7 3-3 7-3-7-7-3 7-3z"/><path d="M12 70l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/></g>
+      </svg>
+    </div>
+
+    <p class="lead">Ağız ve Diş Sağlığı standımızda <em>QR&nbsp;kodlu fırçalama&nbsp;oyunu</em> var! Oyunu bitiren minik kahramana <em>diş macunu hediye!</em></p>
+
+    <div class="chips">
+      <div class="chip">
+        <svg viewBox="0 0 64 64"><rect x="6" y="12" width="52" height="46" rx="9" fill="#d7263d"/><rect x="6" y="12" width="52" height="15" rx="9" fill="#a81b2e"/><g fill="#fff"><circle cx="19" cy="38" r="4"/><circle cx="32" cy="38" r="4"/><circle cx="45" cy="38" r="4"/><circle cx="19" cy="49" r="4"/><circle cx="32" cy="49" r="4"/></g><rect x="16" y="5" width="6" height="14" rx="3" fill="#7d1423"/><rect x="42" y="5" width="6" height="14" rx="3" fill="#7d1423"/></svg>
+        <b>11 Ekim 2026</b><small>Pazar</small>
+      </div>
+      <div class="chip">
+        <svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="27" fill="#d7263d"/><circle cx="32" cy="32" r="21" fill="#fff"/><path d="M32 17v16l11 7" stroke="#d7263d" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        <b>10.00 – 17.00</b><small>Tüm gün</small>
+      </div>
+      <div class="chip">
+        <svg viewBox="0 0 64 64"><path d="M32 4C19 4 10 14 10 26c0 16 22 34 22 34s22-18 22-34C54 14 45 4 32 4z" fill="#d7263d"/><circle cx="32" cy="26" r="9" fill="#fff"/></svg>
+        <b>Göztepe</b><small>Özgürlük Parkı</small>
+      </div>
+    </div>
+
+    <div class="invite"><span>Tüm halkımız davetlidir ♥</span></div>
+
+    <div class="foot">
+      <div class="clinic"><img class="tooth" src="../afis/logolar/kosuyolu-disi.png" alt=""><img class="word" src="../afis/logolar/kosuyolu-yazi.png" alt="Koşuyolu Park"></div>
+      <div class="sign"><b>Lions 118-Y</b> · Sağlık Hedef Liderliği<br>Ağız ve Diş Sağlığı Komitesi</div>
+      <div class="swipe">Kaydır ›</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 2. SAYFA: NASIL OYNANIR ===================== -->
+<section class="slide s2" id="s2">
+  <svg class="deco" viewBox="0 0 1080 1350" aria-hidden="true">
+    <g fill="#f5b800" opacity=".9"><path d="M1034 196l9 21 21 9-21 9-9 21-9-21-21-9 21-9z"/><path d="M60 700l10 24 24 10-24 10-10 24-10-24-24-10 24-10z" opacity=".8"/></g>
+    <g fill="#fff" opacity=".12"><circle cx="1000" cy="1100" r="80"/><circle cx="50" cy="1180" r="60"/></g>
+  </svg>
+  <div class="inner">
+    <div class="top"><div class="brand"><svg class="mini" viewBox="-4 -4 146 124" aria-label="Gülen diş karakteri">
+        <ellipse cx="60" cy="112" rx="34" ry="5" fill="rgba(0,0,0,.25)"/>
+        <!-- diş fırçası -->
+        <g transform="translate(104 104) rotate(24) scale(.56)">
+          <rect x="-4.2" y="-86" width="8.4" height="68" rx="4.2" fill="#23c79a"/>
+          <rect x="-4.2" y="-86" width="8.4" height="14" rx="4.2" fill="#0f8f6c"/>
+          <rect x="-8.4" y="-130" width="16.8" height="46" rx="5" fill="#f5b800"/>
+          <g stroke="#fff" stroke-width="2.6" stroke-linecap="round">
+            <path d="M-5 -127v-12M0 -127v-14M5 -127v-12"/><path d="M-5 -112v-1M0 -112v-1M5 -112v-1" stroke="none"/>
+          </g>
+          <rect x="-7" y="-146" width="14" height="22" rx="4" fill="#fff"/>
+          <g stroke="#cfe6ff" stroke-width="1.4"><path d="M-3 -143v16M0 -143v16M3 -143v16"/></g>
+        </g>
+        <!-- diş -->
+        <path d="M60 12c-14-9-38-2-38 24 0 16 8 22 9 40 1 16 12 20 15 6 2-9 12-9 14 0 3 14 14 10 15-6 1-18 9-24 9-40 0-26-24-33-24-24z" fill="#fffdf6" stroke="#cfc5ac" stroke-width="3" transform="translate(0,-2)"/>
+        <path d="M36 30c2-8 9-12 15-12" stroke="#fff" stroke-width="6" stroke-linecap="round" fill="none"/>
+        <circle cx="48" cy="52" r="5" fill="#1c1038"/><circle cx="72" cy="52" r="5" fill="#1c1038"/>
+        <circle cx="49.5" cy="50.5" r="1.7" fill="#fff"/><circle cx="73.5" cy="50.5" r="1.7" fill="#fff"/>
+        <circle cx="40" cy="64" r="5" fill="#ff8fa3" opacity=".7"/><circle cx="80" cy="64" r="5" fill="#ff8fa3" opacity=".7"/>
+        <path d="M48 64q12 14 24 0z" fill="#5a1a2e" stroke="#1c1038" stroke-width="3" stroke-linejoin="round"/>
+        <g fill="#f5b800"><path d="M104 22l3 7 7 3-7 3-3 7-3-7-7-3 7-3z"/><path d="M12 70l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/></g>
+      </svg>Diş Kahramanı Ol!</div><div class="page">2 / 3</div></div>
+    <h2>Nasıl <em>oynanır?</em></h2>
+    <div class="sub">4 adımda diş macunu hediyeni kap!</div>
+
+    <div class="grid">
+      <div class="steps">
+        <div class="step"><div class="n">1</div><div><h3>QR kodu okut</h3><p>Standımızdaki afişte ya da yandaki kodu telefonunla okut.</p></div></div>
+        <div class="step"><div class="n">2</div><div><h3>Dişleri fırçala</h3><p>Parmağınla mikropları temizle: 6 aşama, yaklaşık 1–2 dakika.</p></div></div>
+        <div class="step"><div class="n">3</div><div><h3>Kahraman ol!</h3><p>Oyunu bitirince “Diş Kahramanı” ekranı çıkar.</p></div></div>
+        <div class="step"><div class="n">4</div><div><h3>Hediyeni al</h3><p>Ekranı standdaki görevliye göster, diş macunun senin!</p></div></div>
+      </div>
+      <div class="col">
+        <div class="qrbox">
+          <img src="../qr-kodlar/diskahramani-qr.svg" alt="QR kod">
+          <b>Telefonunla okut</b>
+          <span class="u">www.diskahramani.com</span>
+        </div>
+        <div class="gift"><div class="e">🎁</div><b>Diş macunu hediye!</b><span>Oyunu bitiren minik kahramanlara</span></div>
+      </div>
+    </div>
+
+    <div class="trust">
+      <div><b>4–12</b>yaş çocuklar için</div>
+      <div><b>✓</b>İsim, telefon ya da kayıt yok</div>
+      <div><b>✓</b>Reklam yok, tamamen güvenli</div>
+    </div>
+
+    <div class="foot">
+      <div class="sign" style="text-align:center"><b>Lions 118-Y</b> · Sağlık Hedef Liderliği<br>Ağız ve Diş Sağlığı Komitesi</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 3. SAYFA: SAĞLIKLI GÜLÜŞ ===================== -->
+<section class="slide s3" id="s3">
+  <svg class="deco" viewBox="0 0 1080 1350" aria-hidden="true">
+    <g fill="#f5b800" opacity=".9"><path d="M1000 270l12 28 28 12-28 12-12 28-12-28-28-12 28-12z"/><path d="M46 300l9 21 21 9-21 9-9 21-9-21-21-9 21-9z" opacity=".8"/></g>
+    <g fill="#fff" opacity=".12"><circle cx="1010" cy="1010" r="70"/><circle cx="40" cy="1240" r="70"/></g>
+  </svg>
+  <div class="inner">
+    <div class="top"><div class="brand"><svg class="mini" viewBox="-4 -4 146 124" aria-label="Gülen diş karakteri">
+        <ellipse cx="60" cy="112" rx="34" ry="5" fill="rgba(0,0,0,.25)"/>
+        <!-- diş fırçası -->
+        <g transform="translate(104 104) rotate(24) scale(.56)">
+          <rect x="-4.2" y="-86" width="8.4" height="68" rx="4.2" fill="#23c79a"/>
+          <rect x="-4.2" y="-86" width="8.4" height="14" rx="4.2" fill="#0f8f6c"/>
+          <rect x="-8.4" y="-130" width="16.8" height="46" rx="5" fill="#f5b800"/>
+          <g stroke="#fff" stroke-width="2.6" stroke-linecap="round">
+            <path d="M-5 -127v-12M0 -127v-14M5 -127v-12"/><path d="M-5 -112v-1M0 -112v-1M5 -112v-1" stroke="none"/>
+          </g>
+          <rect x="-7" y="-146" width="14" height="22" rx="4" fill="#fff"/>
+          <g stroke="#cfe6ff" stroke-width="1.4"><path d="M-3 -143v16M0 -143v16M3 -143v16"/></g>
+        </g>
+        <!-- diş -->
+        <path d="M60 12c-14-9-38-2-38 24 0 16 8 22 9 40 1 16 12 20 15 6 2-9 12-9 14 0 3 14 14 10 15-6 1-18 9-24 9-40 0-26-24-33-24-24z" fill="#fffdf6" stroke="#cfc5ac" stroke-width="3" transform="translate(0,-2)"/>
+        <path d="M36 30c2-8 9-12 15-12" stroke="#fff" stroke-width="6" stroke-linecap="round" fill="none"/>
+        <circle cx="48" cy="52" r="5" fill="#1c1038"/><circle cx="72" cy="52" r="5" fill="#1c1038"/>
+        <circle cx="49.5" cy="50.5" r="1.7" fill="#fff"/><circle cx="73.5" cy="50.5" r="1.7" fill="#fff"/>
+        <circle cx="40" cy="64" r="5" fill="#ff8fa3" opacity=".7"/><circle cx="80" cy="64" r="5" fill="#ff8fa3" opacity=".7"/>
+        <path d="M48 64q12 14 24 0z" fill="#5a1a2e" stroke="#1c1038" stroke-width="3" stroke-linejoin="round"/>
+        <g fill="#f5b800"><path d="M104 22l3 7 7 3-7 3-3 7-3-7-7-3 7-3z"/><path d="M12 70l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/></g>
+      </svg>Diş Kahramanı Ol!</div><div class="page">3 / 3</div></div>
+    <h2>Sağlıklı gülüş için<br><em>3 altın kural</em></h2>
+
+    <div class="rules">
+      <div class="rule"><div class="ic">🪥</div><div><h3>Günde 3 kez fırçala</h3><p>Dişlerin her gün sana teşekkür etsin.</p></div></div>
+      <div class="rule"><div class="ic">⏱️</div><div><h3>Yaklaşık 2 dakika</h3><p>Acele etme, her yeri tek tek temizle.</p></div></div>
+      <div class="rule"><div class="ic">😁</div><div><h3>Düzenli kontrol</h3><p>Dişlerini düzenli olarak diş hekimine kontrol ettir.</p></div></div>
+    </div>
+
+    <div class="six">
+      <h4>Oyunda öğrendiğimiz 6 adım</h4>
+      <div class="row">
+        <span><i>1</i>Dış yüzey</span><span><i>2</i>Diş araları</span><span><i>3</i>İç yüzey</span>
+        <span><i>4</i>Çiğneme yüzeyi</span><span><i>5</i>Dil</span><span><i>6</i>Diş ipi</span>
+      </div>
+    </div>
+
+    <div class="foot">
+      <div class="closing">11 Ekim’de <em>Göztepe Özgürlük Parkı’nda</em> görüşmek üzere!</div>
+      <div class="clinic"><img class="tooth" src="../afis/logolar/kosuyolu-disi.png" alt=""><img class="word" src="../afis/logolar/kosuyolu-yazi.png" alt="Koşuyolu Park"></div>
+      <div class="sign" style="text-align:center"><b>Lions 118-Y</b> · Sağlık Hedef Liderliği · Ağız ve Diş Sağlığı Komitesi</div>
+      <div class="fine">Bu içerik ağız ve diş sağlığı farkındalığı amacıyla hazırlanmıştır.</div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>
