@@ -1,5 +1,5 @@
 import { rrect, type Ctx } from "./draw";
-import { rand, type Rect } from "./layout";
+import type { Rect } from "./layout";
 
 /**
  * Diş çizimleri. Yalnızca görünüm: vuruş alanları ve yamalar `layout.ts`teki dikdörtgenlerden gelir, buradaki
@@ -13,54 +13,78 @@ type Pt = [number, number];
 type Seg = [number, number, number, number, number, number];
 
 /** Boyun (diş eti hizası) taç genişliğinden dardır: dişler arası gerçekçi üçgen boşluk ve sevimli "damla" biçim verir. */
-const NECK_L = 0.13;
-const NECK_R = 0.87;
+export const NECK_L = 0.13;
+export const NECK_R = 0.87;
 /** Dişin diş etinin altında kalan (görünmeyen) payı, diş boyunun oranı. */
-const HIDDEN = 0.18;
+export const HIDDEN = 0.18;
 
 interface Profile {
-  /** Yan çizginin tacın en geniş yerine vardığı yükseklik (v). */
-  shoulder: number;
-  /** Sol omuzdan sağ omuza kesici/çiğneme kenarı (kübik Bezier parçaları, başlangıç noktası sol omuz). */
+  /** Mezyal (orta hatta bakan, u=0) ve distal (u=1) yan çizginin tacın en geniş yerine vardığı yükseklik (v). */
+  sM: number;
+  sD: number;
+  /** Boynun mezyal / distal yandan içeri girintisi (taç genişliği oranı). */
+  neckM: number;
+  neckD: number;
+  /** Mezyal omuzdan distal omuza kesici/çiğneme kenarı (kübik Bezier parçaları, başlangıç noktası mezyal omuz). */
   edge: Seg[];
 }
 
+/**
+ * Güzel gülüşün diş formları (mezyal = orta hatta bakan taraf, u=0; distal = u=1):
+ * kesicilerde mezyal köşe daha keskin, distal köşe daha yuvarlak; yan kesici daha yuvarlak; köpek dişinde tepe mezyale kayık,
+ * distal yamaç uzun; hepsi oval-kare, yumuşak köşeli (porselen kaplama görünümü).
+ */
 const CENTRAL: Profile = {
-  shoulder: 0.82,
+  sM: 0.84,
+  sD: 0.78,
+  neckM: 0.11,
+  neckD: 0.15,
   edge: [
-    [0, 0.95, 0.04, 1, 0.17, 1],
-    [0.36, 1.016, 0.64, 1.016, 0.83, 1],
-    [0.96, 1, 1, 0.95, 1, 0.82],
+    [0, 0.95, 0.02, 1, 0.11, 1],
+    [0.3, 1.012, 0.7, 1.012, 0.78, 1],
+    [0.93, 1, 1, 0.92, 1, 0.78],
   ],
 };
 const LATERAL: Profile = {
-  shoulder: 0.8,
+  sM: 0.8,
+  sD: 0.72,
+  neckM: 0.12,
+  neckD: 0.17,
   edge: [
-    [0, 0.93, 0.06, 1, 0.22, 1],
-    [0.38, 1.012, 0.62, 1.012, 0.78, 1],
-    [0.94, 1, 1, 0.93, 1, 0.8],
+    [0, 0.93, 0.04, 1, 0.19, 1],
+    [0.4, 1.016, 0.6, 1.016, 0.7, 1],
+    [0.91, 1, 1, 0.88, 1, 0.72],
   ],
 };
-/** Köpek dişi: hafif sivrilen, yumuşak yuvarlak uçlu taç (korkutucu değil, sevimli). */
+/** Köpek dişi: tepesi mezyale kayık, yumuşak yuvarlak uçlu (korkutucu değil); distal yamaç mezyalden uzun. */
 const CANINE: Profile = {
-  shoulder: 0.74,
+  sM: 0.7,
+  sD: 0.58,
+  neckM: 0.14,
+  neckD: 0.17,
   edge: [
-    [0, 0.86, 0.2, 0.96, 0.36, 0.992],
-    [0.44, 1.024, 0.56, 1.024, 0.64, 0.992],
-    [0.8, 0.96, 1, 0.86, 1, 0.74],
+    [0, 0.82, 0.16, 0.95, 0.33, 0.992],
+    [0.4, 1.026, 0.5, 1.03, 0.58, 0.985],
+    [0.78, 0.9, 1, 0.76, 1, 0.58],
   ],
 };
 /** Küçük azılar: orta yerinde hafif tepeli geniş yay. */
 const PREMOLAR: Profile = {
-  shoulder: 0.76,
+  sM: 0.78,
+  sD: 0.72,
+  neckM: 0.14,
+  neckD: 0.16,
   edge: [
-    [0, 0.92, 0.2, 1, 0.5, 1],
-    [0.8, 1, 1, 0.92, 1, 0.76],
+    [0, 0.91, 0.18, 1, 0.46, 1],
+    [0.78, 1, 1, 0.9, 1, 0.72],
   ],
 };
 /** Azı: iki yumuşak tepeli çiğneme kenarı. */
 const MOLAR: Profile = {
-  shoulder: 0.76,
+  sM: 0.78,
+  sD: 0.76,
+  neckM: 0.15,
+  neckD: 0.15,
   edge: [
     [0, 0.93, 0.07, 1, 0.26, 1],
     [0.38, 1, 0.43, 0.955, 0.5, 0.955],
@@ -70,25 +94,35 @@ const MOLAR: Profile = {
 };
 const PROFILES: Profile[] = [CENTRAL, LATERAL, CANINE, PREMOLAR, PREMOLAR, MOLAR];
 
+/** Yan çizginin ortalama omuz yüksekliği (sprite gölgelemesinin silüet genişliğini kestirmesi için). */
+export function shoulderOf(rank: number): number {
+  const p = profileOf(rank);
+  return (p.sM + p.sD) / 2;
+}
+
 function profileOf(rank: number): Profile {
   return PROFILES[Math.max(0, Math.min(PROFILES.length - 1, Math.round(rank)))]!;
 }
 
-function mapper(t: Rect, upper: boolean) {
-  return (u: number, v: number): Pt => [t.x + u * t.w, upper ? t.y + v * t.h : t.y + t.h - v * t.h];
+/**
+ * Yerel (u,v) → dünya. `side`: dişin ağızdaki tarafı; +1 sağ yarı (orta hat solda: mezyal sol), −1 sol yarı (orta hat sağda:
+ * mezyal sağ). Böylece asimetrik profiller iki yarıda da orta hatta doğru bakar.
+ */
+function mapper(t: Rect, upper: boolean, side: number) {
+  return (u: number, v: number): Pt => [t.x + (side >= 0 ? u : 1 - u) * t.w, upper ? t.y + v * t.h : t.y + t.h - v * t.h];
 }
 
 /** Tek dişin dış çizgisi (taç + diş etinin altında kalan boyun). */
-function toothPath(ctx: Ctx, t: Rect, upper: boolean, rank: number): void {
-  const P = mapper(t, upper);
-  const { shoulder: s, edge } = profileOf(rank);
+export function toothPath(ctx: Ctx, t: Rect, upper: boolean, rank: number, side = 1): void {
+  const P = mapper(t, upper, side);
+  const { sM, sD, neckM, neckD, edge } = profileOf(rank);
   ctx.beginPath();
-  ctx.moveTo(...P(NECK_L, -HIDDEN));
-  ctx.lineTo(...P(NECK_L, 0));
-  ctx.bezierCurveTo(...P(NECK_L - 0.1, s * 0.36), ...P(0, s * 0.58), ...P(0, s));
+  ctx.moveTo(...P(neckM, -HIDDEN));
+  ctx.lineTo(...P(neckM, 0));
+  ctx.bezierCurveTo(...P(neckM - 0.1, sM * 0.36), ...P(0, sM * 0.58), ...P(0, sM));
   for (const [a, b, c, d, e, f] of edge) ctx.bezierCurveTo(...P(a, b), ...P(c, d), ...P(e, f));
-  ctx.bezierCurveTo(...P(1, s * 0.58), ...P(NECK_R + 0.1, s * 0.36), ...P(NECK_R, 0));
-  ctx.lineTo(...P(NECK_R, -HIDDEN));
+  ctx.bezierCurveTo(...P(1, sD * 0.58), ...P(1 - neckD + 0.1, sD * 0.36), ...P(1 - neckD, 0));
+  ctx.lineTo(...P(1 - neckD, -HIDDEN));
   ctx.closePath();
 }
 
@@ -124,9 +158,10 @@ export const INNER_TOOTH: ToothPalette = {
   shineClear: "rgba(255,255,255,0)",
 };
 
-export function drawTooth(ctx: Ctx, t: Rect, rank: number, upper: boolean, pal: ToothPalette, inner = false): void {
+/** Yedek (degrade) diş çizimi: piksel gölgelendirmeli sprite üretilemezse kullanılır. */
+export function drawTooth(ctx: Ctx, t: Rect, rank: number, upper: boolean, pal: ToothPalette, inner = false, side = 1): void {
   ctx.save();
-  toothPath(ctx, t, upper, rank);
+  toothPath(ctx, t, upper, rank, side);
   const body = ctx.createLinearGradient(t.x, 0, t.x + t.w, 0);
   body.addColorStop(0, pal.body[0]);
   body.addColorStop(0.2, pal.body[1]);
@@ -171,7 +206,7 @@ export function drawTooth(ctx: Ctx, t: Rect, rank: number, upper: boolean, pal: 
   }
   ctx.restore();
 
-  toothPath(ctx, t, upper, rank);
+  toothPath(ctx, t, upper, rank, side);
   ctx.lineJoin = "round";
   ctx.lineWidth = 1.4;
   ctx.strokeStyle = pal.line;
@@ -195,124 +230,90 @@ export const PALATE: GumPalette = { base: "#D9708A", light: "#EE95AA", margin: "
 /** İç görünüşte alt çene: dil ve ağız tabanıyla bütünleşir. */
 export const FLOOR: GumPalette = { base: "#F26E88", light: "#FF8FA3", margin: "#D45672" };
 
-/** Dişlerin boynunu saran, dişler arasında üçgen "papilla" yapan kıvrımlı diş eti şeridi. */
-export function drawGumBand(ctx: Ctx, teeth: Rect[], upper: boolean, mouth: Rect, pal: GumPalette): void {
-  if (teeth.length === 0) return;
+/** Bir kübik Bezier: [x0,y0, c1x,c1y, c2x,c2y, x1,y1]. */
+export type Cubic = [number, number, number, number, number, number, number, number];
+
+const GUM_APEX = 4; // tepe noktası dişin içinde
+const GUM_TIP = 13; // papilla ucu daha derinde
+
+/**
+ * Diş etinin dişlerle buluştuğu kıvrımlı kenar (üst çenede aşağı, alt çenede yukarı bakan papillalar). Uçlar ağız
+ * kenarlarına uzanır. `dy`: tüm kenarın dikey kayması (parlak iç çizgi için).
+ */
+export function gumMarginCubics(teeth: Rect[], upper: boolean, mouth: Rect, dy = 0): Cubic[] {
+  if (teeth.length === 0) return [];
   const dir = upper ? 1 : -1; // diş etinden dişe doğru yön (üstte aşağı, altta yukarı)
   const edge = (t: Rect) => (upper ? t.y : t.y + t.h);
-  const APEX = 4.5; // tepe noktası dişin içinde
-  const TIP = 15; // papilla ucu daha derinde
-  const farY = upper ? mouth.y - 8 : mouth.y + mouth.h + 8;
   const x0 = mouth.x - 6;
   const x1 = mouth.x + mouth.w + 6;
   const first = teeth[0]!;
   const last = teeth[teeth.length - 1]!;
+  const out: Cubic[] = [];
+  const line = (ax: number, ay: number, bx: number, by: number) =>
+    out.push([ax, ay, ax + (bx - ax) / 3, ay + (by - ay) / 3, ax + (2 * (bx - ax)) / 3, ay + (2 * (by - ay)) / 3, bx, by]);
+  line(x0, edge(first) + dir * GUM_TIP + dy, first.x - 1.5, edge(first) + dir * GUM_TIP + dy);
+  teeth.forEach((t, i) => {
+    const L = t.x - 1.5; // sol papilla (komşu dişle ortak boşluğun ortası)
+    const R = t.x + t.w + 1.5;
+    const next = teeth[i + 1];
+    const yl = (i === 0 ? edge(t) : (edge(teeth[i - 1]!) + edge(t)) / 2) + dir * GUM_TIP + dy;
+    const yr = (next ? (edge(t) + edge(next)) / 2 : edge(t)) + dir * GUM_TIP + dy;
+    const ya = edge(t) + dir * GUM_APEX + dy;
+    const cx = (L + R) / 2;
+    const w = R - L;
+    out.push([L, yl, L + w * 0.03, yl - dir * (GUM_TIP - GUM_APEX) * 0.7, cx - w * 0.3, ya, cx, ya]);
+    out.push([cx, ya, cx + w * 0.3, ya, R - w * 0.03, yr - dir * (GUM_TIP - GUM_APEX) * 0.7, R, yr]);
+  });
+  line(last.x + last.w + 1.5, out[out.length - 1]![7], x1, edge(last) + dir * GUM_TIP + dy);
+  return out;
+}
 
-  const trace = (dy: number) => {
-    ctx.beginPath();
-    ctx.moveTo(x0, edge(first) + dir * TIP + dy);
-    ctx.lineTo(first.x - 1.5, edge(first) + dir * TIP + dy);
-    teeth.forEach((t, i) => {
-      const L = t.x - 1.5; // sol papilla (komşu dişle ortak boşluğun ortası)
-      const R = t.x + t.w + 1.5;
-      const next = teeth[i + 1];
-      const yl = (i === 0 ? edge(t) : (edge(teeth[i - 1]!) + edge(t)) / 2) + dir * TIP + dy;
-      const yr = (next ? (edge(t) + edge(next)) / 2 : edge(t)) + dir * TIP + dy;
-      const ya = edge(t) + dir * APEX + dy;
-      const cx = (L + R) / 2;
-      const w = R - L;
-      ctx.bezierCurveTo(L + w * 0.03, yl - dir * (TIP - APEX) * 0.7, cx - w * 0.3, ya, cx, ya);
-      ctx.bezierCurveTo(cx + w * 0.3, ya, R - w * 0.03, yr - dir * (TIP - APEX) * 0.7, R, yr);
-    });
-    ctx.lineTo(x1, edge(last) + dir * TIP + dy);
-  };
+/** Kenarı çizer (yolu `beginPath` ile başlatır, kapatmaz). */
+export function traceCubics(ctx: Ctx, cubics: Cubic[]): void {
+  ctx.beginPath();
+  if (cubics.length === 0) return;
+  ctx.moveTo(cubics[0]![0], cubics[0]![1]);
+  for (const c of cubics) ctx.bezierCurveTo(c[2], c[3], c[4], c[5], c[6], c[7]);
+}
 
-  ctx.save();
-  trace(0);
-  ctx.lineTo(x1, farY);
-  ctx.lineTo(x0, farY);
+/** Diş eti şeridinin kapalı yolu: kenar + ağız tabanına/tavanına kadar uzanan taraf. */
+export function gumBandPath(ctx: Ctx, teeth: Rect[], upper: boolean, mouth: Rect): void {
+  const c = gumMarginCubics(teeth, upper, mouth);
+  traceCubics(ctx, c);
+  if (c.length === 0) return;
+  const farY = upper ? mouth.y - 8 : mouth.y + mouth.h + 8;
+  ctx.lineTo(mouth.x + mouth.w + 6, farY);
+  ctx.lineTo(mouth.x - 6, farY);
   ctx.closePath();
-  const marginY = edge(first);
-  const fill = ctx.createLinearGradient(0, farY, 0, marginY + dir * TIP);
+}
+
+/** Dişlerin boynunu saran, dişler arasında üçgen "papilla" yapan kıvrımlı diş eti şeridi (basit/yedek çizim). */
+export function drawGumBand(ctx: Ctx, teeth: Rect[], upper: boolean, mouth: Rect, pal: GumPalette): void {
+  if (teeth.length === 0) return;
+  const dir = upper ? 1 : -1;
+  const farY = upper ? mouth.y - 8 : mouth.y + mouth.h + 8;
+  ctx.save();
+  gumBandPath(ctx, teeth, upper, mouth);
+  const marginY = upper ? teeth[0]!.y : teeth[0]!.y + teeth[0]!.h;
+  const fill = ctx.createLinearGradient(0, farY, 0, marginY + dir * GUM_TIP);
   fill.addColorStop(0, pal.base);
   fill.addColorStop(1, pal.light);
   ctx.fillStyle = fill;
   ctx.fill();
 
   // Yuvarlak, parlak diş eti kenarı: biraz içeriden açık bir çizgi
-  trace(-dir * 3.4);
+  traceCubics(ctx, gumMarginCubics(teeth, upper, mouth, -dir * 3.4));
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
   ctx.lineWidth = 2.6;
   ctx.strokeStyle = "rgba(255,255,255,0.34)";
   ctx.stroke();
 
-  trace(0);
+  traceCubics(ctx, gumMarginCubics(teeth, upper, mouth));
   ctx.lineWidth = 2.4;
   ctx.strokeStyle = pal.margin;
   ctx.stroke();
   ctx.restore();
-}
-
-// ---- Çiğneme yüzeyi (üstten görünüş) --------------------------------------------------------
-
-/** Üstten bakınca azı dişi: parlak taç, dört yuvarlak tepecik (tümsek) ve aralarında yumuşak gölgeli oluklar. */
-export function drawMolarTile(ctx: Ctx, m: Rect, i: number): void {
-  const cx = m.x + m.w / 2 + (rand(i * 3.3) - 0.5) * 5;
-  const cy = m.y + m.h / 2 + (rand(i * 5.1) - 0.5) * 4;
-
-  ctx.save();
-  // Diş etine oturan taç: altında yumuşak gölge
-  ctx.fillStyle = "rgba(176,46,80,0.30)";
-  rrect(ctx, m.x - 1, m.y + 3.5, m.w + 2, m.h + 1, 32);
-  ctx.fill();
-
-  // Taç: parlak krem, kenarlara doğru hafif koyulaşır
-  const base = ctx.createRadialGradient(m.x + m.w * 0.38, m.y + m.h * 0.3, 4, m.x + m.w / 2, m.y + m.h / 2, m.w * 0.74);
-  base.addColorStop(0, "#FFFFFF");
-  base.addColorStop(0.62, "#FBF3E2");
-  base.addColorStop(1, "#E9DCC0");
-  rrect(ctx, m.x, m.y, m.w, m.h, 31);
-  ctx.fillStyle = base;
-  ctx.fill();
-  ctx.lineWidth = 1.6;
-  ctx.strokeStyle = "#C9BA9C";
-  ctx.stroke();
-
-  // Dört yuvarlak tepecik: komşularına yumuşak gölge düşürür, bu gölgeler olukları oluşturur
-  ctx.beginPath();
-  rrect(ctx, m.x + 2, m.y + 2, m.w - 4, m.h - 4, 29);
-  ctx.clip();
-  const rx = (m.w - 20) / 4;
-  const ry = (m.h - 18) / 4;
-  const spots: [number, number][] = [
-    [(m.x + 9 + cx) / 2, (m.y + 9 + cy) / 2],
-    [(cx + m.x + m.w - 9) / 2, (m.y + 9 + cy) / 2],
-    [(m.x + 9 + cx) / 2, (cy + m.y + m.h - 9) / 2],
-    [(cx + m.x + m.w - 9) / 2, (cy + m.y + m.h - 9) / 2],
-  ];
-  ctx.shadowColor = "rgba(120,92,48,0.5)";
-  ctx.shadowBlur = 6;
-  ctx.shadowOffsetY = 1;
-  spots.forEach(([x, y], k) => {
-    const w = rx * (1 + 0.1 * (rand(i * 7 + k) - 0.5));
-    const h = ry * (1 + 0.1 * (rand(i * 11 + k) - 0.5));
-    const g = ctx.createRadialGradient(x - w * 0.38, y - h * 0.42, 1, x, y, Math.max(w, h) * 1.2);
-    g.addColorStop(0, "#FFFFFF");
-    g.addColorStop(0.6, "#FFFCF4");
-    g.addColorStop(1, "#F0E6D0");
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.ellipse(x, y, w, h, 0, 0, Math.PI * 2);
-    ctx.fill();
-  });
-  ctx.restore();
-
-  // Ortadaki küçük çukur (fissür noktası)
-  ctx.fillStyle = "rgba(150,126,86,0.55)";
-  ctx.beginPath();
-  ctx.arc(cx, cy, 2.2, 0, Math.PI * 2);
-  ctx.fill();
 }
 
 // ---- Öğretici: tek büyük diş ---------------------------------------------------------------
