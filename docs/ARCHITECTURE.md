@@ -16,6 +16,7 @@ QR ──► /oyun (statik sayfa) ──► Landing ──► Öğretici (ilk ke
 |---|---|---|
 | Oyun motoru | `src/game/*` | React'siz, deterministik, test edilir. Yama (patch) tabanlı temizleme; swipe = yön değiştirme veya uzun hareket |
 | Oyun UI | `src/components/game/*` | Canvas 2D (kütüphanesiz), DPR ≤ 2, `touch-action:none`, pointer events |
+| Çizim | `src/game/render.ts`, `teeth.ts`, `draw.ts` | Dişler `teeth.ts`te diş türüne göre çizilir (kesici, köpek, küçük azı, azı; diş eti kıvrımı, gölge/parlama; çiğneme yüzeyi ve öğretici dişi). **Yalnızca görünüm:** vuruş alanları ve yamalar `layout.ts`teki dikdörtgenlerden gelir. Sahne (yüz, ağız, dişler) oyun boyunca değişmediği için `render.ts` bir kez ayrı bir tuvale çizip her karede tek `drawImage` ile basar (ekran boyutu/aşama türü değişince yeniden kurulur) |
 | Analytics istemci | `src/analytics/client.ts` | Kalıcı kuyruk, üstel geri çekilme, idempotent olay kimlikleri |
 | Analytics sunucu | `src/analytics/server/validate.ts`, `src/app/api/events` | Katı doğrulama, bilinmeyen alanlar atılır, saat sapması düzeltmesi |
 | Depo | `src/lib/store.ts`, `supabase-store.ts`, `get-store.ts` | `EventStore` arayüzü: Supabase (üretim) / bellek (geliştirme) |
@@ -50,6 +51,7 @@ Kimlikler: `sessionId` (tarayıcı başına rastgele UUID, localStorage), `playI
 - **KPI hesabı SQL yerine TypeScript'te.** Bir kampanya birkaç bin satırdır; tüm olaylar sayfalanarak okunup tek bir saf fonksiyonla hesaplanır. Böylece panel, rapor, CSV ve testler aynı mantığı paylaşır (SQL + TS çifte mantığı sapma riski taşırdı). Hacim on binleri aşarsa SQL görünümlerine taşınabilir.
 - **Tarayıcı veritabanına bağlanmaz.** Supabase SDK istemci paketinde yok; anahtar sızıntısı yüzeyi sıfır.
 - **Canvas, yama tabanlı temizleme** (piksel maskesi yok): hızlı, deterministik, test edilebilir; çocuk takılırsa ipucu → kolaylaştırma → "Yardım".
+- **Sahne önbelleği:** zengin diş çizimi (degrade, gölge) her karede yeniden çizilseydi eski telefonlarda kare süresini ikiye katlardı. Önbellek açıkken kare başına maliyet eski çizimden de düşüktür (ölçüm: yazılım çizimli Chromium'da ≈ 4,5 ms; önceki çizim ≈ 8,5 ms, önbelleksiz yeni çizim ≈ 15 ms). Normal karelerde önbellek tam piksel hizasında basılır (doğrudan çizimle piksel piksel aynı); yalnızca yüz dönme animasyonunda ölçeklenerek basılır.
 - **`test-deneme` kampanyası:** prova ve simülasyon, gerçek istatistikleri kirletmez.
 - **Framework taban maliyeti:** ~150 KB gzip JS'in ~115 KB'ı React + Next çalışma zamanıdır; uygulama kodu ~15 KB. Daha fazla parçalamanın kazancı yok, riski var (yavaş ağda "Başla"ya basınca parça gelmemesi).
 - **CSP:** dış kaynak yok; Next'in satır içi başlatma betikleri için `script-src 'unsafe-inline'` gerekir (nonce, statik sayfaları dinamik yapıp önbelleği bozardı).

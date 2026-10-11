@@ -29,8 +29,14 @@ export const LOWER_LINE = 356;
 export const MOUTH = { x: 4, y: 150, w: 352, h: 264 };
 export const MOUTH_IN = { x: 14, y: 162, w: 332, h: 240 };
 
+/**
+ * Çenedeki sıra numarasından diş türü: 0 kesici, 1 yan kesici, 2 köpek, 3-4 küçük azı, 5 azı
+ * (sıra solun ucundan sağın ucuna; merkez dişler 0). Çizim diş şeklini buna göre seçer.
+ */
+export const toothRank = (i: number): number => (i < 6 ? 5 - i : i - 6);
+
 function archRow(halfH: number[], line: number, upper: boolean): Rect[] {
-  const idx = Array.from({ length: TEETH_PER_ROW }, (_, i) => (i < 6 ? 5 - i : i - 6));
+  const idx = Array.from({ length: TEETH_PER_ROW }, (_, i) => toothRank(i));
   const widths = idx.map((k) => HALF_W[k]!);
   const total = widths.reduce((a, b) => a + b, 0) + (TEETH_PER_ROW - 1) * TOOTH_GAP;
   let x = (WORLD_W - total) / 2;
@@ -52,7 +58,7 @@ export const LOWER_TEETH: Rect[] = archRow(HALF_H_LO, LOWER_LINE, false);
 export const CHEW_TILES: Rect[] = [0, 1, 2, 3].flatMap((r) =>
   [0, 1, 2].map((c) => ({ x: 24 + c * 110, y: 74 + r * 96 + (r >= 2 ? 22 : 0), w: 100, h: 86 })),
 );
-export const CHEW_PANEL = { x: 6, y: 58, w: 348, h: 408 };
+export const CHEW_PANEL = { x: 6, y: 58, w: 348, h: 422 }; // son sıra dişleri de içinde kalsın (74 + 3*96 + 22 + 86 = 470 < 480)
 export const CHEW_DIVIDER_Y = 74 + 2 * 96 + 11 - 6;
 
 // ---- Dil ------------------------------------------------------------------------
