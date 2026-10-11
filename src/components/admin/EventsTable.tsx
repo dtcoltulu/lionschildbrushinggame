@@ -10,6 +10,8 @@ const LABELS: Record<StoredEvent["name"], string> = {
   game_completed: "Oyun tamamlandı",
   reward_screen_viewed: "Ödül ekranı",
   replay_started: "Tekrar oynama",
+  self_check_yes: "Soru: Evet (yeterli dedi)",
+  self_check_no: "Soru: Hayır",
 };
 
 export function EventsTable({ events, tz }: { events: StoredEvent[]; tz: string }) {

@@ -8,6 +8,10 @@ export const EVENT_NAMES = [
   "game_completed",
   "reward_screen_viewed",
   "replay_started",
+  /** "Sence yeterli ve etkin temizlendi mi?" → çocuk "Evet" dedi (temizlik aslında bitmemişti: erken bırakma eğilimi). */
+  "self_check_yes",
+  /** Aynı soru → çocuk "Hayır" dedi (doğru farkındalık). `phase` = sorunun sorulduğu aşama (1..5). */
+  "self_check_no",
 ] as const;
 
 export type EventName = (typeof EVENT_NAMES)[number];

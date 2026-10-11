@@ -24,5 +24,12 @@ export const START_DELAY_MS = 900;
 /** Arka plandan dönüşte sürenin şişmemesi için tek karede en fazla sayılan süre. */
 export const MAX_DT_MS = 100;
 
+/**
+ * "Sence yeterli ve etkin temizlendi mi?" sorusu (yalnızca özelliği açık kampanyada):
+ * aşamadaki lekelerin bu oranı temizlenince bir kez sorulur. Temizlik bitmeden sorulduğu için
+ * "Evet" cevabı, çocuğun işi erken bırakma eğilimini gösterir.
+ */
+export const CHECK_AT_FRACTION = 0.5;
+
 /** Aşama sayısı: dış yüzey, diş araları, iç yüzey, çiğneme, dil, diş ipi. */
 export const TOTAL_PHASES = 6;

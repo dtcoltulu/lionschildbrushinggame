@@ -1,5 +1,6 @@
 import {
   BRUSH_RADIUS,
+  CHECK_AT_FRACTION,
   EASY_AFTER_MS,
   HINT_AFTER_MS,
   MAX_DT_MS,
@@ -16,6 +17,10 @@ import type { EngineCallbacks, EngineStatus, PatchState, PhaseSpec, Point, Spark
 export interface EngineOptions {
   reducedMotion?: boolean;
   swipesPerPatch?: number;
+  /** Aşama ortasında "yeterli temizlendi mi?" sorusunu açar (son aşama hariç). Varsayılan: kapalı. */
+  selfCheck?: boolean;
+  /** Sorunun çıkacağı temizlik oranı (0..1). Varsayılan: CHECK_AT_FRACTION. */
+  checkAt?: number;
 }
 
 /**
@@ -41,6 +46,8 @@ export class GameEngine {
   private tracker = new StrokeTracker();
   private lastProgress = 0;
   private cleanedInPhase = 0;
+  /** Bu aşamada soru zaten soruldu mu? (aşama başına en çok bir kez) */
+  private asked = false;
 
   constructor(
     private readonly phases: PhaseSpec[],
@@ -102,6 +109,7 @@ export class GameEngine {
     this.idle = 0;
     this.hintIndex = null;
     this.cleanedInPhase = 0;
+    this.asked = false;
     this.tracker.reset();
   }
 
@@ -135,6 +143,13 @@ export class GameEngine {
     patch.swipes = patch.need;
     this.finishPatchIfDone(patch);
     this.afterProgress();
+  }
+
+  /** Kendini değerlendirme sorusu cevaplandı: oyun kaldığı yerden devam eder. */
+  answerCheck(): void {
+    if (this.status !== "asking") return;
+    this.status = "playing";
+    this.idle = 0; // ipucu sayacı yeniden başlasın
   }
 
   // ---- Zaman -----------------------------------------------------------
@@ -245,7 +260,27 @@ export class GameEngine {
       this.lastProgress = overall;
       this.cb.onProgress?.(overall);
     }
+    this.maybeAsk();
     if (this.status === "playing" && this.patches.every((p) => p.done)) this.completePhase();
+  }
+
+  /**
+   * "Sence yeterli ve etkin temizlendi mi?": aşamanın yarısı temizlenince bir kez; son aşamada sorulmaz.
+   * Soru açıkken fırçalama, süre ve ipucu sayacı durur (update yalnızca "playing" durumunda ilerletir).
+   */
+  private maybeAsk(): void {
+    if (!this.opts.selfCheck || this.asked || this.status !== "playing") return;
+    if (this.phaseIndex >= this.phases.length - 1) return;
+    const total = this.patches.length;
+    if (total === 0) return;
+    const frac = this.cleanedInPhase / total;
+    if (frac < (this.opts.checkAt ?? CHECK_AT_FRACTION) || frac >= 1) return;
+    this.asked = true;
+    this.status = "asking";
+    this.hintIndex = null;
+    this.brushDown = false;
+    this.tracker.reset();
+    this.cb.onCheck?.(this.phaseIndex);
   }
 
   private completePhase(): void {

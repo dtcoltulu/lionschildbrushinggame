@@ -225,3 +225,109 @@ test.describe("Bağlantı sorunları", () => {
     await ctx.close();
   });
 });
+
+test.describe('Kendini değerlendirme: "Sence yeterli ve etkin temizlendi mi?" (yalnızca deneme kampanyası)', () => {
+  test("deneme kampanyasında her aşamada (son aşama hariç) soru çıkar; oyun durur; Evet/Hayır geri bildirimi ve sayımı çalışır", async ({ page }) => {
+    const cap = captureEvents(page);
+    const pageErrors: string[] = [];
+    page.on("pageerror", (err) => pageErrors.push(err.message));
+    await page.goto("/oyun?k=test-deneme");
+    await page.getByTestId("start").click();
+    await page.getByTestId("skip-tutorial").click();
+    await expect(page.getByTestId("play-screen")).toBeVisible();
+
+    const answers: ("yes" | "no")[] = ["yes", "no", "yes", "no", "no"];
+    const results: { phase: number; answer: "yes" | "no"; text: string }[] = [];
+    let pausedChecked = false;
+
+    await expect
+      .poll(
+        async () => {
+          if (await page.getByTestId("reward-screen").isVisible()) return "reward";
+          const dlg = page.getByTestId("check-dialog");
+          if (await dlg.isVisible()) {
+            const phase = Number(await page.getByTestId("play-screen").getAttribute("data-phase"));
+            await expect(dlg).toContainText("Sence yeterli ve etkin temizlendi mi?");
+            if (!pausedChecked) {
+              // Soru açıkken oyun durur: ilerleme değişmez, soru kendiliğinden kapanmaz, arkadaki "Yardım" tıklanamaz.
+              const bar = page.getByRole("progressbar");
+              const before = await bar.getAttribute("aria-valuenow");
+              await page.waitForTimeout(1500);
+              expect(await bar.getAttribute("aria-valuenow")).toBe(before);
+              await expect(dlg).toBeVisible();
+              // Arkadaki "Yardım" butonu soru açıkken kullanılamaz (üstü kapalı/inert): soru atlanamaz.
+              await expect(page.getByTestId("help").click({ timeout: 400 })).rejects.toThrow();
+              pausedChecked = true;
+            }
+            const a = answers[results.length]!;
+            await page.getByTestId(a === "yes" ? "check-yes" : "check-no").click();
+            const fb = page.getByTestId("check-feedback");
+            await expect(fb).toHaveAttribute("data-answer", a);
+            results.push({ phase, answer: a, text: await fb.innerText() });
+            await page.getByTestId("check-continue").click();
+            await expect(dlg).toBeHidden();
+            return "playing";
+          }
+          await page.getByTestId("help").click({ timeout: 500 }).catch(() => {});
+          return "playing";
+        },
+        { timeout: 170_000, intervals: [100] },
+      )
+      .toBe("reward");
+
+    // 5 soru, aşama 1..5; son aşamada (6) soru yok
+    expect(results.map((r) => r.phase)).toEqual([1, 2, 3, 4, 5]);
+    for (const r of results) {
+      if (r.answer === "yes") expect(r.text).toContain("Henüz bitmedi"); // temizlik bitmediği için uyarı
+      else expect(r.text).toContain("Aferin, işi biliyorsun"); // doğru farkındalık için tebrik
+    }
+
+    // Ödül ekranı: diş macunu/standdaki görevli yerine Koşuyolu Park ücretsiz muayene fırsatı
+    const reward = page.getByTestId("reward-screen");
+    const offer = reward.getByTestId("clinic-offer");
+    await expect(offer).toContainText("Ücretsiz muayene fırsatı!");
+    await expect(offer).toContainText("Koşuyolu Park Diş Kliniği");
+    await expect(offer.getByRole("img", { name: "Koşuyolu Park Diş Kliniği" })).toBeVisible();
+    await expect(reward).not.toContainText("Diş macunu hediyeni al.");
+    await expect(reward).not.toContainText("görevliye göster");
+
+    // Cevaplar anonim olay olarak gönderilir (aşama numarasıyla), sayılar cevaplarla eşleşir
+    await page.evaluate(() => window.dispatchEvent(new Event("pagehide")));
+    await expect.poll(() => cap.names.filter((n) => n.startsWith("self_check")).length, { timeout: 15_000 }).toBe(5);
+    expect(cap.names.filter((n) => n === "self_check_yes")).toHaveLength(2);
+    expect(cap.names.filter((n) => n === "self_check_no")).toHaveLength(3);
+    const sent = cap.bodies.flatMap((b) => (b.events as { name: string; phase?: number }[]).filter((e) => e.name.startsWith("self_check")));
+    expect(sent.map((e) => [e.name, e.phase])).toEqual([
+      ["self_check_yes", 1],
+      ["self_check_no", 2],
+      ["self_check_yes", 3],
+      ["self_check_no", 4],
+      ["self_check_no", 5],
+    ]);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("ASIL kampanyada soru HİÇ çıkmaz, olay gönderilmez ve ödül ekranı (diş macunu) değişmez", async ({ page }) => {
+    // Sayfa açılır açılmaz soru penceresi DOM'a girerse işaretle (oyun sırasında kısa süreli görünse bile yakalansın).
+    await page.addInitScript(() => {
+      (window as unknown as { __checkSeen: boolean }).__checkSeen = false;
+      new MutationObserver(() => {
+        if (document.querySelector('[data-testid="check-dialog"], [data-testid="check-overlay"]')) (window as unknown as { __checkSeen: boolean }).__checkSeen = true;
+      }).observe(document, { childList: true, subtree: true });
+    });
+    const cap = captureEvents(page);
+    await page.goto("/oyun");
+    await page.getByTestId("start").click();
+    await page.getByTestId("skip-tutorial").click();
+    await finishGameWithHelp(page);
+
+    expect(await page.evaluate(() => (window as unknown as { __checkSeen: boolean }).__checkSeen)).toBe(false);
+    const reward = page.getByTestId("reward-screen");
+    await expect(reward).toContainText("Bu ekranı Lions standındaki görevliye göster.");
+    await expect(reward).toContainText("Diş macunu hediyeni al.");
+    await expect(reward.getByTestId("clinic-offer")).toHaveCount(0);
+    await page.evaluate(() => window.dispatchEvent(new Event("pagehide")));
+    await expect.poll(() => cap.names.includes("game_completed"), { timeout: 15_000 }).toBe(true);
+    expect(cap.names.filter((n) => n.startsWith("self_check"))).toEqual([]);
+  });
+});

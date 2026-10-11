@@ -62,6 +62,17 @@ export const tr = {
   soundOn: "Sesi kapat",
   soundOff: "Sesi aç",
   canvasLabel: "Diş fırçalama oyunu. Parmağını ekranda ileri geri hareket ettirerek dişlerdeki lekeleri temizle.",
+  /** "Sence yeterli ve etkin temizlendi mi?" (yalnızca özelliği açık kampanyada) */
+  check: {
+    question: "Sence yeterli ve etkin temizlendi mi?",
+    yes: "Evet",
+    no: "Hayır",
+    /** "Evet" denince: temizlik aslında bitmedi. */
+    yesFeedback: "Henüz bitmedi! Dişlerde hâlâ mikroplar var. Biraz daha temizleyelim.",
+    /** "Hayır" denince: doğru farkındalık. */
+    noFeedback: "Aferin, işi biliyorsun! Temizlik bitene kadar devam edelim.",
+    next: "Devam",
+  },
   reward: {
     trophyLabel: "Kupa",
     title: "TEBRİKLER!",

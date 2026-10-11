@@ -20,7 +20,30 @@ export interface CampaignConfig {
   logoPath: string;
   /** QR kodun ortasında kullanılan yüksek çözünürlüklü logo (yoksa logoPath). */
   qrLogoPath?: string;
+  /**
+   * Her aşamanın ortasında "Sence yeterli ve etkin temizlendi mi?" sorusunu açar (son aşama hariç).
+   * Cevaplar (Evet/Hayır) anonim olarak sayılır ve panelde raporlanır. Varsayılan: kapalı.
+   */
+  selfCheck?: boolean;
+  /**
+   * Doluysa ödül ekranında "standdaki görevliye göster / diş macunu" kartı yerine bu klinik fırsatı gösterilir
+   * (etkinlik bittiği, diş macunu kalmadığı durumlar için).
+   */
+  clinicOffer?: ClinicOffer;
   active: boolean;
+}
+
+export interface ClinicOffer {
+  /** Fırsatın başlığı, ör. "Ücretsiz muayene fırsatı!" */
+  title: string;
+  /** Çocuğa/ebeveyne açıklama cümlesi. Yalnızca doğrulanmış bilgiyi yazın (adres/telefon/koşul uydurmayın). */
+  text: string;
+  /** İsteğe bağlı ek satır (ör. randevu bilgisi). Boşsa gösterilmez. */
+  detail?: string;
+  /** İsteğe bağlı klinik logosu (public altında). */
+  logoPath?: string;
+  /** Logo için erişilebilir ad. */
+  logoAlt?: string;
 }
 
 export const CAMPAIGNS: readonly CampaignConfig[] = [
@@ -59,6 +82,14 @@ export const CAMPAIGNS: readonly CampaignConfig[] = [
     rewardLine: "Diş macunu hediyeni al.",
     logoPath: "/assets/lions-logo.png",
     qrLogoPath: "/assets/lions-logo-hd.png",
+    // Yeni özellikler önce yalnızca deneme kampanyasında denenir; asıl kampanya değişmez.
+    selfCheck: true,
+    clinicOffer: {
+      title: "Ücretsiz muayene fırsatı!",
+      text: "Koşuyolu Park Diş Kliniği'nde dişlerini ücretsiz muayene ettirebilirsin.",
+      logoPath: "/assets/kosuyolu-park.png",
+      logoAlt: "Koşuyolu Park Diş Kliniği",
+    },
     active: true,
   },
 ];

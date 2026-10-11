@@ -4,6 +4,7 @@ import { EventsTable } from "@/components/admin/EventsTable";
 import { HourlyChart } from "@/components/admin/HourlyChart";
 import { HourlyTable } from "@/components/admin/HourlyTable";
 import { KpiCards } from "@/components/admin/KpiCards";
+import { SelfCheckSection } from "@/components/admin/SelfCheckSection";
 import { CAMPAIGNS, resolveCampaign } from "@/config/campaigns";
 import { requireAdmin } from "@/lib/admin-guard";
 import { getStore } from "@/lib/get-store";
@@ -113,6 +114,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           <HourlyTable rows={hours} />
         </details>
       </section>
+
+      {(campaign.selfCheck || k.selfCheck.total > 0) && <SelfCheckSection c={k.selfCheck} />}
 
       {k.phases.length > 0 && (
         <section aria-labelledby="phases" className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-purple/10">

@@ -108,6 +108,16 @@ export function GameApp({ campaigns, defaultCampaignId }: Props) {
     });
   }, []);
 
+  /** "Sence yeterli ve etkin temizlendi mi?" cevabı: anonim sayım (aşama numarasıyla). */
+  const onCheckAnswer = useCallback((i: number, answer: "yes" | "no") => {
+    const p = play.current;
+    analytics.current?.track(answer === "yes" ? "self_check_yes" : "self_check_no", {
+      playId: p?.playId,
+      playIndex: p?.playIndex,
+      phase: i + 1,
+    });
+  }, []);
+
   const onComplete = useCallback((totalMs: number) => {
     if (finished.current) return;
     finished.current = true;
@@ -125,7 +135,15 @@ export function GameApp({ campaigns, defaultCampaignId }: Props) {
     case "tutorial":
       return <TutorialScreen onDone={onTutorialDone} onSkip={onTutorialSkip} />;
     case "playing":
-      return <PlayScreen key={playKey} onPhaseComplete={onPhaseComplete} onComplete={onComplete} />;
+      return (
+        <PlayScreen
+          key={playKey}
+          onPhaseComplete={onPhaseComplete}
+          onComplete={onComplete}
+          selfCheck={campaign.selfCheck === true}
+          onCheckAnswer={onCheckAnswer}
+        />
+      );
     case "reward":
       return (
         <RewardScreen

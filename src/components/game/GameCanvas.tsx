@@ -9,18 +9,22 @@ import type { EngineCallbacks } from "@/game/types";
 
 export interface GameCanvasHandle {
   assist(): void;
+  /** "Yeterli temizlendi mi?" sorusu cevaplanınca oyunu kaldığı yerden sürdürür. */
+  resume(): void;
 }
 
 interface Props {
   mode: "tutorial" | "game";
   callbacks: EngineCallbacks;
   controlRef?: RefObject<GameCanvasHandle | null>;
+  /** Aşama ortasında "yeterli temizlendi mi?" sorusunu açar (yalnızca asıl oyunda; öğreticide hiç). */
+  selfCheck?: boolean;
 }
 
 /** Parmak parmağın altında kalmasın diye dokunmatikte fırça ~26 birim yukarıda çizilir. */
 const TOUCH_OFFSET_Y = 26;
 
-export function GameCanvas({ mode, callbacks, controlRef }: Props) {
+export function GameCanvas({ mode, callbacks, controlRef, selfCheck = false }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cbRef = useRef(callbacks);
@@ -46,8 +50,9 @@ export function GameCanvas({ mode, callbacks, controlRef }: Props) {
         onSwipe: () => cbRef.current.onSwipe?.(),
         onPatchCleaned: () => cbRef.current.onPatchCleaned?.(),
         onTurn: () => cbRef.current.onTurn?.(),
+        onCheck: (i) => cbRef.current.onCheck?.(i),
       },
-      { reducedMotion: reduced, swipesPerPatch: mode === "tutorial" ? 3 : undefined },
+      { reducedMotion: reduced, swipesPerPatch: mode === "tutorial" ? 3 : undefined, selfCheck: mode === "game" && selfCheck },
     );
 
     let scale = 1;
@@ -116,7 +121,7 @@ export function GameCanvas({ mode, callbacks, controlRef }: Props) {
     const noMenu = (e: Event) => e.preventDefault();
     canvas.addEventListener("contextmenu", noMenu);
 
-    if (controlRef) controlRef.current = { assist: () => engine.assistClean() };
+    if (controlRef) controlRef.current = { assist: () => engine.assistClean(), resume: () => engine.answerCheck() };
 
     let raf = 0;
     let last = performance.now();
@@ -154,9 +159,9 @@ export function GameCanvas({ mode, callbacks, controlRef }: Props) {
       canvas.removeEventListener("contextmenu", noMenu);
       if (controlRef) controlRef.current = null;
     };
-    // Motor yalnızca mod değişince yeniden kurulur; callback'ler ref üzerinden okunur.
+    // Motor yalnızca mod/özellik değişince yeniden kurulur; callback'ler ref üzerinden okunur.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode]);
+  }, [mode, selfCheck]);
 
   return (
     <div ref={wrapRef} className="absolute inset-0">

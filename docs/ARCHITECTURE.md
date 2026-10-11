@@ -37,12 +37,13 @@ Kimlikler: `sessionId` (tarayıcı başına rastgele UUID, localStorage), `playI
 | `phase_completed` | Her aşama bitince (`phase` 1–4, `durationMs`) |
 | `game_completed` | Her tamamlamada (`playIndex`, `durationMs` = aktif oyun süresi) |
 | `reward_screen_viewed` | Ödül ekranı açılınca |
+| `self_check_yes` / `self_check_no` | Yalnızca `selfCheck` açık kampanyada: "Sence yeterli ve etkin temizlendi mi?" cevabı; `phase` 1–5 (sorunun sorulduğu aşama). Evet = temizlik bitmeden "yeterli" dedi, Hayır = doğru farkındalık |
 
 `session_start_time` = `sessions.first_seen_at`; `game_duration`/`completion_time` = `durationMs`.
 
 ## Veri modeli
 
-`supabase/migrations/0001_init.sql`: `sessions (id, campaign_id) PK`, `events (id PK, session_id+campaign_id FK, name CHECK, occurred_at, received_at, play_id, play_index, duration_ms, phase)`. RLS açık, policy yok, anon/authenticated yetkileri kaldırılmış. Serbest metin/JSON alanı yoktur: kişisel veri yazmayı yapısal olarak zorlaştırır.
+`supabase/migrations/0001_init.sql` (+ `0002_self_check_events.sql`: ad listesine `self_check_yes/no`; `tests/migrations.test.ts` listenin uygulamadaki `EVENT_NAMES` ile birebir aynı kalmasını zorunlu kılar): `sessions (id, campaign_id) PK`, `events (id PK, session_id+campaign_id FK, name CHECK, occurred_at, received_at, play_id, play_index, duration_ms, phase)`. RLS açık, policy yok, anon/authenticated yetkileri kaldırılmış. Serbest metin/JSON alanı yoktur: kişisel veri yazmayı yapısal olarak zorlaştırır.
 
 ## Tasarım kararları
 
