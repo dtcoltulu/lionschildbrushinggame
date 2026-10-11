@@ -95,6 +95,7 @@ export const tr = {
       { icon: "😁", text: "Dişlerini düzenli kontrol ettir" },
     ],
     replay: "Tekrar Oyna",
+    newTab: "yeni sekmede açılır",
     took: "Süren:",
     quick: "Hızlı fırçaladın! Minimum 2 dakika fırçala, mikroplar kalmış olabilir!",
     ideal: "Tebrikler, ideal süreye ulaştın! Yine de dişlerini düzenli kontrol ettirmeyi unutma.",
@@ -108,6 +109,7 @@ export const tr = {
       "Reklam yoktur. Üçüncü taraf takip aracı (tracker) kullanılmaz. IP adresi, cihaz parmak izi ya da tarayıcı bilgisi veritabanına kaydedilmez. Yalnızca cihazın telefon, tablet ya da bilgisayar olduğu gibi çok kaba bir sınıf bilgisi tutulabilir.",
       "Bu bilgiyi tarayıcının yerel depolama alanı saklar (çerez değildir). Tarayıcı verilerini silerek istediğin zaman temizleyebilirsin.",
       "Not: Sayfayı sunan barındırma hizmeti, teknik işleyiş gereği bağlantı kayıtlarını kısa süre için tutabilir; bu kayıtlar oyun verisiyle eşleştirilmez.",
+      "Ödül ekranında bir diş kliniğinin web sitesine giden bağlantı bulunabilir. Ona dokunursan site yeni sekmede açılır ve o sitenin kendi kuralları geçerli olur; oyun bu dokunuşu kaydetmez ve o siteye hiçbir bilgi göndermez.",
     ],
   },
 } as const;

@@ -53,7 +53,7 @@ Gerçek cihaz gerektirir; bu depoda otomatikleştirilemez. Test için hep `…/o
 ### Deneme kampanyası: "Sence yeterli ve etkin temizlendi mi?" ve klinik fırsatı (`/oyun?k=test-deneme`)
 - [ ] Her aşama (1–5) **tamamen temizlenince** (tüm lekeler gidince, sonraki aşamaya geçmeden) **oyun durur** ve soru çıkar; temizlik bitmeden **çıkmaz**; **son aşamada (diş ipi) hiç çıkmaz**. Soru açıkken arkadaki "Yardım"/fırçalama çalışmaz.
 - [ ] **Evet** → "Henüz bitmedi! Sırada … var." (o aşamadan sonra kalan yüzeyleri doğru sayıyor); **Hayır** → "Aferin, işi biliyorsun!…" tebriki. **Devam**'a dokununca (ya da ~4,5 sn sonra kendiliğinden) sonraki aşamaya geçilir (diş araları bitince yüz dönmesi dahil).
-- [ ] Ödül ekranında diş macunu/standdaki görevli yerine **"Ücretsiz muayene fırsatı!" + Koşuyolu Park** kartı var; logo görünüyor.
+- [ ] Ödül ekranında diş macunu/standdaki görevli yerine **"Ücretsiz muayene fırsatı!" + Koşuyolu Park** kartı var; logo görünüyor. Kartın en altındaki **www.kosuyolupark.com** bağlantısına dokununca klinik sitesi **yeni sekmede** açılıyor (gerçek telefonda deneyin; oyun sekmesi açık kalıyor).
 - [ ] `/admin?k=test-deneme` → **"Sence yeterli ve etkin temizlendi mi?" cevapları** bölümünde Evet/Hayır sayısı ve oranı, aşama dökümü doğru (birkaç cevap verip karşılaştırın). Rapor sayfasında ve CSV'de de var.
 - [ ] **Asıl kampanyada** (`/oyun`, `?k=` yok) soru **hiç çıkmıyor** ve ödül ekranı eskisi gibi (diş macunu).
 - [ ] (Yayından önce) `supabase/migrations/0002_self_check_events.sql` uygulandı: deneme kampanyasında cevaplar panelde görünüyor.

@@ -113,6 +113,8 @@ test.describe("Oyun akışı", () => {
     await page.goto("/gizlilik");
     await expect(page.getByRole("heading", { name: "Gizlilik" })).toBeVisible();
     await expect(page.getByText("reklam yoktur", { exact: false }).or(page.getByText("Reklam yoktur"))).toBeVisible();
+    // Ödül ekranındaki dış (klinik) bağlantısı gizlilik sayfasında açıkça belirtilir
+    await expect(page.getByText("diş kliniğinin web sitesine giden bağlantı", { exact: false })).toBeVisible();
   });
 });
 
@@ -302,6 +304,14 @@ test.describe('Kendini değerlendirme: "Sence yeterli ve etkin temizlendi mi?" (
     await expect(offer).toContainText("Ücretsiz muayene fırsatı!");
     await expect(offer).toContainText("Koşuyolu Park Diş Kliniği");
     await expect(offer.getByRole("img", { name: "Koşuyolu Park Diş Kliniği" })).toBeVisible();
+    // Kartın sonunda klinik web sitesi: dokunulabilir, yeni sekmede açılır, yönlendiren adres gönderilmez
+    const site = offer.getByTestId("clinic-website");
+    await expect(site).toBeVisible();
+    await expect(site).toContainText("www.kosuyolupark.com");
+    await expect(site).toHaveAttribute("href", "https://www.kosuyolupark.com");
+    await expect(site).toHaveAttribute("target", "_blank");
+    await expect(site).toHaveAttribute("rel", /noopener/);
+    await expect(site).toHaveAttribute("rel", /noreferrer/);
     await expect(reward).not.toContainText("Diş macunu hediyeni al.");
     await expect(reward).not.toContainText("görevliye göster");
 
@@ -340,6 +350,7 @@ test.describe('Kendini değerlendirme: "Sence yeterli ve etkin temizlendi mi?" (
     await expect(reward).toContainText("Bu ekranı Lions standındaki görevliye göster.");
     await expect(reward).toContainText("Diş macunu hediyeni al.");
     await expect(reward.getByTestId("clinic-offer")).toHaveCount(0);
+    await expect(reward.getByTestId("clinic-website")).toHaveCount(0);
     await page.evaluate(() => window.dispatchEvent(new Event("pagehide")));
     await expect.poll(() => cap.names.includes("game_completed"), { timeout: 15_000 }).toBe(true);
     expect(cap.names.filter((n) => n.startsWith("self_check"))).toEqual([]);

@@ -40,6 +40,11 @@ export interface ClinicOffer {
   text: string;
   /** İsteğe bağlı ek satır (ör. randevu bilgisi). Boşsa gösterilmez. */
   detail?: string;
+  /**
+   * İsteğe bağlı klinik web sitesi, yalnızca alan adı olarak ("www.ornek.com"; başına https:// ve yol eklemeyin).
+   * Kartın en altında dokunulabilir bağlantı olarak gösterilir (yeni sekmede açılır). Yalnızca klinikten alınan adresi yazın.
+   */
+  website?: string;
   /** İsteğe bağlı klinik logosu (public altında). */
   logoPath?: string;
   /** Logo için erişilebilir ad. */
@@ -87,6 +92,7 @@ export const CAMPAIGNS: readonly CampaignConfig[] = [
     clinicOffer: {
       title: "Ücretsiz muayene fırsatı!",
       text: "Koşuyolu Park Diş Kliniği'nde dişlerini ücretsiz muayene ettirebilirsin.",
+      website: "www.kosuyolupark.com",
       logoPath: "/assets/kosuyolu-park.png",
       logoAlt: "Koşuyolu Park Diş Kliniği",
     },
