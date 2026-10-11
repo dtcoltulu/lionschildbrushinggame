@@ -1,6 +1,5 @@
 import {
   BRUSH_RADIUS,
-  CHECK_AT_FRACTION,
   EASY_AFTER_MS,
   HINT_AFTER_MS,
   MAX_DT_MS,
@@ -17,10 +16,11 @@ import type { EngineCallbacks, EngineStatus, PatchState, PhaseSpec, Point, Spark
 export interface EngineOptions {
   reducedMotion?: boolean;
   swipesPerPatch?: number;
-  /** Aşama ortasında "yeterli temizlendi mi?" sorusunu açar (son aşama hariç). Varsayılan: kapalı. */
+  /**
+   * Her aşama BİTTİKTEN sonra (sahne tamamen temizken, son aşama hariç) "yeterli temizlendi mi?" sorusunu açar:
+   * oyun durur, sonraki aşamaya geçiş cevaptan sonra başlar. Varsayılan: kapalı.
+   */
   selfCheck?: boolean;
-  /** Sorunun çıkacağı temizlik oranı (0..1). Varsayılan: CHECK_AT_FRACTION. */
-  checkAt?: number;
 }
 
 /**
@@ -46,8 +46,6 @@ export class GameEngine {
   private tracker = new StrokeTracker();
   private lastProgress = 0;
   private cleanedInPhase = 0;
-  /** Bu aşamada soru zaten soruldu mu? (aşama başına en çok bir kez) */
-  private asked = false;
 
   constructor(
     private readonly phases: PhaseSpec[],
@@ -109,7 +107,6 @@ export class GameEngine {
     this.idle = 0;
     this.hintIndex = null;
     this.cleanedInPhase = 0;
-    this.asked = false;
     this.tracker.reset();
   }
 
@@ -145,11 +142,10 @@ export class GameEngine {
     this.afterProgress();
   }
 
-  /** Kendini değerlendirme sorusu cevaplandı: oyun kaldığı yerden devam eder. */
+  /** Kendini değerlendirme sorusu cevaplandı: bitmiş aşamadan sonraki aşamaya geçiş (yüz dönmesi dahil) başlar. */
   answerCheck(): void {
     if (this.status !== "asking") return;
-    this.status = "playing";
-    this.idle = 0; // ipucu sayacı yeniden başlasın
+    this.beginTransition();
   }
 
   // ---- Zaman -----------------------------------------------------------
@@ -260,40 +256,33 @@ export class GameEngine {
       this.lastProgress = overall;
       this.cb.onProgress?.(overall);
     }
-    this.maybeAsk();
     if (this.status === "playing" && this.patches.every((p) => p.done)) this.completePhase();
   }
 
-  /**
-   * "Sence yeterli ve etkin temizlendi mi?": aşamanın yarısı temizlenince bir kez; son aşamada sorulmaz.
-   * Soru açıkken fırçalama, süre ve ipucu sayacı durur (update yalnızca "playing" durumunda ilerletir).
-   */
-  private maybeAsk(): void {
-    if (!this.opts.selfCheck || this.asked || this.status !== "playing") return;
-    if (this.phaseIndex >= this.phases.length - 1) return;
-    const total = this.patches.length;
-    if (total === 0) return;
-    const frac = this.cleanedInPhase / total;
-    if (frac < (this.opts.checkAt ?? CHECK_AT_FRACTION) || frac >= 1) return;
-    this.asked = true;
-    this.status = "asking";
-    this.hintIndex = null;
-    this.brushDown = false;
-    this.tracker.reset();
-    this.cb.onCheck?.(this.phaseIndex);
-  }
-
-  private completePhase(): void {
+  /** Aşama bitti: sonraki aşamaya (ya da ödüle) geçiş animasyonunu başlatır. */
+  private beginTransition(): void {
     this.status = "transition";
     this.transitionElapsed = 0;
     this.swapped = false;
     const next = this.phases[this.phaseIndex + 1];
     this.turning = next !== undefined && next.kind === "inner";
+  }
+
+  /**
+   * Aşama tamamen temizlendi. Soru açıksa ("Sence yeterli ve etkin temizlendi mi?") ve bu son aşama değilse
+   * oyun "asking"de durur; geçiş cevaptan sonra başlar. Son aşamada soru yoktur (her yer gerçekten temiz).
+   */
+  private completePhase(): void {
+    const last = this.phaseIndex >= this.phases.length - 1;
+    const ask = this.opts.selfCheck === true && !last;
+    if (ask) this.status = "asking";
+    else this.beginTransition();
     this.hintIndex = null;
     this.brushDown = false;
     this.tracker.reset();
-    if (this.phaseIndex === this.phases.length - 1) this.completionMs = this.totalElapsed;
+    if (last) this.completionMs = this.totalElapsed;
     this.cb.onPhaseComplete?.(this.phaseIndex, Math.round(this.phaseElapsed));
+    if (ask) this.cb.onCheck?.(this.phaseIndex);
   }
 
   /** Yüz yan dönünce: sonraki aşamanın sahnesi ve lekeleri yüklenir (oynanış geçişin sonunda başlar). */

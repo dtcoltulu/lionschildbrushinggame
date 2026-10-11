@@ -8,9 +8,9 @@ export const EVENT_NAMES = [
   "game_completed",
   "reward_screen_viewed",
   "replay_started",
-  /** "Sence yeterli ve etkin temizlendi mi?" → çocuk "Evet" dedi (temizlik aslında bitmemişti: erken bırakma eğilimi). */
+  /** "Sence yeterli ve etkin temizlendi mi?" (aşama bitince) → çocuk "Evet" dedi; oysa diğer yüzeyler kalmıştı: erken bırakma eğilimi. */
   "self_check_yes",
-  /** Aynı soru → çocuk "Hayır" dedi (doğru farkındalık). `phase` = sorunun sorulduğu aşama (1..5). */
+  /** Aynı soru → çocuk "Hayır" dedi (doğru farkındalık). `phase` = biten aşama (1..5); son aşamada soru yoktur. */
   "self_check_no",
 ] as const;
 

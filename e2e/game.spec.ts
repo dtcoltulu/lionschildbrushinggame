@@ -227,7 +227,7 @@ test.describe("Bağlantı sorunları", () => {
 });
 
 test.describe('Kendini değerlendirme: "Sence yeterli ve etkin temizlendi mi?" (yalnızca deneme kampanyası)', () => {
-  test("deneme kampanyasında her aşamada (son aşama hariç) soru çıkar; oyun durur; Evet/Hayır geri bildirimi ve sayımı çalışır", async ({ page }) => {
+  test("deneme kampanyasında her aşama BİTİNCE (son aşama hariç) soru çıkar; oyun durur; Evet/Hayır geri bildirimi, geçiş ve sayım çalışır", async ({ page }) => {
     const cap = captureEvents(page);
     const pageErrors: string[] = [];
     page.on("pageerror", (err) => pageErrors.push(err.message));
@@ -239,6 +239,7 @@ test.describe('Kendini değerlendirme: "Sence yeterli ve etkin temizlendi mi?" (
     const answers: ("yes" | "no")[] = ["yes", "no", "yes", "no", "no"];
     const results: { phase: number; answer: "yes" | "no"; text: string }[] = [];
     let pausedChecked = false;
+    let questionBeforeCompletion = false;
 
     await expect
       .poll(
@@ -248,6 +249,9 @@ test.describe('Kendini değerlendirme: "Sence yeterli ve etkin temizlendi mi?" (
           if (await dlg.isVisible()) {
             const phase = Number(await page.getByTestId("play-screen").getAttribute("data-phase"));
             await expect(dlg).toContainText("Sence yeterli ve etkin temizlendi mi?");
+            // Soru, aşama TAMAMEN temizlendikten sonra çıkar: ilerleme tam o aşamanın sonunda (aşama/6), arada değil.
+            const pct = Number(await page.getByRole("progressbar").getAttribute("aria-valuenow"));
+            if (pct !== Math.round((phase / 6) * 100)) questionBeforeCompletion = true;
             if (!pausedChecked) {
               // Soru açıkken oyun durur: ilerleme değişmez, soru kendiliğinden kapanmaz, arkadaki "Yardım" tıklanamaz.
               const bar = page.getByRole("progressbar");
@@ -266,6 +270,8 @@ test.describe('Kendini değerlendirme: "Sence yeterli ve etkin temizlendi mi?" (
             results.push({ phase, answer: a, text: await fb.innerText() });
             await page.getByTestId("check-continue").click();
             await expect(dlg).toBeHidden();
+            // Cevaptan sonra sonraki aşamaya geçilir (yüz dönmesi/geçiş dahil): aşama göstergesi bir artar.
+            await expect(page.getByTestId("play-screen")).toHaveAttribute("data-phase", String(phase + 1), { timeout: 8000 });
             return "playing";
           }
           await page.getByTestId("help").click({ timeout: 500 }).catch(() => {});
@@ -275,12 +281,20 @@ test.describe('Kendini değerlendirme: "Sence yeterli ve etkin temizlendi mi?" (
       )
       .toBe("reward");
 
-    // 5 soru, aşama 1..5; son aşamada (6) soru yok
+    // 5 soru, aşama 1..5; son aşamada (6) soru yok; hiçbiri aşama bitmeden çıkmadı
     expect(results.map((r) => r.phase)).toEqual([1, 2, 3, 4, 5]);
+    expect(questionBeforeCompletion).toBe(false);
     for (const r of results) {
-      if (r.answer === "yes") expect(r.text).toContain("Henüz bitmedi"); // temizlik bitmediği için uyarı
-      else expect(r.text).toContain("Aferin, işi biliyorsun"); // doğru farkındalık için tebrik
+      if (r.answer === "yes") {
+        // aşama bitti ama temizlik bitmedi: kalan yüzeyler söylenir
+        expect(r.text).toContain("Henüz bitmedi! Sırada");
+        expect(r.text).toContain("diş ipi var"); // her "Evet" uyarısı son adımı (diş ipi) da sayar
+      } else {
+        expect(r.text).toContain("Aferin, işi biliyorsun"); // doğru farkındalık için tebrik
+      }
     }
+    expect(results[0]!.text).toContain("diş araları"); // 1. aşama bitince "Evet": sırada diş araları ... var
+    expect(results[2]!.text).not.toContain("diş araları"); // 3. aşama bitince diş araları artık sayılmaz
 
     // Ödül ekranı: diş macunu/standdaki görevli yerine Koşuyolu Park ücretsiz muayene fırsatı
     const reward = page.getByTestId("reward-screen");

@@ -21,7 +21,7 @@ export interface CampaignConfig {
   /** QR kodun ortasında kullanılan yüksek çözünürlüklü logo (yoksa logoPath). */
   qrLogoPath?: string;
   /**
-   * Her aşamanın ortasında "Sence yeterli ve etkin temizlendi mi?" sorusunu açar (son aşama hariç).
+   * Her aşama BİTTİKTEN sonra (sahne tamamen temizken, son aşama hariç) "Sence yeterli ve etkin temizlendi mi?" sorusunu açar.
    * Cevaplar (Evet/Hayır) anonim olarak sayılır ve panelde raporlanır. Varsayılan: kapalı.
    */
   selfCheck?: boolean;

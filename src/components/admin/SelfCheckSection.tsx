@@ -2,8 +2,8 @@ import { tr } from "@/content/tr";
 import { formatPercent, type SelfCheckStats } from "@/lib/kpi";
 
 /**
- * "Sence yeterli ve etkin temizlendi mi?" cevapları. Soru, aşamanın ortasında (temizlik bitmeden) sorulur:
- * "Evet" = çocuk işi erken bırakmak istedi, "Hayır" = doğru farkındalık.
+ * "Sence yeterli ve etkin temizlendi mi?" cevapları. Soru her aşama bittikten sonra (sahne tamamen temizken, ama diğer
+ * yüzeyler henüz kalmışken) sorulur: "Evet" = çocuk işi erken bırakmak istedi, "Hayır" = doğru farkındalık.
  */
 export function SelfCheckSection({ c, printable = false }: { c: SelfCheckStats; printable?: boolean }) {
   return (
@@ -16,7 +16,7 @@ export function SelfCheckSection({ c, printable = false }: { c: SelfCheckStats; 
         “{tr.check.question}” cevapları
       </h2>
       <p className="mt-1 text-sm text-ink/70">
-        Soru her aşamanın ortasında, temizlik henüz bitmeden sorulur (son aşamada sorulmaz). <strong>Evet</strong> = çocuk işi erken bırakmak istedi,{" "}
+        Soru her aşama bittikten sonra, diğer yüzeyler henüz kalmışken sorulur (son aşamada sorulmaz). <strong>Evet</strong> = çocuk işi erken bırakmak istedi,{" "}
         <strong>Hayır</strong> = doğru farkındalık. Oranlar cevap sayısı üzerindendir; bir çocuk birden çok kez cevaplar.
       </p>
 

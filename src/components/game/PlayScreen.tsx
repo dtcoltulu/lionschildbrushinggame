@@ -10,7 +10,7 @@ import { SoundToggle } from "./SoundToggle";
 interface Props {
   onPhaseComplete: (phaseIndex: number, durationMs: number) => void;
   onComplete: (totalMs: number) => void;
-  /** Aşama ortasında "Sence yeterli ve etkin temizlendi mi?" sorusu (kampanya ayarı; varsayılan kapalı). */
+  /** Her aşama BİTTİKTEN sonra (sahne tamamen temizken, son aşama hariç) "Sence yeterli ve etkin temizlendi mi?" sorusu (kampanya ayarı; varsayılan kapalı). */
   selfCheck?: boolean;
   onCheckAnswer?: (phaseIndex: number, answer: "yes" | "no") => void;
 }
@@ -18,7 +18,11 @@ interface Props {
 type CheckState = { phase: number; stage: "ask" } | { phase: number; stage: "feedback"; answer: "yes" | "no" };
 
 /** Geri bildirim yazısı bu kadar sonra kendiliğinden kapanır (ya da "Devam"a dokunulur). */
-const FEEDBACK_MS = 3200;
+const FEEDBACK_MS = 4500;
+/** Aşama bitince çocuk önce temiz sahneyi ve parıltıyı görsün; soru bu kadar gecikmeyle açılır. */
+const CHECK_DELAY_MS = 900;
+
+const yesText = (phaseIndex: number): string => tr.check.yesFeedback[phaseIndex] ?? tr.check.yesFallback;
 
 export function PlayScreen({ onPhaseComplete, onComplete, selfCheck = false, onCheckAnswer }: Props) {
   const [progress, setProgress] = useState(0);
@@ -32,9 +36,14 @@ export function PlayScreen({ onPhaseComplete, onComplete, selfCheck = false, onC
   const flash = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phaseRef = useRef(0);
   const [check, setCheck] = useState<CheckState | null>(null);
+  const checkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Cevap/geri bildirim bitti: her zamanki "Harika! ..." yazısıyla sonraki aşamaya geçiş başlar.
   const finishCheck = useCallback(() => {
+    const text = tr.phases[phaseRef.current]?.done ?? "";
     setCheck(null);
+    setMessage(text);
+    setLive(text);
     controlRef.current?.resume();
   }, []);
 
@@ -50,13 +59,14 @@ export function PlayScreen({ onPhaseComplete, onComplete, selfCheck = false, onC
     sfx.tap();
     onCheckAnswer?.(check.phase, answer);
     setCheck({ phase: check.phase, stage: "feedback", answer });
-    setLive(answer === "yes" ? tr.check.yesFeedback : tr.check.noFeedback);
+    setLive(answer === "yes" ? yesText(check.phase) : tr.check.noFeedback);
   };
 
   useEffect(
     () => () => {
       if (flash.current) clearTimeout(flash.current);
       if (calloutTimer.current) clearTimeout(calloutTimer.current);
+      if (checkTimer.current) clearTimeout(checkTimer.current);
     },
     [],
   );
@@ -84,7 +94,9 @@ export function PlayScreen({ onPhaseComplete, onComplete, selfCheck = false, onC
     onPhaseComplete: (i: number, ms: number) => {
       sfx.yay(i);
       if (flash.current) clearTimeout(flash.current);
-      const text = tr.phases[i]?.done ?? "";
+      // Soru sorulacaksa "Harika! Ama dişlerin arası kaldı." gibi ipucu veren yazı cevaptan sonra gösterilir.
+      const quiet = selfCheck && i < TOTAL_PHASES - 1;
+      const text = quiet ? "" : (tr.phases[i]?.done ?? "");
       setMessage(text);
       setLive(text);
       onPhaseComplete(i, ms);
@@ -97,8 +109,12 @@ export function PlayScreen({ onPhaseComplete, onComplete, selfCheck = false, onC
     onSwipe: () => sfx.swipe(),
     onTurn: () => sfx.turn(),
     onCheck: (i: number) => {
-      setCheck({ phase: i, stage: "ask" });
-      setLive(tr.check.question);
+      // Oyun bu sırada zaten durmuştur (motor "asking"de); çocuk önce temiz sahneyi görür, soru kısa gecikmeyle açılır.
+      if (checkTimer.current) clearTimeout(checkTimer.current);
+      checkTimer.current = setTimeout(() => {
+        setCheck({ phase: i, stage: "ask" });
+        setLive(tr.check.question);
+      }, CHECK_DELAY_MS);
     },
     onPatchCleaned: () => {
       sfx.clean();
@@ -178,8 +194,8 @@ export function PlayScreen({ onPhaseComplete, onComplete, selfCheck = false, onC
               </>
             ) : (
               <>
-                <p id="check-title" className="text-2xl font-black leading-snug text-purple" data-testid="check-feedback" data-answer={check.answer}>
-                  {check.answer === "yes" ? tr.check.yesFeedback : tr.check.noFeedback}
+                <p id="check-title" className="text-xl font-black leading-snug text-purple" data-testid="check-feedback" data-answer={check.answer}>
+                  {check.answer === "yes" ? yesText(check.phase) : tr.check.noFeedback}
                 </p>
                 <button type="button" autoFocus onClick={finishCheck} className="btn-big btn-gold mt-5" data-testid="check-continue">
                   {tr.check.next}

@@ -142,7 +142,7 @@ test.describe("Kendini değerlendirme sayıları (deneme kampanyası paneli)", (
     // Yazdırılabilir rapor ve CSV
     await page.goto("/admin/report?k=test-deneme");
     await expect(page.getByText("Sence yeterli ve etkin temizlendi mi?").first()).toBeVisible();
-    await expect(page.getByText("“Evet” (temizlik bitmeden “yeterli” dedi)")).toBeVisible();
+    await expect(page.getByText("“Evet” (diğer yüzeyler kalmışken “yeterli” dedi)")).toBeVisible();
     const csv = await (await page.request.get("/api/admin/export?k=test-deneme&type=report")).text();
     expect(csv).toContain("KENDİNİ DEĞERLENDİRME");
     expect(csv).toContain("Aşama 1;Dış yüzeyler;");

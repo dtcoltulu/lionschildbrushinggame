@@ -28,7 +28,7 @@ export interface SelfCheckPhase {
 }
 
 /**
- * Soru, aşamanın ortasında (temizlik bitmeden) sorulur: "Evet" = çocuk işi erken bırakmak istedi,
+ * Soru her aşama bittikten sonra (diğer yüzeyler hâlâ kalmışken) sorulur: "Evet" = çocuk işi erken bırakmak istedi,
  * "Hayır" = doğru farkındalık. Oranlar cevap sayısı üzerindendir (bir çocuk birden çok kez cevaplar).
  */
 export interface SelfCheckStats {

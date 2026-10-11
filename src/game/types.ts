@@ -49,7 +49,7 @@ export interface Sparkle {
   hue: number;
 }
 
-/** "asking": kendini değerlendirme sorusu açık, oyun (süre dahil) duraklatıldı. */
+/** "asking": aşama bitti, kendini değerlendirme sorusu açık; oyun (süre dahil) duraklatıldı, geçiş cevaptan sonra başlar. */
 export type EngineStatus = "idle" | "playing" | "asking" | "transition" | "done";
 
 export interface EngineCallbacks {
@@ -61,6 +61,6 @@ export interface EngineCallbacks {
   onPatchCleaned?: () => void;
   /** Yüz dönerken, sahnenin değiştiği anda bir kez çağrılır. */
   onTurn?: () => void;
-  /** Aşama ortasında "yeterli temizlendi mi?" sorusu açıldı; oyun `answerCheck()` çağrılana dek durur. */
+  /** Aşama BİTTİ (sahne tamamen temiz): "yeterli temizlendi mi?" sorusu açıldı; sonraki aşamaya geçiş `answerCheck()` ile başlar. */
   onCheck?: (phaseIndex: number) => void;
 }

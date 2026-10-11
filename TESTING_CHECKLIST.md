@@ -11,7 +11,7 @@ Kapsam:
 
 - **Oyun motoru:** swipe algılama, tek dokunuşla temizlenmeme, 6 aşamanın sırayla bitmesi, ilerlemenin monoton artması, yardım/ipucu, arka planda süre şişmemesi.
 - **Analytics istemcisi:** çevrimdışı kuyruk, sayfa yenilense de kuyruğun korunması, 503'te tutma / 400'de atma, 20'lik gruplar, depolama kapalıyken çalışma, ilk/tekrar oyun ayrımı.
-- **Kendini değerlendirme:** soru yalnızca özellik açıkken, aşamanın yarısında, aşama başına bir kez, son aşama ve öğretici hariç; soru süresi oyun süresine sayılmaz; Evet/Hayır sayısı-oranı-aşama dökümü; asıl kampanyada çıkmadığı; `0002` geçişinin `EVENT_NAMES` ile birebir uyumu.
+- **Kendini değerlendirme:** soru yalnızca özellik açıkken, aşama BİTİNCE (sahne tamamen temizken), aşama başına bir kez, son aşama ve öğretici hariç; soru süresi oyun süresine sayılmaz; Evet/Hayır sayısı-oranı-aşama dökümü; asıl kampanyada çıkmadığı; `0002` geçişinin `EVENT_NAMES` ile birebir uyumu.
 - **Sunucu:** kampanya/UUID/olay adı doğrulaması, fazladan (kişisel) alanların atılması, saat sapması düzeltmesi, çift gönderimde tek kayıt.
 - **KPI:** ziyaret/başlama/tamamlama ayrımı, tamamlama oranı, ilk oyun süresi, İstanbul saatiyle saatlik dağılım, gece yarısı sınırı, boş veri.
 - **CSV:** BOM, `;`, Türkçe karakter, formül enjeksiyonu koruması.
@@ -51,8 +51,8 @@ Gerçek cihaz gerektirir; bu depoda otomatikleştirilemez. Test için hep `…/o
 - [ ] Ödül ekranı: "TEBRİKLER! DİŞ KAHRAMANI OLDUN!", görevliye göster, diş macunu, 3 mesaj net; şeritte "Süren: … dk … sn" (oyun süresine uyuyor) ve bugünün tarihi/saati (saniyesiz) görünüyor; 2 dakikadan kısa sürede "Hızlı fırçaladın!…", 2 dakika ve üzerinde "ideal süreye ulaştın!…" mesajı çıkıyor; parıltı/yıldızlar hareket ediyor; "Tekrar Oyna" çalışıyor.
 
 ### Deneme kampanyası: "Sence yeterli ve etkin temizlendi mi?" ve klinik fırsatı (`/oyun?k=test-deneme`)
-- [ ] Her aşamada (1–5) temizlik yarıya gelince **oyun durur** ve soru çıkar; **son aşamada (diş ipi) çıkmaz**. Soru açıkken arkadaki "Yardım"/fırçalama çalışmaz.
-- [ ] **Evet** → "Henüz bitmedi! Dişlerde hâlâ mikroplar var…" yazısı; **Hayır** → "Aferin, işi biliyorsun!…" tebriki. **Devam**'a dokununca (ya da ~3 sn sonra kendiliğinden) oyun kaldığı yerden sürer.
+- [ ] Her aşama (1–5) **tamamen temizlenince** (tüm lekeler gidince, sonraki aşamaya geçmeden) **oyun durur** ve soru çıkar; temizlik bitmeden **çıkmaz**; **son aşamada (diş ipi) hiç çıkmaz**. Soru açıkken arkadaki "Yardım"/fırçalama çalışmaz.
+- [ ] **Evet** → "Henüz bitmedi! Sırada … var." (o aşamadan sonra kalan yüzeyleri doğru sayıyor); **Hayır** → "Aferin, işi biliyorsun!…" tebriki. **Devam**'a dokununca (ya da ~4,5 sn sonra kendiliğinden) sonraki aşamaya geçilir (diş araları bitince yüz dönmesi dahil).
 - [ ] Ödül ekranında diş macunu/standdaki görevli yerine **"Ücretsiz muayene fırsatı!" + Koşuyolu Park** kartı var; logo görünüyor.
 - [ ] `/admin?k=test-deneme` → **"Sence yeterli ve etkin temizlendi mi?" cevapları** bölümünde Evet/Hayır sayısı ve oranı, aşama dökümü doğru (birkaç cevap verip karşılaştırın). Rapor sayfasında ve CSV'de de var.
 - [ ] **Asıl kampanyada** (`/oyun`, `?k=` yok) soru **hiç çıkmıyor** ve ödül ekranı eskisi gibi (diş macunu).

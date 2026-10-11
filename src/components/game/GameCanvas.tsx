@@ -17,7 +17,7 @@ interface Props {
   mode: "tutorial" | "game";
   callbacks: EngineCallbacks;
   controlRef?: RefObject<GameCanvasHandle | null>;
-  /** Aşama ortasında "yeterli temizlendi mi?" sorusunu açar (yalnızca asıl oyunda; öğreticide hiç). */
+  /** Her aşama BİTİNCE (son aşama hariç) "yeterli temizlendi mi?" sorusunu açar (yalnızca asıl oyunda; öğreticide hiç). */
   selfCheck?: boolean;
 }
 

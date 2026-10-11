@@ -67,10 +67,20 @@ export const tr = {
     question: "Sence yeterli ve etkin temizlendi mi?",
     yes: "Evet",
     no: "Hayır",
-    /** "Evet" denince: temizlik aslında bitmedi. */
-    yesFeedback: "Henüz bitmedi! Dişlerde hâlâ mikroplar var. Biraz daha temizleyelim.",
-    /** "Hayır" denince: doğru farkındalık. */
-    noFeedback: "Aferin, işi biliyorsun! Temizlik bitene kadar devam edelim.",
+    /**
+     * "Evet" denince: aşama bitti ama temizlik henüz bitmedi, başka yüzeyler kaldı. Dizin = biten aşama (0..4);
+     * sırası oyundaki aşama sırasıyla aynıdır (dış yüzey, diş araları, iç yüzey, çiğneme, dil, diş ipi).
+     */
+    yesFeedback: [
+      "Henüz bitmedi! Sırada diş araları, iç yüzeyler, çiğneme yüzeyleri, dil ve diş ipi var.",
+      "Henüz bitmedi! Sırada iç yüzeyler, çiğneme yüzeyleri, dil ve diş ipi var.",
+      "Henüz bitmedi! Sırada çiğneme yüzeyleri, dil ve diş ipi var.",
+      "Henüz bitmedi! Sırada dil ve diş ipi var.",
+      "Henüz bitmedi! Sırada diş ipi var.",
+    ],
+    yesFallback: "Henüz bitmedi! Temizlenecek başka yerler de var.",
+    /** "Hayır" denince: doğru farkındalık (başka yüzeyler kaldığını biliyor). */
+    noFeedback: "Aferin, işi biliyorsun! Temizlenecek başka yerler de var, devam edelim.",
     next: "Devam",
   },
   reward: {

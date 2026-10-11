@@ -108,10 +108,10 @@ Yeni özellikler önce yalnızca **deneme kampanyasında** (`/oyun?k=test-deneme
 
 | Ayar | Ne yapar |
 |---|---|
-| `selfCheck: true` | Aşama 1–5'in **ortasında** (temizlik yarıya gelince, bir kez) oyun durur ve **"Sence yeterli ve etkin temizlendi mi?"** sorusu çıkar. **Evet** → "Henüz bitmedi! Dişlerde hâlâ mikroplar var…" yazısı, **Hayır** → "Aferin, işi biliyorsun!…" tebriki; ardından oyun kaldığı yerden sürer. Son aşamada (diş ipi) soru yoktur. Soru süresi oyun süresine sayılmaz. |
+| `selfCheck: true` | Aşama 1–5 **bittikten sonra** (sahne tamamen temizken, sonraki aşamaya geçmeden) oyun durur ve **"Sence yeterli ve etkin temizlendi mi?"** sorusu çıkar. **Evet** → "Henüz bitmedi! Sırada diş araları, iç yüzeyler… var." (kalan yüzeyleri sayar), **Hayır** → "Aferin, işi biliyorsun!…" tebriki; ardından oyun sonraki aşamaya geçer. Son aşamada (diş ipi) soru yoktur (her yer gerçekten temiz). Soru süresi oyun süresine sayılmaz. |
 | `clinicOffer: {…}` | Ödül ekranında "standdaki görevliye göster / diş macunu" kartı yerine **klinik fırsatı** gösterilir (ör. Koşuyolu Park Diş Kliniği ücretsiz muayene). Etkinlik bitip diş macunu kalmadığında kullanılır. Yalnızca doğrulanmış bilgiyi yazın; randevu/telefon gibi ek satır için `detail` alanı vardır. |
 
-**Cevapların ölçümü (anonim):** her cevap bir olaydır: `self_check_yes` (çocuk "Evet" dedi = işi erken bırakmak istedi) ya da `self_check_no` ("Hayır" = doğru farkındalık); `phase` = sorunun sorulduğu aşama. Panelde (`/admin?k=test-deneme`) **Evet / Hayır sayısı ve oranı**, aşama bazlı döküm, "en az bir kez Evet diyen çocuk" görünür; yazdırılabilir raporda ve CSV'de de yer alır. Oranlar cevap sayısı üzerindendir (bir çocuk her aşamada bir kez cevaplar).
+**Cevapların ölçümü (anonim):** her cevap bir olaydır: `self_check_yes` (çocuk "Evet" dedi = diğer yüzeyler kalmışken "yeterli" dedi, işi erken bırakmak istedi) ya da `self_check_no` ("Hayır" = doğru farkındalık); `phase` = biten aşama (1–5). Panelde (`/admin?k=test-deneme`) **Evet / Hayır sayısı ve oranı**, aşama bazlı döküm, "en az bir kez Evet diyen çocuk" görünür; yazdırılabilir raporda ve CSV'de de yer alır. Oranlar cevap sayısı üzerindendir (bir çocuk her aşamada bir kez cevaplar).
 
 ⚠️ Yeni olay adları veritabanında `supabase/migrations/0002_self_check_events.sql` ile izin verilir. **Yeni sürümü yayına almadan önce bu geçiş uygulanmalıdır** (bkz. `DEPLOYMENT.md`).
 

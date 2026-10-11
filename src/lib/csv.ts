@@ -40,7 +40,7 @@ export function reportLines(k: Kpis): ReportLine[] {
   if (c.total > 0) {
     lines.push(
       { label: "“Yeterli temizlendi mi?” sorusu: cevap sayısı", value: String(c.total), note: `${c.children} çocuk (tarayıcı) cevapladı` },
-      { label: "“Evet” (temizlik bitmeden “yeterli” dedi)", value: String(c.yes), note: formatPercent(c.yesRate) },
+      { label: "“Evet” (diğer yüzeyler kalmışken “yeterli” dedi)", value: String(c.yes), note: formatPercent(c.yesRate) },
       { label: "“Hayır” (doğru farkındalık)", value: String(c.no), note: formatPercent(c.noRate) },
       { label: "En az bir kez “Evet” diyen çocuk", value: String(c.childrenYes), note: `cevaplayanların ${formatPercent(c.children > 0 ? c.childrenYes / c.children : null)}` },
     );
