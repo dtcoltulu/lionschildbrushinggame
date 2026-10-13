@@ -106,6 +106,7 @@ export const tr = {
     body: [
       "Bu oyunda isim, soyisim, doğum tarihi, telefon, e-posta, fotoğraf, konum ya da sosyal medya hesabı istenmez ve toplanmaz. Giriş yapmak ya da profil oluşturmak gerekmez.",
       "Etkinliğin ne kadar ilgi gördüğünü ölçmek için yalnızca anonim sayımlar tutulur: sayfanın açılması, oyunun başlaması ve bitmesi, oyun süresi gibi. Bunlar, tarayıcıda rastgele üretilen bir kodla ilişkilendirilir; bu kod kimseyi tanımlamaz ve başka sitelerde kullanılmaz.",
+      "Oyunda aşamalar bittikten sonra sorulan “Sence yeterli ve etkin temizlendi mi?” sorusuna verilen Evet ya da Hayır cevabı da yalnızca bir sayı olarak, hangi aşamada verildiğiyle birlikte tutulur; cevabı kimin verdiği bilinmez.",
       "Reklam yoktur. Üçüncü taraf takip aracı (tracker) kullanılmaz. IP adresi, cihaz parmak izi ya da tarayıcı bilgisi veritabanına kaydedilmez. Yalnızca cihazın telefon, tablet ya da bilgisayar olduğu gibi çok kaba bir sınıf bilgisi tutulabilir.",
       "Bu bilgiyi tarayıcının yerel depolama alanı saklar (çerez değildir). Tarayıcı verilerini silerek istediğin zaman temizleyebilirsin.",
       "Not: Sayfayı sunan barındırma hizmeti, teknik işleyiş gereği bağlantı kayıtlarını kısa süre için tutabilir; bu kayıtlar oyun verisiyle eşleştirilmez.",

@@ -16,7 +16,7 @@ export function KpiCards({ k }: { k: Kpis }) {
   return (
     <section aria-label="Özet" className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
       <Card testId="kpi-landing" label="QR Landing" value={String(k.landingVisitors)} sub={`${k.landingViews} sayfa görüntüleme`} />
-      <Card testId="kpi-starters" label="Oyunu Başlatan" value={String(k.starters)} />
+      <Card testId="kpi-starters" label="Oyunu Başlatan" value={String(k.starters)} sub={`Başlatma oranı: ${formatPercent(k.startRate)}`} />
       <Card testId="kpi-completers" label="Tamamlayan" value={String(k.completers)} sub="benzersiz kişi (tarayıcı)" />
       <Card testId="kpi-rate" label="Tamamlama" value={formatPercent(k.completionRate)} sub="tamamlayan / başlayan" />
       <Card testId="kpi-avg" label="Ortalama Süre" value={formatDuration(k.avgDurationMs)} sub={`Medyan ${formatDuration(k.medianDurationMs)} · ${k.durationSamples} oyun`} />

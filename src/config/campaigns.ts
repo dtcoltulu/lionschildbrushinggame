@@ -22,7 +22,8 @@ export interface CampaignConfig {
   qrLogoPath?: string;
   /**
    * Her aşama BİTTİKTEN sonra (sahne tamamen temizken, son aşama hariç) "Sence yeterli ve etkin temizlendi mi?" sorusunu açar.
-   * Cevaplar (Evet/Hayır) anonim olarak sayılır ve panelde raporlanır. Varsayılan: kapalı.
+   * Cevaplar (Evet/Hayır) anonim olarak sayılır ve panelde raporlanır. Varsayılan: kapalı (asıl ve deneme kampanyasında açık).
+   * Yeni bir kampanyada açmadan önce veritabanında `0002_self_check_events.sql` uygulanmış olmalıdır.
    */
   selfCheck?: boolean;
   /**
@@ -68,6 +69,9 @@ export const CAMPAIGNS: readonly CampaignConfig[] = [
     rewardLine: "Diş macunu hediyeni al.",
     logoPath: "/assets/lions-logo.png",
     qrLogoPath: "/assets/lions-logo-hd.png",
+    // Her aşama bitince (son aşama hariç) "Sence yeterli ve etkin temizlendi mi?" sorusu; cevaplar anonim sayılır.
+    // Ödül ekranı (diş macunu kartı) değişmez: klinik fırsatı kartı yalnızca deneme kampanyasındadır.
+    selfCheck: true,
     active: true,
   },
   {
@@ -87,7 +91,8 @@ export const CAMPAIGNS: readonly CampaignConfig[] = [
     rewardLine: "Diş macunu hediyeni al.",
     logoPath: "/assets/lions-logo.png",
     qrLogoPath: "/assets/lions-logo-hd.png",
-    // Yeni özellikler önce yalnızca deneme kampanyasında denenir; asıl kampanya değişmez.
+    // Yeni özellikler önce yalnızca deneme kampanyasında denenir. Soru (selfCheck) asıl kampanyada da açıktır;
+    // klinik fırsatı kartı (diş macunu kartı yerine) yalnızca burada.
     selfCheck: true,
     clinicOffer: {
       title: "Ücretsiz muayene fırsatı!",

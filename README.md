@@ -80,9 +80,9 @@ Lions logosu `public/assets/` altındadır: `lions-logo.png` (arayüz için hafi
 
 | Adres | İçerik |
 |---|---|
-| `/admin` | Özet kartları, saatlik grafik (+ tablo), aşama süreleri, son olaylar |
-| `/admin/report` | Yazdırılabilir rapor + CSV indirme ("Etkinlik Raporu Oluştur") |
-| `/api/admin/export?type=report\|events` | CSV (UTF-8 BOM, `;` ayraçlı: Türkçe Excel'de doğrudan açılır) |
+| `/admin` | Özet kartları, **tarih aralığı filtresi**, saatlik grafik (+ tablo), "Sence yeterli ve etkin temizlendi mi?" cevapları, aşama süreleri, son olaylar |
+| `/admin/report` | Yazdırılabilir rapor + CSV indirme ("Etkinlik Raporu Oluştur"); panelde seçili tarih aralığını taşır |
+| `/api/admin/export?type=report\|events` | CSV (UTF-8 BOM, `;` ayraçlı: Türkçe Excel'de doğrudan açılır); isteğe bağlı `&from=YYYY-MM-DD&to=YYYY-MM-DD` |
 | `/qr` | QR üretici (SVG + PNG 2048/4096 px, ortada logo, hata düzeltme H) |
 
 Bu adreslerin hepsi giriş gerektirir. Giriş yapmamış ziyaretçiler `/admin/login`'e yönlendirilir.
@@ -93,6 +93,7 @@ Bu adreslerin hepsi giriş gerektirir. Giriş yapmamış ziyaretçiler `/admin/l
 |---|---|
 | QR Landing | `landing_view` gönderen **benzersiz tarayıcı** (yanında toplam görüntüleme) |
 | Oyunu Başlatan | `game_started` gönderen benzersiz tarayıcı (**yalnızca ilk oyun**) |
+| Başlatma oranı | Oyunu Başlatan ÷ QR Landing (en çok %100): QR'ı okutanların kaçı oyuna başlıyor. Test açılışları ve sayfayı açıp çıkanlar bu oranı düşürür |
 | Tamamlayan | En az bir kez `game_completed` gönderen benzersiz tarayıcı |
 | Tamamlama | Tamamlayan ÷ Başlatan |
 | Ortalama / medyan süre | Yalnızca **ilk oyunların** süresi; 15 dakikadan uzun olanlar dışlanır; sekme arka plandayken süre işlemez |
@@ -100,24 +101,36 @@ Bu adreslerin hepsi giriş gerektirir. Giriş yapmamış ziyaretçiler `/admin/l
 | Toplam başarılı tamamlanma | Tüm `game_completed` sayısı (tekrarlar dahil) → dağıtılan diş macunuyla kıyaslayın |
 | Saatlik kullanım | Başlatılan tüm oyunlar (ilk + tekrar), kampanya saat diliminde (Europe/Istanbul) |
 
+**Tarih aralığı:** Panelde (rapor ve CSV de aynı aralığı kullanır) **ilk gün – son gün** seçilebilir; günler kampanya saat dilimine (İstanbul) göre, uçlar dahildir (örn. `/admin?from=2026-10-11&to=2026-10-11`). Süzgeç yalnızca görünen sayıları sınırlar, **veri silinmez**; etkinlik gününü, ondan önceki deneme oyunlarından ayırmak için kullanın. Boş bırakılırsa tüm dönem gösterilir.
+
 ⚠️ **"Benzersiz" sayılar yaklaşıktır**: kimlik tarayıcıda saklanan rastgele koddur. Aynı telefonu paylaşan kardeşler tek kişi, tarayıcı verisini silen ya da gizli sekme kullanan kişi birden fazla sayılabilir. Bu, kişisel veri toplamadan ölçüm yapmanın doğal bedelidir.
 
-## Deneme kampanyasındaki yeni özellikler (asıl kampanya değişmez)
+## Soru ve klinik fırsatı (kampanya ayarları)
 
-Yeni özellikler önce yalnızca **deneme kampanyasında** (`/oyun?k=test-deneme`) denenir; kapı `src/config/campaigns.ts` içindeki kampanya ayarıdır. Asıl kampanyada (`lions-118y-2026-10-11`) bu özellikler **kapalıdır** ve oyun/ödül ekranı eskisi gibi çalışır (e2e testi bunu doğrular).
+Özellikler `src/config/campaigns.ts` içindeki kampanya ayarlarından açılıp kapatılır. **Soru (`selfCheck`) hem asıl kampanyada (`lions-118y-2026-10-11`, `/oyun`) hem deneme kampanyasında (`/oyun?k=test-deneme`) açıktır.** **Klinik fırsatı kartı (`clinicOffer`) yalnızca deneme kampanyasındadır**: asıl kampanyanın ödül ekranı (diş macunu) eskisi gibidir (e2e testi bunu doğrular).
+
+⚠️ Asıl adreste yapılan denemeler (soru cevapları dahil) **gerçek sayılara girer**: denemeleri `?k=test-deneme` ile yapın. Veri silmeden bir günü/aralığı ayırmak için panelde **tarih filtresi** vardır.
 
 | Ayar | Ne yapar |
 |---|---|
 | `selfCheck: true` | Aşama 1–5 **bittikten sonra** (sahne tamamen temizken, sonraki aşamaya geçmeden) oyun durur ve **"Sence yeterli ve etkin temizlendi mi?"** sorusu çıkar. **Evet** → "Henüz bitmedi! Sırada diş araları, iç yüzeyler… var." (kalan yüzeyleri sayar), **Hayır** → "Aferin, işi biliyorsun!…" tebriki; ardından oyun sonraki aşamaya geçer. Son aşamada (diş ipi) soru yoktur (her yer gerçekten temiz). Soru süresi oyun süresine sayılmaz. |
 | `clinicOffer: {…}` | Ödül ekranında "standdaki görevliye göster / diş macunu" kartı yerine **klinik fırsatı** gösterilir (ör. Koşuyolu Park Diş Kliniği ücretsiz muayene). Etkinlik bitip diş macunu kalmadığında kullanılır. Yalnızca doğrulanmış bilgiyi yazın; randevu/telefon gibi ek satır için `detail`, klinik sitesi için `website` (yalnızca alan adı, ör. `www.kosuyolupark.com`; kartın en altında dokunulabilir bağlantı olur, yeni sekmede açılır, referrer gönderilmez, dokunma kaydedilmez) alanı vardır. |
 
-**Cevapların ölçümü (anonim):** her cevap bir olaydır: `self_check_yes` (çocuk "Evet" dedi = diğer yüzeyler kalmışken "yeterli" dedi, işi erken bırakmak istedi) ya da `self_check_no` ("Hayır" = doğru farkındalık); `phase` = biten aşama (1–5). Panelde (`/admin?k=test-deneme`) **Evet / Hayır sayısı ve oranı**, aşama bazlı döküm, "en az bir kez Evet diyen çocuk" görünür; yazdırılabilir raporda ve CSV'de de yer alır. Oranlar cevap sayısı üzerindendir (bir çocuk her aşamada bir kez cevaplar).
+**Cevapların ölçümü (anonim):** her cevap bir olaydır: `self_check_yes` (çocuk "Evet" dedi = diğer yüzeyler kalmışken "yeterli" dedi, işi erken bırakmak istedi) ya da `self_check_no` ("Hayır" = doğru farkındalık); `phase` = biten aşama (1–5). Panelde (`/admin` ve `/admin?k=test-deneme`) **Evet / Hayır sayısı ve oranı**, aşama bazlı döküm, "en az bir kez Evet diyen çocuk" görünür; yazdırılabilir raporda ve CSV'de de yer alır. Oranlar cevap sayısı üzerindendir (bir çocuk her aşamada bir kez cevaplar). Çocuk bazlı ve koruma göstergeleri:
 
-⚠️ Yeni olay adları veritabanında `supabase/migrations/0002_self_check_events.sql` ile izin verilir. **Yeni sürümü yayına almadan önce bu geçiş uygulanmalıdır** (bkz. `DEPLOYMENT.md`).
+| Soru göstergesi | Tanım |
+|---|---|
+| **Başlangıç yanılgısı** | Çocuğun (tarayıcının) kaydedilen **ilk** cevabı "Evet" olanların oranı. İlk cevap henüz hiçbir geri bildirim görülmeden verildiği için en temiz ölçüdür; sonraki cevaplar "doğru cevabı öğrenme"den etkilenir. Tek cümlelik bulgu: "Çocukların %X'i dış yüzeyi temizleyince 'bitti' dedi." |
+| İlk oyunda / tekrar oyunlarda "Evet" oranı | `playIndex` 1 ile ≥ 2 ayrımı. Tekrarlarda oran düşüyorsa oyun öğretiyor olabilir (ya da çocuk doğru cevabı öğrenmiştir). |
+| Soruların eklediği süre | Tamamlanan ve en az bir cevabı olan oyunlar için (soru dahil gerçek süre − aktif oyun süresi) **medyanı**. "Ortalama süre" soru süresini saymadığı için bu, sorunun oyunu ne kadar uzattığını gösteren koruma göstergesidir; tamamlama oranı belirgin düşerse soruyu kısaltın. |
+
+Bunlar bilgi/tutum göstergeleridir, gerçek fırçalama başarısı değil. Yüzdeler için aşama başına yaklaşık 100 çocuk gerekir (hata payı ±%10; ±%5 için yaklaşık 400); az sayıda çocukla yüzdeleri değil sayıları okuyun.
+
+⚠️ Yeni olay adları veritabanında `supabase/migrations/0002_self_check_events.sql` ile izin verilir. **Yeni sürümü yayına almadan önce bu geçiş uygulanmalıdır** (bkz. `DEPLOYMENT.md`). Canlı veritabanında 13.10.2026'da uygulandı; yeni bir veritabanı kurulursa 0001'den sonra çalıştırın. Uygulanmamışken soru açıksa cevap içeren olay grupları veritabanı tarafından reddedilir (cihaz bekletip tekrar dener, kayıp olmaz; ama arkasındaki olaylar da bekler).
 
 ## Gizlilik özeti
 
-- Toplanan: rastgele oturum UUID'si, olay adı, saat, oyun süresi, aşama numarası, kaba cihaz sınıfı (mobil/tablet/masaüstü).
+- Toplanan: rastgele oturum UUID'si, olay adı, saat, oyun süresi, aşama numarası, kaba cihaz sınıfı (mobil/tablet/masaüstü). "Sence yeterli ve etkin temizlendi mi?" sorusunun Evet/Hayır cevabı da bir olay adı olarak (aşama numarasıyla, kimliksiz) tutulur; `/gizlilik` sayfasında belirtilmiştir.
 - Toplanmayan: isim, doğum tarihi, telefon, e-posta, fotoğraf, konum, sosyal medya, IP, user-agent metni, parmak izi.
 - Sunucu istekteki bilinmeyen alanları atar; olay adları, sayı aralıkları ve kampanya kimliği katı doğrulanır.
 - Veritabanında RLS açık ve hiç policy yok; tarayıcı veritabanına **hiç bağlanmaz** (yalnızca `/api/events`'e konuşur).

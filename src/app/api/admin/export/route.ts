@@ -4,6 +4,7 @@ import { isAdmin } from "@/lib/admin-guard";
 import { eventsCsv, reportCsv } from "@/lib/csv";
 import { getStore } from "@/lib/get-store";
 import { computeKpis } from "@/lib/kpi";
+import { filterByRange, parseRange } from "@/lib/range";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,12 +17,15 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const campaign = resolveCampaign(url.searchParams.get("k"));
   const type = url.searchParams.get("type") === "events" ? "events" : "report";
+  // İsteğe bağlı tarih aralığı (kampanya saat diliminde yerel gün, uçlar dahil): yalnızca dışa aktarılan satırları sınırlar.
+  const range = parseRange(url.searchParams.get("from"), url.searchParams.get("to"));
 
   const data = await store.loadCampaign(campaign.campaignId);
+  const view = filterByRange(data, range, campaign.timezone);
   const body =
     type === "events"
-      ? eventsCsv(data.events)
-      : reportCsv(campaign, computeKpis(data.events, data.sessions, campaign.timezone), new Date());
+      ? eventsCsv(view.events)
+      : reportCsv(campaign, computeKpis(view.events, view.sessions, campaign.timezone), new Date(), range);
 
   const stamp = new Date().toISOString().slice(0, 10);
   return new NextResponse(body, {
