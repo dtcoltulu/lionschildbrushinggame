@@ -95,3 +95,60 @@ test.describe("Yönetici erişimi", () => {
     await expect(page).toHaveURL(/\/admin\/login/);
   });
 });
+
+test.describe("Kendini değerlendirme sayıları (deneme kampanyası paneli)", () => {
+  const uuid = () => crypto.randomUUID();
+
+  test("Evet/Hayır sayısı, oranı ve aşama dökümü panelde, raporda ve CSV'de görünür; asıl kampanya paneli etkilenmez", async ({ page, request }) => {
+    await page.goto("/admin/login");
+    await page.getByLabel("Parola").fill(PASSWORD);
+    await page.getByRole("button", { name: "Giriş yap" }).click();
+    await expect(page).toHaveURL(/\/admin$/);
+
+    // Asıl kampanya panelinde bu bölüm yok (özellik açık değil, cevap da yok)
+    await expect(page.getByTestId("selfcheck")).toHaveCount(0);
+
+    // Önceki testlerden kalan cevaplar olabilir: farkı ölç.
+    const read = async () => {
+      await page.goto("/admin?k=test-deneme");
+      await expect(page.getByTestId("selfcheck")).toBeVisible();
+      if ((await page.getByTestId("selfcheck-empty").count()) > 0) return { yes: 0, no: 0 };
+      return { yes: Number(await page.getByTestId("selfcheck-yes").innerText()), no: Number(await page.getByTestId("selfcheck-no").innerText()) };
+    };
+    const before = await read();
+
+    // İki çocuk: A (Evet@1, Hayır@2), B (Hayır@1, Hayır@3)  → +1 Evet, +3 Hayır
+    const post = async (events: { name: string; phase: number }[]) => {
+      const res = await request.post("/api/events", {
+        data: { sessionId: uuid(), campaignId: "test-deneme", sentAt: Date.now(), events: events.map((e) => ({ id: uuid(), name: e.name, ts: Date.now(), phase: e.phase })) },
+      });
+      expect(res.status()).toBe(200);
+    };
+    await post([{ name: "self_check_yes", phase: 1 }, { name: "self_check_no", phase: 2 }]);
+    await post([{ name: "self_check_no", phase: 1 }, { name: "self_check_no", phase: 3 }]);
+
+    const after = await read();
+    expect(after.yes - before.yes).toBe(1);
+    expect(after.no - before.no).toBe(3);
+    await expect(page.getByTestId("selfcheck-yes-rate")).toContainText("%");
+    await expect(page.getByTestId("selfcheck-no-rate")).toContainText("%");
+    await expect(page.getByTestId("selfcheck-total")).toHaveText(String(after.yes + after.no));
+    const table = page.getByTestId("selfcheck-phases");
+    await expect(table).toContainText("1. Dış yüzeyler");
+    await expect(table).toContainText("2. Diş araları");
+    await expect(table).toContainText("3. İç yüzeyler");
+    await expect(page.getByRole("table", { name: "Son olaylar" })).toContainText("Soru: Evet");
+
+    // Yazdırılabilir rapor ve CSV
+    await page.goto("/admin/report?k=test-deneme");
+    await expect(page.getByText("Sence yeterli ve etkin temizlendi mi?").first()).toBeVisible();
+    await expect(page.getByText("“Evet” (diğer yüzeyler kalmışken “yeterli” dedi)")).toBeVisible();
+    const csv = await (await page.request.get("/api/admin/export?k=test-deneme&type=report")).text();
+    expect(csv).toContain("KENDİNİ DEĞERLENDİRME");
+    expect(csv).toContain("Aşama 1;Dış yüzeyler;");
+
+    // Asıl kampanya: hâlâ cevap/bölüm yok
+    await page.goto("/admin");
+    await expect(page.getByTestId("selfcheck")).toHaveCount(0);
+  });
+});

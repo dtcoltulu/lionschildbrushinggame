@@ -1,8 +1,5 @@
 export const C = {
   cream: "#FFF7EC",
-  tooth: "#FFFDF6",
-  toothShade: "#E6DFCF",
-  toothLine: "#CFC5AC",
   gum: "#FF8FA3",
   gumDark: "#E0607A",
   lip: "#FF6B6B",

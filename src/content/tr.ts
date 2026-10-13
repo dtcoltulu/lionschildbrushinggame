@@ -62,6 +62,27 @@ export const tr = {
   soundOn: "Sesi kapat",
   soundOff: "Sesi aç",
   canvasLabel: "Diş fırçalama oyunu. Parmağını ekranda ileri geri hareket ettirerek dişlerdeki lekeleri temizle.",
+  /** "Sence yeterli ve etkin temizlendi mi?" (yalnızca özelliği açık kampanyada) */
+  check: {
+    question: "Sence yeterli ve etkin temizlendi mi?",
+    yes: "Evet",
+    no: "Hayır",
+    /**
+     * "Evet" denince: aşama bitti ama temizlik henüz bitmedi, başka yüzeyler kaldı. Dizin = biten aşama (0..4);
+     * sırası oyundaki aşama sırasıyla aynıdır (dış yüzey, diş araları, iç yüzey, çiğneme, dil, diş ipi).
+     */
+    yesFeedback: [
+      "Henüz bitmedi! Sırada diş araları, iç yüzeyler, çiğneme yüzeyleri, dil ve diş ipi var.",
+      "Henüz bitmedi! Sırada iç yüzeyler, çiğneme yüzeyleri, dil ve diş ipi var.",
+      "Henüz bitmedi! Sırada çiğneme yüzeyleri, dil ve diş ipi var.",
+      "Henüz bitmedi! Sırada dil ve diş ipi var.",
+      "Henüz bitmedi! Sırada diş ipi var.",
+    ],
+    yesFallback: "Henüz bitmedi! Temizlenecek başka yerler de var.",
+    /** "Hayır" denince: doğru farkındalık (başka yüzeyler kaldığını biliyor). */
+    noFeedback: "Aferin, işi biliyorsun! Temizlenecek başka yerler de var, devam edelim.",
+    next: "Devam",
+  },
   reward: {
     trophyLabel: "Kupa",
     title: "TEBRİKLER!",
@@ -74,6 +95,7 @@ export const tr = {
       { icon: "😁", text: "Dişlerini düzenli kontrol ettir" },
     ],
     replay: "Tekrar Oyna",
+    newTab: "yeni sekmede açılır",
     took: "Süren:",
     quick: "Hızlı fırçaladın! Minimum 2 dakika fırçala, mikroplar kalmış olabilir!",
     ideal: "Tebrikler, ideal süreye ulaştın! Yine de dişlerini düzenli kontrol ettirmeyi unutma.",
@@ -87,6 +109,7 @@ export const tr = {
       "Reklam yoktur. Üçüncü taraf takip aracı (tracker) kullanılmaz. IP adresi, cihaz parmak izi ya da tarayıcı bilgisi veritabanına kaydedilmez. Yalnızca cihazın telefon, tablet ya da bilgisayar olduğu gibi çok kaba bir sınıf bilgisi tutulabilir.",
       "Bu bilgiyi tarayıcının yerel depolama alanı saklar (çerez değildir). Tarayıcı verilerini silerek istediğin zaman temizleyebilirsin.",
       "Not: Sayfayı sunan barındırma hizmeti, teknik işleyiş gereği bağlantı kayıtlarını kısa süre için tutabilir; bu kayıtlar oyun verisiyle eşleştirilmez.",
+      "Ödül ekranında bir diş kliniğinin web sitesine giden bağlantı bulunabilir. Ona dokunursan site yeni sekmede açılır ve o sitenin kendi kuralları geçerli olur; oyun bu dokunuşu kaydetmez ve o siteye hiçbir bilgi göndermez.",
     ],
   },
 } as const;

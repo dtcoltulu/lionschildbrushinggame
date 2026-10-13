@@ -17,6 +17,33 @@ export interface PhaseStat {
   avgMs: number;
 }
 
+/** "Sence yeterli ve etkin temizlendi mi?" cevapları (bir aşama için). */
+export interface SelfCheckPhase {
+  phase: number;
+  yes: number;
+  no: number;
+  total: number;
+  /** Evet / toplam (0..1); cevap yoksa null. */
+  yesRate: number | null;
+}
+
+/**
+ * Soru her aşama bittikten sonra (diğer yüzeyler hâlâ kalmışken) sorulur: "Evet" = çocuk işi erken bırakmak istedi,
+ * "Hayır" = doğru farkındalık. Oranlar cevap sayısı üzerindendir (bir çocuk birden çok kez cevaplar).
+ */
+export interface SelfCheckStats {
+  yes: number;
+  no: number;
+  total: number;
+  yesRate: number | null;
+  noRate: number | null;
+  /** En az bir kez cevap veren benzersiz çocuk (tarayıcı). */
+  children: number;
+  /** En az bir kez "Evet" diyen benzersiz çocuk (tarayıcı). */
+  childrenYes: number;
+  byPhase: SelfCheckPhase[];
+}
+
 export interface Kpis {
   landingViews: number;
   landingVisitors: number;
@@ -33,6 +60,7 @@ export interface Kpis {
   hourly: HourRow[];
   dates: string[];
   phases: PhaseStat[];
+  selfCheck: SelfCheckStats;
   devices: { mobile: number; tablet: number; desktop: number; unknown: number };
   firstEventAt: string | null;
   lastEventAt: string | null;
@@ -133,6 +161,8 @@ export function computeKpis(events: StoredEvent[], sessions: StoredSession[], tz
     .sort((a, b) => a[0] - b[0])
     .map(([phase, a]) => ({ phase, count: a.n, avgMs: a.sum / a.n }));
 
+  const selfCheck = computeSelfCheck(events);
+
   const devices = { mobile: 0, tablet: 0, desktop: 0, unknown: 0 };
   for (const s of sessions) devices[s.deviceClass ?? "unknown"] += 1;
 
@@ -154,9 +184,46 @@ export function computeKpis(events: StoredEvent[], sessions: StoredSession[], tz
     hourly,
     dates,
     phases,
+    selfCheck,
     devices,
     firstEventAt: times[0] ?? null,
     lastEventAt: times.at(-1) ?? null,
+  };
+}
+
+function computeSelfCheck(events: StoredEvent[]): SelfCheckStats {
+  let yes = 0;
+  let no = 0;
+  const answered = new Set<string>();
+  const saidYes = new Set<string>();
+  const phases = new Map<number, { yes: number; no: number }>();
+  for (const e of events) {
+    if (e.name !== "self_check_yes" && e.name !== "self_check_no") continue;
+    const isYes = e.name === "self_check_yes";
+    if (isYes) yes += 1;
+    else no += 1;
+    answered.add(e.sessionId);
+    if (isYes) saidYes.add(e.sessionId);
+    if (e.phase !== null) {
+      const a = phases.get(e.phase) ?? { yes: 0, no: 0 };
+      if (isYes) a.yes += 1;
+      else a.no += 1;
+      phases.set(e.phase, a);
+    }
+  }
+  const total = yes + no;
+  const byPhase: SelfCheckPhase[] = [...phases.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([phase, a]) => ({ phase, yes: a.yes, no: a.no, total: a.yes + a.no, yesRate: a.yes / (a.yes + a.no) }));
+  return {
+    yes,
+    no,
+    total,
+    yesRate: total > 0 ? yes / total : null,
+    noRate: total > 0 ? no / total : null,
+    children: answered.size,
+    childrenYes: saidYes.size,
+    byPhase,
   };
 }
 

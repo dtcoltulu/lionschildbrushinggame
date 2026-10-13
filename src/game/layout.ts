@@ -15,48 +15,98 @@ export function rand(seed: number): number {
 }
 
 // ---- Ön / iç görünüş: üst çene 12 + alt çene 12 = 24 diş ------------------------
-// Merkezden dışa: kesici, yan kesici, köpek, küçük azı 1-2, azı. (Sol-sağ simetrik.)
-const HALF_W = [28, 25, 26, 22, 21, 20];
-const HALF_H_UP = [72, 68, 72, 64, 60, 56];
-const HALF_H_LO = [64, 62, 66, 60, 56, 52];
-export const TOOTH_GAP = 3;
+// "Gülüş tasarımı" oranları (altın oran / yinelenen estetik oran ilkesi; ideal bir gülüş fotoğrafındaki gibi):
+//  • Merkezden dışa görünen genişlik 1 : 0.78 : 0.71 : 0.62 : 0.54 : 0.49. Yan kesici en dar kesicidir; her diş bir
+//    öncekinin ≈ %80–90'ıdır. (Saf altın oran 1 : 0.618 : 0.382 …; 12 dişin hepsi oynanabilir kalsın diye yumuşatıldı.)
+//  • Merkez kesicinin genişlik / görünen boy oranı ≈ 0.75 (ideal %75–80): dişler "uzun anahtar" değil, geniş ve oval-kare.
+//  • Gülüş kavisi: kesici kenarlar uçlara doğru yukarı kıvrılır; yan kesici merkez kesiciden biraz kısadır, köpek dişi
+//    merkezle aynı düzeydedir (diş eti zirveleri de buna göre: yan kesicinin zirvesi biraz aşağıda — dinamik diş eti hattı).
+//  • Alt dişler üst dişlerden ≈ %75 genişlikte ve daha kısadır.
+// Merkezden dışa sıra: kesici, yan kesici, köpek, küçük azı 1-2, azı. (Sol-sağ simetrik.)
+interface ArchSpec {
+  /** Görünen genişlik (dünya birimi). */
+  w: number[];
+  /** Diş eti zirvesinden kesici/çiğneme kenarına kadar boy. */
+  h: number[];
+  /** Kesici kenarın merkezdeki kesici kenara göre yukarı kayması (gülüş kavisi). */
+  rise: number[];
+}
+const UPPER_ARCH: ArchSpec = { w: [34, 26.5, 24, 21, 18.5, 16.5], h: [50, 43, 49, 43, 39, 35], rise: [0, 1.5, 0.4, 3, 6, 10] };
+const LOWER_ARCH: ArchSpec = { w: [25.5, 23, 23.5, 21, 18.5, 16.5], h: [38, 39, 43, 39, 35, 32], rise: [0, 0.8, 0.2, 2.6, 5.6, 9.4] };
+export const TOOTH_GAP = 1.5;
 export const TEETH_PER_ROW = 12;
 
-/** Üst dişlerin üst çizgisi ve alt dişlerin alt çizgisi (merkezde). */
-export const UPPER_LINE = 204;
-export const LOWER_LINE = 356;
+/** Üst ve alt merkez kesicilerin kesici kenarı (y). Aralarındaki koyu şerit ağız boşluğudur. */
+export const UPPER_EDGE = 268;
+export const LOWER_EDGE = 288;
 /** Ağız içi (diş eti bölgeleri dahil) sınırları. */
-export const MOUTH = { x: 4, y: 150, w: 352, h: 264 };
-export const MOUTH_IN = { x: 14, y: 162, w: 332, h: 240 };
+export const MOUTH = { x: 4, y: 172, w: 352, h: 222 };
+export const MOUTH_IN = { x: 14, y: 184, w: 332, h: 198 };
 
-function archRow(halfH: number[], line: number, upper: boolean): Rect[] {
-  const idx = Array.from({ length: TEETH_PER_ROW }, (_, i) => (i < 6 ? 5 - i : i - 6));
-  const widths = idx.map((k) => HALF_W[k]!);
+/**
+ * Çenedeki sıra numarasından diş türü: 0 kesici, 1 yan kesici, 2 köpek, 3-4 küçük azı, 5 azı
+ * (sıra solun ucundan sağın ucuna; merkez dişler 0). Çizim diş şeklini buna göre seçer.
+ */
+export const toothRank = (i: number): number => (i < 6 ? 5 - i : i - 6);
+
+function archRow(spec: ArchSpec, upper: boolean): Rect[] {
+  const idx = Array.from({ length: TEETH_PER_ROW }, (_, i) => toothRank(i));
+  const widths = idx.map((k) => spec.w[k]!);
   const total = widths.reduce((a, b) => a + b, 0) + (TEETH_PER_ROW - 1) * TOOTH_GAP;
   let x = (WORLD_W - total) / 2;
   return idx.map((k, i) => {
-    const t = Math.abs(i - 5.5) / 5.5;
-    const lift = t * t * 10; // uçlar biraz yukarıda: gülümseme eğrisi
     const w = widths[i]!;
-    const h = halfH[k]!;
-    const r: Rect = upper ? { x, y: line - lift, w, h } : { x, y: line - lift - h, w, h };
+    const h = spec.h[k]!;
+    const rise = spec.rise[k]!;
+    // Üst dişler: kesici kenar altta, diş eti zirvesi üstte. Alt dişler: kesici kenar üstte, diş eti altta.
+    const r: Rect = upper ? { x, y: UPPER_EDGE - rise - h, w, h } : { x, y: LOWER_EDGE - rise, w, h };
     x += w + TOOTH_GAP;
     return r;
   });
 }
 
-export const UPPER_TEETH: Rect[] = archRow(HALF_H_UP, UPPER_LINE, true);
-export const LOWER_TEETH: Rect[] = archRow(HALF_H_LO, LOWER_LINE, false);
+export const UPPER_TEETH: Rect[] = archRow(UPPER_ARCH, true);
+export const LOWER_TEETH: Rect[] = archRow(LOWER_ARCH, false);
 
 // ---- Çiğneme yüzeyleri: 12 diş (her çenede 6), üstten görünüş -------------------
-export const CHEW_TILES: Rect[] = [0, 1, 2, 3].flatMap((r) =>
-  [0, 1, 2].map((c) => ({ x: 24 + c * 110, y: 74 + r * 96 + (r >= 2 ? 22 : 0), w: 100, h: 86 })),
-);
-export const CHEW_PANEL = { x: 6, y: 58, w: 348, h: 408 };
-export const CHEW_DIVIDER_Y = 74 + 2 * 96 + 11 - 6;
+// Her çenenin iki sırası vardır (sol ve sağ taraf); her sırada öndeki küçük azı + iki azı bitişik dizilir (gerçek çene gibi).
+export type CrownKind = "premolar" | "molar4" | "molar5";
+
+/** Sıra merkezleri (y): üst çene 2, alt çene 2 sıra. */
+const CHEW_ROW_Y = [117, 213, 339, 435];
+/** Soldan sağa: küçük azı, birinci azı, ikinci azı. Yan yana, aralarında yalnızca temas payı. */
+const CHEW_COLS = [
+  { w: 92, h: 72 },
+  { w: 120, h: 86 },
+  { w: 104, h: 80 },
+];
+const CHEW_CONTACT = 3;
+const CHEW_X0 = (WORLD_W - (CHEW_COLS.reduce((a, c) => a + c.w, 0) + CHEW_CONTACT * (CHEW_COLS.length - 1))) / 2;
+
+export const CHEW_TILES: Rect[] = CHEW_ROW_Y.flatMap((cy) => {
+  let x = CHEW_X0;
+  return CHEW_COLS.map((c) => {
+    const r: Rect = { x, y: cy - c.h / 2, w: c.w, h: c.h };
+    x += c.w + CHEW_CONTACT;
+    return r;
+  });
+});
+
+/** Her çiğneme dişinin anatomisi: üst çenede iki dört tümsekli azı, alt çenede beş tümsekli birinci azı. */
+export const CHEW_KINDS: CrownKind[] = [
+  "premolar", "molar4", "molar4",
+  "premolar", "molar4", "molar4",
+  "premolar", "molar5", "molar4",
+  "premolar", "molar5", "molar4",
+];
+/** Her çenenin diş eti levhası (üst ve alt çene ayrı). */
+export const CHEW_SLABS: Rect[] = [
+  { x: 6, y: 59, w: 348, h: 212 },
+  { x: 6, y: 281, w: 348, h: 212 },
+];
 
 // ---- Dil ------------------------------------------------------------------------
-export const TONGUE = { x: 50, y: 150, w: 260, h: 268 };
+export const TONGUE = { x: 50, y: 160, w: 260, h: 244 };
 
 // ---- Yama (artık) yerleşimi -----------------------------------------------------
 function patchIn(rect: Rect, i: number, r: number, kind: DebrisKind, dx = 0, dy = 0): Patch {
@@ -104,7 +154,7 @@ function gapPatches(kindSeed: number, small: boolean): Patch[] {
       const b = teeth[k + 1]!;
       const x = a.x + a.w + TOOTH_GAP / 2;
       // Diş eti çizgisine yakın (üstte üst, altta alt) ve dişin ortasına doğru dönüşümlü
-      const near = 16 + (k % 2) * 16;
+      const near = Math.min(a.h, b.h) * (k % 2 ? 0.62 : 0.34);
       const y = upper ? Math.min(a.y, b.y) + near : Math.max(a.y + a.h, b.y + b.h) - near;
       const kind: DebrisKind = (k + kindSeed) % 3 === 0 ? "germ" : (k + kindSeed) % 3 === 1 ? "plaque" : "chips";
       out.push({
@@ -133,15 +183,15 @@ function chewing(): PhaseSpec {
 
 function tongue(): PhaseSpec {
   const spots: [number, number, number, DebrisKind][] = [
-    [180, 200, 30, "coating"],
-    [118, 246, 28, "coating"],
-    [244, 250, 28, "germ"],
-    [180, 288, 32, "coating"],
-    [112, 330, 28, "germ"],
-    [248, 334, 28, "coating"],
-    [180, 372, 30, "coating"],
-    [136, 396, 24, "coating"],
-    [226, 398, 24, "germ"],
+    [180, 212, 27, "coating"],
+    [120, 244, 25, "coating"],
+    [240, 246, 25, "germ"],
+    [180, 278, 28, "coating"],
+    [112, 310, 25, "germ"],
+    [248, 312, 25, "coating"],
+    [180, 342, 26, "coating"],
+    [130, 358, 20, "coating"],
+    [226, 358, 20, "germ"],
   ];
   return {
     kind: "tongue",

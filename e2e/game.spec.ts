@@ -113,6 +113,8 @@ test.describe("Oyun akışı", () => {
     await page.goto("/gizlilik");
     await expect(page.getByRole("heading", { name: "Gizlilik" })).toBeVisible();
     await expect(page.getByText("reklam yoktur", { exact: false }).or(page.getByText("Reklam yoktur"))).toBeVisible();
+    // Ödül ekranındaki dış (klinik) bağlantısı gizlilik sayfasında açıkça belirtilir
+    await expect(page.getByText("diş kliniğinin web sitesine giden bağlantı", { exact: false })).toBeVisible();
   });
 });
 
@@ -223,5 +225,134 @@ test.describe("Bağlantı sorunları", () => {
     await expect(page.getByTestId("state")).toContainText("Açık", { timeout: 5000 });
     await expect(page.getByTestId("tips")).toContainText("sessiz düğmesini");
     await ctx.close();
+  });
+});
+
+test.describe('Kendini değerlendirme: "Sence yeterli ve etkin temizlendi mi?" (yalnızca deneme kampanyası)', () => {
+  test("deneme kampanyasında her aşama BİTİNCE (son aşama hariç) soru çıkar; oyun durur; Evet/Hayır geri bildirimi, geçiş ve sayım çalışır", async ({ page }) => {
+    const cap = captureEvents(page);
+    const pageErrors: string[] = [];
+    page.on("pageerror", (err) => pageErrors.push(err.message));
+    await page.goto("/oyun?k=test-deneme");
+    await page.getByTestId("start").click();
+    await page.getByTestId("skip-tutorial").click();
+    await expect(page.getByTestId("play-screen")).toBeVisible();
+
+    const answers: ("yes" | "no")[] = ["yes", "no", "yes", "no", "no"];
+    const results: { phase: number; answer: "yes" | "no"; text: string }[] = [];
+    let pausedChecked = false;
+    let questionBeforeCompletion = false;
+
+    await expect
+      .poll(
+        async () => {
+          if (await page.getByTestId("reward-screen").isVisible()) return "reward";
+          const dlg = page.getByTestId("check-dialog");
+          if (await dlg.isVisible()) {
+            const phase = Number(await page.getByTestId("play-screen").getAttribute("data-phase"));
+            await expect(dlg).toContainText("Sence yeterli ve etkin temizlendi mi?");
+            // Soru, aşama TAMAMEN temizlendikten sonra çıkar: ilerleme tam o aşamanın sonunda (aşama/6), arada değil.
+            const pct = Number(await page.getByRole("progressbar").getAttribute("aria-valuenow"));
+            if (pct !== Math.round((phase / 6) * 100)) questionBeforeCompletion = true;
+            if (!pausedChecked) {
+              // Soru açıkken oyun durur: ilerleme değişmez, soru kendiliğinden kapanmaz, arkadaki "Yardım" tıklanamaz.
+              const bar = page.getByRole("progressbar");
+              const before = await bar.getAttribute("aria-valuenow");
+              await page.waitForTimeout(1500);
+              expect(await bar.getAttribute("aria-valuenow")).toBe(before);
+              await expect(dlg).toBeVisible();
+              // Arkadaki "Yardım" butonu soru açıkken kullanılamaz (üstü kapalı/inert): soru atlanamaz.
+              await expect(page.getByTestId("help").click({ timeout: 400 })).rejects.toThrow();
+              pausedChecked = true;
+            }
+            const a = answers[results.length]!;
+            await page.getByTestId(a === "yes" ? "check-yes" : "check-no").click();
+            const fb = page.getByTestId("check-feedback");
+            await expect(fb).toHaveAttribute("data-answer", a);
+            results.push({ phase, answer: a, text: await fb.innerText() });
+            await page.getByTestId("check-continue").click();
+            await expect(dlg).toBeHidden();
+            // Cevaptan sonra sonraki aşamaya geçilir (yüz dönmesi/geçiş dahil): aşama göstergesi bir artar.
+            await expect(page.getByTestId("play-screen")).toHaveAttribute("data-phase", String(phase + 1), { timeout: 8000 });
+            return "playing";
+          }
+          await page.getByTestId("help").click({ timeout: 500 }).catch(() => {});
+          return "playing";
+        },
+        { timeout: 170_000, intervals: [100] },
+      )
+      .toBe("reward");
+
+    // 5 soru, aşama 1..5; son aşamada (6) soru yok; hiçbiri aşama bitmeden çıkmadı
+    expect(results.map((r) => r.phase)).toEqual([1, 2, 3, 4, 5]);
+    expect(questionBeforeCompletion).toBe(false);
+    for (const r of results) {
+      if (r.answer === "yes") {
+        // aşama bitti ama temizlik bitmedi: kalan yüzeyler söylenir
+        expect(r.text).toContain("Henüz bitmedi! Sırada");
+        expect(r.text).toContain("diş ipi var"); // her "Evet" uyarısı son adımı (diş ipi) da sayar
+      } else {
+        expect(r.text).toContain("Aferin, işi biliyorsun"); // doğru farkındalık için tebrik
+      }
+    }
+    expect(results[0]!.text).toContain("diş araları"); // 1. aşama bitince "Evet": sırada diş araları ... var
+    expect(results[2]!.text).not.toContain("diş araları"); // 3. aşama bitince diş araları artık sayılmaz
+
+    // Ödül ekranı: diş macunu/standdaki görevli yerine Koşuyolu Park ücretsiz muayene fırsatı
+    const reward = page.getByTestId("reward-screen");
+    const offer = reward.getByTestId("clinic-offer");
+    await expect(offer).toContainText("Ücretsiz muayene fırsatı!");
+    await expect(offer).toContainText("Koşuyolu Park Diş Kliniği");
+    await expect(offer.getByRole("img", { name: "Koşuyolu Park Diş Kliniği" })).toBeVisible();
+    // Kartın sonunda klinik web sitesi: dokunulabilir, yeni sekmede açılır, yönlendiren adres gönderilmez
+    const site = offer.getByTestId("clinic-website");
+    await expect(site).toBeVisible();
+    await expect(site).toContainText("www.kosuyolupark.com");
+    await expect(site).toHaveAttribute("href", "https://www.kosuyolupark.com");
+    await expect(site).toHaveAttribute("target", "_blank");
+    await expect(site).toHaveAttribute("rel", /noopener/);
+    await expect(site).toHaveAttribute("rel", /noreferrer/);
+    await expect(reward).not.toContainText("Diş macunu hediyeni al.");
+    await expect(reward).not.toContainText("görevliye göster");
+
+    // Cevaplar anonim olay olarak gönderilir (aşama numarasıyla), sayılar cevaplarla eşleşir
+    await page.evaluate(() => window.dispatchEvent(new Event("pagehide")));
+    await expect.poll(() => cap.names.filter((n) => n.startsWith("self_check")).length, { timeout: 15_000 }).toBe(5);
+    expect(cap.names.filter((n) => n === "self_check_yes")).toHaveLength(2);
+    expect(cap.names.filter((n) => n === "self_check_no")).toHaveLength(3);
+    const sent = cap.bodies.flatMap((b) => (b.events as { name: string; phase?: number }[]).filter((e) => e.name.startsWith("self_check")));
+    expect(sent.map((e) => [e.name, e.phase])).toEqual([
+      ["self_check_yes", 1],
+      ["self_check_no", 2],
+      ["self_check_yes", 3],
+      ["self_check_no", 4],
+      ["self_check_no", 5],
+    ]);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("ASIL kampanyada soru HİÇ çıkmaz, olay gönderilmez ve ödül ekranı (diş macunu) değişmez", async ({ page }) => {
+    // Sayfa açılır açılmaz soru penceresi DOM'a girerse işaretle (oyun sırasında kısa süreli görünse bile yakalansın).
+    await page.addInitScript(() => {
+      (window as unknown as { __checkSeen: boolean }).__checkSeen = false;
+      new MutationObserver(() => {
+        if (document.querySelector('[data-testid="check-dialog"], [data-testid="check-overlay"]')) (window as unknown as { __checkSeen: boolean }).__checkSeen = true;
+      }).observe(document, { childList: true, subtree: true });
+    });
+    const cap = captureEvents(page);
+    await page.goto("/oyun");
+    await page.getByTestId("start").click();
+    await page.getByTestId("skip-tutorial").click();
+    await finishGameWithHelp(page);
+
+    expect(await page.evaluate(() => (window as unknown as { __checkSeen: boolean }).__checkSeen)).toBe(false);
+    const reward = page.getByTestId("reward-screen");
+    await expect(reward).toContainText("Bu ekranı Lions standındaki görevliye göster.");
+    await expect(reward).toContainText("Diş macunu hediyeni al.");
+    await expect(reward.getByTestId("clinic-offer")).toHaveCount(0);
+    await expect(reward.getByTestId("clinic-website")).toHaveCount(0);
+    await page.evaluate(() => window.dispatchEvent(new Event("pagehide")));
+    await expect.poll(() => cap.names.includes("game_completed"), { timeout: 15_000 }).toBe(true);
+    expect(cap.names.filter((n) => n.startsWith("self_check"))).toEqual([]);
   });
 });

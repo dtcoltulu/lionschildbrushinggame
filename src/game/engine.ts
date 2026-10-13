@@ -16,6 +16,11 @@ import type { EngineCallbacks, EngineStatus, PatchState, PhaseSpec, Point, Spark
 export interface EngineOptions {
   reducedMotion?: boolean;
   swipesPerPatch?: number;
+  /**
+   * Her aşama BİTTİKTEN sonra (sahne tamamen temizken, son aşama hariç) "yeterli temizlendi mi?" sorusunu açar:
+   * oyun durur, sonraki aşamaya geçiş cevaptan sonra başlar. Varsayılan: kapalı.
+   */
+  selfCheck?: boolean;
 }
 
 /**
@@ -137,6 +142,12 @@ export class GameEngine {
     this.afterProgress();
   }
 
+  /** Kendini değerlendirme sorusu cevaplandı: bitmiş aşamadan sonraki aşamaya geçiş (yüz dönmesi dahil) başlar. */
+  answerCheck(): void {
+    if (this.status !== "asking") return;
+    this.beginTransition();
+  }
+
   // ---- Zaman -----------------------------------------------------------
 
   update(rawDtMs: number): void {
@@ -248,17 +259,30 @@ export class GameEngine {
     if (this.status === "playing" && this.patches.every((p) => p.done)) this.completePhase();
   }
 
-  private completePhase(): void {
+  /** Aşama bitti: sonraki aşamaya (ya da ödüle) geçiş animasyonunu başlatır. */
+  private beginTransition(): void {
     this.status = "transition";
     this.transitionElapsed = 0;
     this.swapped = false;
     const next = this.phases[this.phaseIndex + 1];
     this.turning = next !== undefined && next.kind === "inner";
+  }
+
+  /**
+   * Aşama tamamen temizlendi. Soru açıksa ("Sence yeterli ve etkin temizlendi mi?") ve bu son aşama değilse
+   * oyun "asking"de durur; geçiş cevaptan sonra başlar. Son aşamada soru yoktur (her yer gerçekten temiz).
+   */
+  private completePhase(): void {
+    const last = this.phaseIndex >= this.phases.length - 1;
+    const ask = this.opts.selfCheck === true && !last;
+    if (ask) this.status = "asking";
+    else this.beginTransition();
     this.hintIndex = null;
     this.brushDown = false;
     this.tracker.reset();
-    if (this.phaseIndex === this.phases.length - 1) this.completionMs = this.totalElapsed;
+    if (last) this.completionMs = this.totalElapsed;
     this.cb.onPhaseComplete?.(this.phaseIndex, Math.round(this.phaseElapsed));
+    if (ask) this.cb.onCheck?.(this.phaseIndex);
   }
 
   /** Yüz yan dönünce: sonraki aşamanın sahnesi ve lekeleri yüklenir (oynanış geçişin sonunda başlar). */

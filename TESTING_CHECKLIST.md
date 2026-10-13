@@ -11,6 +11,7 @@ Kapsam:
 
 - **Oyun motoru:** swipe algılama, tek dokunuşla temizlenmeme, 6 aşamanın sırayla bitmesi, ilerlemenin monoton artması, yardım/ipucu, arka planda süre şişmemesi.
 - **Analytics istemcisi:** çevrimdışı kuyruk, sayfa yenilense de kuyruğun korunması, 503'te tutma / 400'de atma, 20'lik gruplar, depolama kapalıyken çalışma, ilk/tekrar oyun ayrımı.
+- **Kendini değerlendirme:** soru yalnızca özellik açıkken, aşama BİTİNCE (sahne tamamen temizken), aşama başına bir kez, son aşama ve öğretici hariç; soru süresi oyun süresine sayılmaz; Evet/Hayır sayısı-oranı-aşama dökümü; asıl kampanyada çıkmadığı; `0002` geçişinin `EVENT_NAMES` ile birebir uyumu.
 - **Sunucu:** kampanya/UUID/olay adı doğrulaması, fazladan (kişisel) alanların atılması, saat sapması düzeltmesi, çift gönderimde tek kayıt.
 - **KPI:** ziyaret/başlama/tamamlama ayrımı, tamamlama oranı, ilk oyun süresi, İstanbul saatiyle saatlik dağılım, gece yarısı sınırı, boş veri.
 - **CSV:** BOM, `;`, Türkçe karakter, formül enjeksiyonu koruması.
@@ -41,6 +42,7 @@ Gerçek cihaz gerektirir; bu depoda otomatikleştirilemez. Test için hep `…/o
 - [ ] Takılınca ~6 sn'de ipucu çıkıyor; "Yardım" butonu çalışıyor.
 - [ ] **Gerçek çocuklarla** (6–14 yaş, en az 5 çocuk, farklı yaşlardan) süre ölçün: hedef 45–90 sn. Çok kısa/uzunsa `src/game/constants.ts` (`SWIPES_PER_PATCH`, aşama sabitleri) ayarlanır.
 - [ ] Ekranı dikey/yatay çevirince bozulmuyor (dikey önerilir).
+- [ ] **Diş çizimleri:** ön dişler güzel bir gülüş gibi: merkez kesiciler geniş ve parlak beyaz, yan kesiciler daha dar/kısa, köpek dişleri yumuşak uçlu, dişler yanlara doğru küçülüyor, kesici kenar çizgisi kavisli; diş eti pürüzsüz ve ıslak parlak. İç yüzde dişlerin arkası (kenar sırtları, çukur), damakta enine kıvrımlar, dilde papillalar görünüyor. Çiğneme aşamasında azılar tümsekli, olukları ve çukurları olan gerçek azı dişleri gibi. Öğreticide kökleriyle tam bir diş görünüyor. **Eski/ucuz telefonda** öğreticiden sonraki aşama geçişlerinde (özellikle iç yüzeye ve çiğnemeye geçerken) belirgin bir donma yok ve akıcılık eskisinden kötü değil (sahne önbelleği + sprite ön hazırlığı).
 - [ ] **Telefonda ses** (en önemli): `/ses-testi` sayfasında "Sesi dene" → durum "Açık ✅" ve ses duyuluyor; iPhone sessiz düğmesi açıkken de oyun sesleri geliyor mu? (Bu özellik iOS 17+ ve eski iOS için ayrı yöntemle yapıldı; gerçek iPhone'da doğrulayın.)
 - [ ] Ses: 🔊/🔇 çalışıyor, ilk dokunuştan sonra ses geliyor, sessizde oyun tam anlaşılıyor, sessiz anahtarı (iPhone) açıkken çok rahatsız etmiyor.
 - [ ] **Aşama bitince "yu-up-pi!" sesi** (kayan ses + parıltı) geliyor. Bu sesler kodla üretilir; **gerçek telefonda kulakla** dinleyin ve gerekirse `src/game/audio.ts` içindeki `yay` sesini ayarlayın.
@@ -48,6 +50,14 @@ Gerçek cihaz gerektirir; bu depoda otomatikleştirilemez. Test için hep `…/o
 - [ ] **Yüz dönme:** diş araları bitince yüz yana dönüp iç yüzeye ("Bitmedi!") geçiyor; takılma ya da titreme yok.
 - [ ] Türkçe karakterler (ç ğ ı İ ö ş ü) her ekranda doğru.
 - [ ] Ödül ekranı: "TEBRİKLER! DİŞ KAHRAMANI OLDUN!", görevliye göster, diş macunu, 3 mesaj net; şeritte "Süren: … dk … sn" (oyun süresine uyuyor) ve bugünün tarihi/saati (saniyesiz) görünüyor; 2 dakikadan kısa sürede "Hızlı fırçaladın!…", 2 dakika ve üzerinde "ideal süreye ulaştın!…" mesajı çıkıyor; parıltı/yıldızlar hareket ediyor; "Tekrar Oyna" çalışıyor.
+
+### Deneme kampanyası: "Sence yeterli ve etkin temizlendi mi?" ve klinik fırsatı (`/oyun?k=test-deneme`)
+- [ ] Her aşama (1–5) **tamamen temizlenince** (tüm lekeler gidince, sonraki aşamaya geçmeden) **oyun durur** ve soru çıkar; temizlik bitmeden **çıkmaz**; **son aşamada (diş ipi) hiç çıkmaz**. Soru açıkken arkadaki "Yardım"/fırçalama çalışmaz.
+- [ ] **Evet** → "Henüz bitmedi! Sırada … var." (o aşamadan sonra kalan yüzeyleri doğru sayıyor); **Hayır** → "Aferin, işi biliyorsun!…" tebriki. **Devam**'a dokununca (ya da ~4,5 sn sonra kendiliğinden) sonraki aşamaya geçilir (diş araları bitince yüz dönmesi dahil).
+- [ ] Ödül ekranında diş macunu/standdaki görevli yerine **"Ücretsiz muayene fırsatı!" + Koşuyolu Park** kartı var; logo görünüyor. Kartın en altındaki **www.kosuyolupark.com** bağlantısına dokununca klinik sitesi **yeni sekmede** açılıyor (gerçek telefonda deneyin; oyun sekmesi açık kalıyor).
+- [ ] `/admin?k=test-deneme` → **"Sence yeterli ve etkin temizlendi mi?" cevapları** bölümünde Evet/Hayır sayısı ve oranı, aşama dökümü doğru (birkaç cevap verip karşılaştırın). Rapor sayfasında ve CSV'de de var.
+- [ ] **Asıl kampanyada** (`/oyun`, `?k=` yok) soru **hiç çıkmıyor** ve ödül ekranı eskisi gibi (diş macunu).
+- [ ] (Yayından önce) `supabase/migrations/0002_self_check_events.sql` uygulandı: deneme kampanyasında cevaplar panelde görünüyor.
 
 ### Bağlantı koşulları
 - [ ] Telefonu **uçak moduna** alıp oyunu (daha önce bir kez açılmışsa) yeniden açın: açılıyor ve oynanıyor.

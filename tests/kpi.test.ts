@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeKpis, hourlyForDate, formatDuration, formatPercent, localParts } from "@/lib/kpi";
-import { reportCsv, eventsCsv, toCsv } from "@/lib/csv";
+import { reportCsv, reportLines, eventsCsv, toCsv } from "@/lib/csv";
 import { CAMPAIGNS } from "@/config/campaigns";
 import type { EventName, StoredEvent } from "@/types/analytics";
 
@@ -136,5 +136,74 @@ describe("CSV", () => {
   it("ham olay CSV'sinde kişisel alan yok", () => {
     const csv = eventsCsv(events);
     expect(csv.split("\r\n")[0]).toBe("﻿zaman_utc;olay;oturum_kodu_kisa;oyun_no;sure_ms;asama");
+  });
+});
+
+describe("kendini değerlendirme (Evet / Hayır) göstergeleri", () => {
+  const phase = (n: number) => ({ phase: n });
+  const checks: StoredEvent[] = [
+    // A: aşama 1'de Evet dedi (erken bıraktı), aşama 2'de Hayır
+    ev("A", "self_check_yes", "2026-10-11T08:06:10Z", phase(1)),
+    ev("A", "self_check_no", "2026-10-11T08:06:40Z", phase(2)),
+    // B: iki aşamada da Hayır
+    ev("B", "self_check_no", "2026-10-11T09:11:10Z", phase(1)),
+    ev("B", "self_check_no", "2026-10-11T09:11:40Z", phase(2)),
+    // C: aşama 1'de Evet
+    ev("C", "self_check_yes", "2026-10-11T09:20:10Z", phase(1)),
+    // D: aşama 1'de Hayır
+    ev("D", "self_check_no", "2026-10-11T09:31:10Z", phase(1)),
+  ];
+  const k = computeKpis([...events, ...checks], sessions, TZ);
+
+  it("Evet / Hayır sayısı ve oranı (cevap bazlı)", () => {
+    expect(k.selfCheck.yes).toBe(2);
+    expect(k.selfCheck.no).toBe(4);
+    expect(k.selfCheck.total).toBe(6);
+    expect(k.selfCheck.yesRate).toBeCloseTo(2 / 6);
+    expect(k.selfCheck.noRate).toBeCloseTo(4 / 6);
+    expect((k.selfCheck.yesRate ?? 0) + (k.selfCheck.noRate ?? 0)).toBeCloseTo(1);
+  });
+
+  it("çocuk (tarayıcı) bazlı: cevaplayan ve en az bir kez Evet diyen", () => {
+    expect(k.selfCheck.children).toBe(4); // A B C D
+    expect(k.selfCheck.childrenYes).toBe(2); // A ve C
+  });
+
+  it("aşama bazlı döküm, aşama sırasıyla", () => {
+    expect(k.selfCheck.byPhase).toEqual([
+      { phase: 1, yes: 2, no: 2, total: 4, yesRate: 0.5 },
+      { phase: 2, yes: 0, no: 2, total: 2, yesRate: 0 },
+    ]);
+  });
+
+  it("diğer göstergeleri (ziyaret, başlama, saatlik) etkilemez", () => {
+    const base = computeKpis(events, sessions, TZ);
+    expect(k.landingViews).toBe(base.landingViews);
+    expect(k.starters).toBe(base.starters);
+    expect(k.completers).toBe(base.completers);
+    expect(k.hourly).toEqual(base.hourly);
+    expect(k.avgDurationMs).toBe(base.avgDurationMs);
+  });
+
+  it("cevap yokken sıfırlar ve null oran (bölme hatası yok)", () => {
+    const e = computeKpis(events, sessions, TZ).selfCheck;
+    expect(e).toEqual({ yes: 0, no: 0, total: 0, yesRate: null, noRate: null, children: 0, childrenYes: 0, byPhase: [] });
+  });
+
+  it("rapor satırları ve CSV yalnızca cevap varsa soruyu içerir", () => {
+    const withData = reportLines(k).map((l) => l.label);
+    expect(withData.some((l) => l.includes("Yeterli temizlendi mi"))).toBe(true);
+    const yesLine = reportLines(k).find((l) => l.label.startsWith("“Evet”"))!;
+    expect(yesLine.value).toBe("2");
+    expect(yesLine.note).toBe("%33,3");
+    const none = computeKpis(events, sessions, TZ);
+    expect(reportLines(none).some((l) => l.label.includes("Yeterli temizlendi mi"))).toBe(false);
+
+    const c = CAMPAIGNS[0]!;
+    const csv = reportCsv(c, k, new Date("2026-10-11T12:00:00Z"));
+    expect(csv).toContain("KENDİNİ DEĞERLENDİRME");
+    expect(csv).toContain("Aşama 1;Dış yüzeyler;2;2;4;%50,0");
+    expect(csv).toContain("Aşama 2;Diş araları;0;2;2;%0,0");
+    expect(reportCsv(c, none, new Date("2026-10-11T12:00:00Z"))).not.toContain("KENDİNİ DEĞERLENDİRME");
   });
 });

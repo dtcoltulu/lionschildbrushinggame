@@ -107,3 +107,40 @@ describe("MemoryStore", () => {
     expect(data.sessions).toHaveLength(1);
   });
 });
+
+describe("kendini değerlendirme olayları (self_check_yes / self_check_no)", () => {
+  const sc = (name: string, phase: number) => ({ id: uuid(), name, ts: 999_500, phase });
+
+  it("Evet/Hayır olaylarını aşama numarasıyla kabul eder ve saklanacak biçime çevirir", () => {
+    const r = validateBatch(base({ events: [sc("self_check_yes", 2), sc("self_check_no", 4)] }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const stored = normalizeBatch(r.value, 1_000_000);
+    expect(stored.map((e) => [e.name, e.phase])).toEqual([
+      ["self_check_yes", 2],
+      ["self_check_no", 4],
+    ]);
+  });
+
+  it("benzer ama bilinmeyen adları yine reddeder", () => {
+    expect(validateBatch(base({ events: [sc("self_check", 1)] })).ok).toBe(false);
+    expect(validateBatch(base({ events: [sc("self_check_maybe", 1)] })).ok).toBe(false);
+  });
+
+  it("geçersiz aşama numarasını reddeder", () => {
+    expect(validateBatch(base({ events: [sc("self_check_yes", 7)] })).ok).toBe(false);
+    expect(validateBatch(base({ events: [sc("self_check_yes", 0)] })).ok).toBe(false);
+  });
+
+  it("depoya yazılır ve aynı olay tekrar gelince çift kayıt olmaz (idempotent)", async () => {
+    const store = new MemoryStore();
+    const batch = validateBatch(base({ events: [sc("self_check_no", 3)] }));
+    if (!batch.ok) throw new Error("geçersiz");
+    const events = normalizeBatch(batch.value, 1_000_000);
+    const input = { sessionId: batch.value.sessionId, campaignId: batch.value.campaignId, deviceClass: null, firstSeenAt: new Date(1_000_000).toISOString(), events };
+    await store.insertBatch(input);
+    await store.insertBatch(input);
+    const data = await store.loadCampaign(batch.value.campaignId);
+    expect(data.events.filter((e) => e.name === "self_check_no")).toHaveLength(1);
+  });
+});

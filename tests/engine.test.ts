@@ -264,3 +264,159 @@ describe("Yüz dönme geçişi (diş araları → iç yüzey)", () => {
     expect(turnCount.n).toBe(1); // tüm oyunda tek kez döner
   });
 });
+
+describe('Kendini değerlendirme sorusu ("Sence yeterli ve etkin temizlendi mi?"): aşama BİTİNCE sorulur', () => {
+  /** Yardım butonuyla (deterministik) oynar; soru çıkınca `onAsk` karar verir. */
+  function playWithAssist(e: GameEngine, onAsk: (e: GameEngine) => void = (x) => x.answerCheck()) {
+    let guard = 0;
+    while (e.status !== "done" && guard++ < 20000) {
+      if (e.status === "asking") onAsk(e);
+      else if (e.status === "playing") {
+        e.assistClean();
+        e.update(16);
+      } else e.update(50);
+    }
+  }
+  /** Aktif aşamadaki tüm lekeleri temizler (aşama biter). */
+  const finishPhase = (e: GameEngine) => {
+    let guard = 0;
+    while (e.status === "playing" && guard++ < 2000) e.assistClean();
+  };
+  const untilPlaying = (e: GameEngine) => {
+    let guard = 0;
+    while (e.status !== "playing" && e.status !== "done" && guard++ < 500) e.update(50);
+  };
+
+  it("kapalıyken (asıl kampanya) hiç sorulmaz: aşama bitince doğrudan geçişe girer", () => {
+    const asked: number[] = [];
+    const e = new GameEngine(buildPhases(), { onCheck: (i) => asked.push(i) });
+    e.start();
+    finishPhase(e);
+    expect(e.status).toBe("transition");
+    playWithAssist(e);
+    expect(e.status).toBe("done");
+    expect(asked).toEqual([]);
+  });
+
+  it("açıkken soru, aşama TAMAMEN temizlenince çıkar (hiç leke kalmamışken); oyun durur, girdi/süre/ilerleme donar", () => {
+    const log: string[] = [];
+    const cleanAtAsk: boolean[] = [];
+    const e: GameEngine = new GameEngine(
+      buildPhases(),
+      {
+        onPhaseComplete: (i) => log.push(`bitti${i}`),
+        onCheck: (i) => {
+          log.push(`soru${i}`);
+          cleanAtAsk.push(e.patches.every((p) => p.done));
+        },
+      },
+      { selfCheck: true },
+    );
+    e.start();
+    // Yarıya kadar temizle: soru HENÜZ çıkmamalı (eski, yanlış davranış buydu)
+    let guard = 0;
+    while (e.patches.filter((p) => p.done).length < e.patches.length / 2 && guard++ < 1000) e.assistClean();
+    expect(e.status).toBe("playing");
+    expect(log).toEqual([]);
+
+    finishPhase(e);
+    expect(e.status).toBe("asking");
+    expect(cleanAtAsk).toEqual([true]); // soru çıktığında tüm lekeler temiz
+    expect(log).toEqual(["bitti0", "soru0"]); // önce aşama tamamlandı (süre kaydı), sonra soru
+
+    const before = { phase: e.phaseElapsed, total: e.totalElapsed, progress: e.overallProgress(), idx: e.phaseIndex, tr: e.transitionElapsed };
+    scrub(e, e.patches[0]!, { amp: 40, strokes: 6 });
+    e.assistClean();
+    for (let i = 0; i < 400; i++) e.update(100); // 40 sn "düşünme"
+    expect(e.status).toBe("asking");
+    expect(e.phaseIndex).toBe(before.idx);
+    expect(e.phaseElapsed).toBe(before.phase);
+    expect(e.totalElapsed).toBe(before.total);
+    expect(e.transitionElapsed).toBe(before.tr);
+    expect(e.overallProgress()).toBe(before.progress);
+    expect(e.hintIndex).toBeNull();
+  });
+
+  it("cevaptan sonra geçiş başlar ve sonraki aşama oynanır; aynı aşama için soru tekrarlanmaz", () => {
+    const asked: number[] = [];
+    const starts: number[] = [];
+    const e = new GameEngine(buildPhases(), { onCheck: (i) => asked.push(i), onPhaseStart: (i) => starts.push(i) }, { selfCheck: true });
+    e.start();
+    finishPhase(e);
+    expect(e.status).toBe("asking");
+    e.answerCheck();
+    expect(e.status).toBe("transition");
+    untilPlaying(e);
+    expect(e.status).toBe("playing");
+    expect(e.phaseIndex).toBe(1);
+    expect(starts).toEqual([0, 1]);
+    expect(asked).toEqual([0]);
+  });
+
+  it("yüz dönmesi (diş araları → iç yüzey) soru cevaplanınca başlar, önce değil", () => {
+    const e = new GameEngine(buildPhases(), {}, { selfCheck: true });
+    e.start();
+    finishPhase(e); // 0. aşama
+    e.answerCheck();
+    untilPlaying(e);
+    finishPhase(e); // 1. aşama (diş araları): sonraki iç yüzey → yüz dönecek
+    expect(e.status).toBe("asking");
+    expect(e.turning).toBe(false); // soru sırasında dönme başlamadı
+    expect(e.turnScale).toBe(1);
+    e.answerCheck();
+    expect(e.status).toBe("transition");
+    expect(e.turning).toBe(true);
+  });
+
+  it("son aşamada (diş ipi) soru yok: tam oyunda 5 soru [0..4] sorulur, her seferinde sahne tamamen temiz, oyun bir kez biter", () => {
+    const asked: number[] = [];
+    const clean: boolean[] = [];
+    let completes = 0;
+    const e: GameEngine = new GameEngine(
+      buildPhases(),
+      {
+        onCheck: (i) => {
+          asked.push(i);
+          clean.push(e.patches.every((p) => p.done));
+        },
+        onComplete: () => completes++,
+      },
+      { selfCheck: true },
+    );
+    e.start();
+    playWithAssist(e);
+    expect(e.status).toBe("done");
+    expect(asked).toEqual([0, 1, 2, 3, 4]); // 5. indeks (diş ipi) yok
+    expect(clean).toEqual([true, true, true, true, true]);
+    expect(completes).toBe(1);
+  });
+
+  it("soru ve cevaplama süresi oyun süresine (completionMs) sayılmaz", () => {
+    const run = (thinkMs: number) => {
+      const e = new GameEngine(buildPhases(), {}, { selfCheck: true });
+      e.start();
+      playWithAssist(e, (x) => {
+        for (let t = 0; t < thinkMs; t += 100) x.update(100);
+        x.answerCheck();
+      });
+      return e.completionMs;
+    };
+    expect(run(60_000)).toBe(run(0)); // 1 dk düşünen çocukla hemen cevaplayan aynı süre
+  });
+
+  it("öğreticide (tek aşama) soru çıkmaz", () => {
+    const asked: number[] = [];
+    const e = new GameEngine([buildTutorialPhase()], { onCheck: (i) => asked.push(i) }, { selfCheck: true, swipesPerPatch: 3 });
+    e.start();
+    playWithAssist(e);
+    expect(e.status).toBe("done");
+    expect(asked).toEqual([]);
+  });
+
+  it("soru yokken answerCheck etkisizdir", () => {
+    const e = new GameEngine(buildPhases(), {}, { selfCheck: true });
+    e.start();
+    e.answerCheck();
+    expect(e.status).toBe("playing");
+  });
+});

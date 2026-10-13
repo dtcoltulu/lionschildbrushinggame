@@ -1,5 +1,6 @@
 import { HourlyTable } from "@/components/admin/HourlyTable";
 import { PrintButton } from "@/components/admin/PrintButton";
+import { SelfCheckSection } from "@/components/admin/SelfCheckSection";
 import { resolveCampaign } from "@/config/campaigns";
 import { reportLines } from "@/lib/csv";
 import { requireAdmin } from "@/lib/admin-guard";
@@ -58,6 +59,8 @@ export default async function ReportPage({ searchParams }: { searchParams: Promi
         <h2 id="saat" className="text-xl font-extrabold">Saatlik dağılım</h2>
         <HourlyTable rows={hourlyForDate(k.hourly, null)} />
       </section>
+
+      {(campaign.selfCheck || k.selfCheck.total > 0) && <SelfCheckSection c={k.selfCheck} printable />}
 
       <footer className="mt-8 border-t pt-3 text-xs text-ink/70">
         <p>Rapor oluşturma zamanı: {generated}. Veriler anonimdir; kişisel veri toplanmamıştır.</p>

@@ -1,4 +1,5 @@
 import type { CampaignConfig } from "@/config/campaigns";
+import { tr } from "@/content/tr";
 import type { StoredEvent } from "@/types/analytics";
 import { formatDuration, formatPercent, hourlyForDate, type Kpis } from "./kpi";
 
@@ -26,7 +27,7 @@ export interface ReportLine {
 
 /** Rapor sayfası ve CSV aynı satırlardan üretilir → tutarlı sayılar. */
 export function reportLines(k: Kpis): ReportLine[] {
-  return [
+  const lines: ReportLine[] = [
     { label: "Toplam erişim (benzersiz ziyaretçi)", value: String(k.landingVisitors), note: `${k.landingViews} sayfa görüntüleme` },
     { label: "Oyuna başlayan", value: String(k.starters) },
     { label: "Tamamlayan (benzersiz)", value: String(k.completers) },
@@ -35,6 +36,16 @@ export function reportLines(k: Kpis): ReportLine[] {
     { label: "Ortalama süre", value: formatDuration(k.avgDurationMs), note: `Medyan: ${formatDuration(k.medianDurationMs)} (${k.durationSamples} oyun)` },
     { label: "Tekrar oynama", value: String(k.replays) },
   ];
+  const c = k.selfCheck;
+  if (c.total > 0) {
+    lines.push(
+      { label: "“Yeterli temizlendi mi?” sorusu: cevap sayısı", value: String(c.total), note: `${c.children} çocuk (tarayıcı) cevapladı` },
+      { label: "“Evet” (diğer yüzeyler kalmışken “yeterli” dedi)", value: String(c.yes), note: formatPercent(c.yesRate) },
+      { label: "“Hayır” (doğru farkındalık)", value: String(c.no), note: formatPercent(c.noRate) },
+      { label: "En az bir kez “Evet” diyen çocuk", value: String(c.childrenYes), note: `cevaplayanların ${formatPercent(c.children > 0 ? c.childrenYes / c.children : null)}` },
+    );
+  }
+  return lines;
 }
 
 export function hourLabel(h: number): string {
@@ -67,6 +78,12 @@ export function reportCsv(c: CampaignConfig, k: Kpis, generatedAt: Date): string
   }
   rows.push([], ["AŞAMA SÜRELERİ"], ["Aşama", "Tamamlanan", "Ortalama süre"]);
   for (const p of k.phases) rows.push([`Aşama ${p.phase}`, p.count, formatDuration(p.avgMs)]);
+  if (k.selfCheck.total > 0) {
+    rows.push([], ["KENDİNİ DEĞERLENDİRME: “Sence yeterli ve etkin temizlendi mi?” (AŞAMA BAZLI)"], ["Aşama", "Aşama adı", "Evet", "Hayır", "Toplam", "Evet oranı"]);
+    for (const p of k.selfCheck.byPhase) {
+      rows.push([`Aşama ${p.phase}`, tr.phases[p.phase - 1]?.name ?? "", p.yes, p.no, p.total, formatPercent(p.yesRate)]);
+    }
+  }
   rows.push([], ["CİHAZ SINIFI (kaba)"], ["mobil", k.devices.mobile], ["tablet", k.devices.tablet], ["masaüstü", k.devices.desktop], ["bilinmiyor", k.devices.unknown]);
   return toCsv(rows);
 }

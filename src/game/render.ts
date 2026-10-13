@@ -1,51 +1,24 @@
 import { BRUSH_RADIUS, WORLD_H, WORLD_W } from "./constants";
+import { rrect, type Ctx } from "./draw";
 import type { GameEngine } from "./engine";
 import {
-  CHEW_DIVIDER_Y,
-  CHEW_PANEL,
-  CHEW_TILES,
+  CHEW_SLABS,
   LOWER_TEETH,
   MOUTH,
   MOUTH_IN,
   rand,
   TONGUE,
+  toothRank,
   UPPER_TEETH,
-  type Rect,
 } from "./layout";
 import { BG, C, FACE } from "./palette";
+import { drawGumSprite, drawTongueSprite, FLOOR_THIN, warmGums } from "./gums";
+import { drawChewTiles, drawJawSlab, warmCrowns } from "./occlusal";
+import { quantizeRes, setDeviceScale, spriteResolution } from "./shade";
+import { drawTeethRow, warmTeeth } from "./toothsprite";
+import { drawTutorialToothSprite } from "./tutorialtooth";
+import { drawTooth, drawTutorialTooth, FLOOR, FRONT_TOOTH, GUM, INNER_TOOTH, PALATE } from "./teeth";
 import type { PatchState, PhaseKind } from "./types";
-
-type Ctx = CanvasRenderingContext2D;
-
-function rrect(ctx: Ctx, x: number, y: number, w: number, h: number, r: number | [number, number, number, number]) {
-  const [tl, tr, br, bl] = typeof r === "number" ? [r, r, r, r] : r;
-  ctx.beginPath();
-  ctx.moveTo(x + tl, y);
-  ctx.lineTo(x + w - tr, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + tr);
-  ctx.lineTo(x + w, y + h - br);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - br, y + h);
-  ctx.lineTo(x + bl, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - bl);
-  ctx.lineTo(x, y + tl);
-  ctx.quadraticCurveTo(x, y, x + tl, y);
-  ctx.closePath();
-}
-
-function toothShape(ctx: Ctx, t: Rect, fill: string, radii: [number, number, number, number], shade: string = C.toothShade) {
-  rrect(ctx, t.x, t.y, t.w, t.h, radii);
-  const g = ctx.createLinearGradient(t.x, t.y, t.x + t.w, t.y + t.h);
-  g.addColorStop(0, fill);
-  g.addColorStop(1, shade);
-  ctx.fillStyle = g;
-  ctx.fill();
-  ctx.lineWidth = 1.3;
-  ctx.strokeStyle = C.toothLine;
-  ctx.stroke();
-  ctx.fillStyle = "rgba(255,255,255,0.55)";
-  rrect(ctx, t.x + t.w * 0.16, t.y + 6, Math.max(3, t.w * 0.14), Math.min(t.h * 0.42, 30), 3);
-  ctx.fill();
-}
 
 // ---- Yüz ve ağız -----------------------------------------------------------------
 
@@ -202,78 +175,28 @@ function clipMouth(ctx: Ctx) {
   ctx.clip();
 }
 
-/** Diş etinin dişlerin çevresinde kıvrımlı kenarı. `upper`: üst çene (dişler aşağı sarkar). */
-function gumBand(ctx: Ctx, teeth: Rect[], upper: boolean, color: string) {
-  const edge = (t: Rect) => (upper ? t.y : t.y + t.h);
-  const dir = upper ? 1 : -1;
-  const yFar = upper ? MOUTH_IN.y - 4 : MOUTH_IN.y + MOUTH_IN.h + 4;
-  const trace = () => {
-    ctx.beginPath();
-    ctx.moveTo(MOUTH_IN.x - 4, edge(teeth[0]!));
-    for (const t of teeth) {
-      ctx.quadraticCurveTo(t.x + t.w / 2, edge(t) + dir * 9, t.x + t.w + 1.5, edge(t));
-    }
-    ctx.lineTo(MOUTH_IN.x + MOUTH_IN.w + 4, edge(teeth.at(-1)!));
-  };
-  trace();
-  ctx.lineTo(MOUTH_IN.x + MOUTH_IN.w + 4, yFar);
-  ctx.lineTo(MOUTH_IN.x - 4, yFar);
-  ctx.closePath();
-  ctx.fillStyle = color;
-  ctx.fill();
-  trace();
-  ctx.strokeStyle = C.gumDark;
-  ctx.lineWidth = 2.5;
-  ctx.stroke();
-}
-
-function upperRadii(t: Rect): [number, number, number, number] {
-  return [5, 5, Math.min(14, t.w / 2), Math.min(14, t.w / 2)];
-}
-function lowerRadii(t: Rect): [number, number, number, number] {
-  return [Math.min(14, t.w / 2), Math.min(14, t.w / 2), 5, 5];
-}
-
 function drawFrontTeeth(ctx: Ctx, kind: PhaseKind, inner: boolean) {
   drawMouthFrame(ctx, kind);
   ctx.save();
   clipMouth(ctx);
+  const res = spriteResolution();
   if (inner) {
-    // İç yüz: damak + dil
-    gumBand(ctx, UPPER_TEETH, true, "#E98AA0");
-    ctx.fillStyle = C.tongue;
-    ctx.beginPath();
-    ctx.ellipse(180, 400, 176, 104, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(90,26,46,0.35)";
-    ctx.lineWidth = 3;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(180, 318);
-    ctx.lineTo(180, 372);
-    ctx.stroke();
-  } else {
-    gumBand(ctx, UPPER_TEETH, true, C.gum);
-    gumBand(ctx, LOWER_TEETH, false, C.gum);
-  }
-  const fill = inner ? "#F1EDFA" : C.tooth;
-  const shade = inner ? "#D9D2EA" : C.toothShade;
-  for (const t of UPPER_TEETH) {
-    toothShape(ctx, t, fill, upperRadii(t), shade);
-    if (inner) {
-      ctx.fillStyle = "rgba(120,100,170,0.16)";
-      rrect(ctx, t.x + 3, t.y + t.h * 0.45, t.w - 6, t.h * 0.42, 8);
+    // İç yüz: dil (dişlerin arkasında)
+    drawTongueSprite(ctx, "inner", res, () => {
+      ctx.fillStyle = C.tongue;
+      ctx.beginPath();
+      ctx.ellipse(180, 400, 176, 104, 0, 0, Math.PI * 2);
       ctx.fill();
-    }
+    });
   }
-  for (const t of LOWER_TEETH) {
-    toothShape(ctx, t, fill, lowerRadii(t), shade);
-    if (inner) {
-      ctx.fillStyle = "rgba(120,100,170,0.16)";
-      rrect(ctx, t.x + 3, t.y + 4, t.w - 6, t.h * 0.42, 8);
-      ctx.fill();
-    }
-  }
+  // Önce dişler (boyunları diş etinin altına uzanır), sonra kıvrımlı diş eti şeridi üstlerine biner.
+  const pal = inner ? INNER_TOOTH : FRONT_TOOTH;
+  const view = inner ? "inner" : "front";
+  drawTeethRow(ctx, UPPER_TEETH, true, view, res, (t, i) => drawTooth(ctx, t, toothRank(i), true, pal, inner, i < 6 ? -1 : 1));
+  drawTeethRow(ctx, LOWER_TEETH, false, view, res, (t, i) => drawTooth(ctx, t, toothRank(i), false, pal, inner, i < 6 ? -1 : 1));
+  drawGumSprite(ctx, inner ? "palate" : "front", UPPER_TEETH, true, MOUTH_IN, res, inner ? PALATE : GUM);
+  if (inner) drawGumSprite(ctx, "floor", LOWER_TEETH, false, MOUTH_IN, res, FLOOR, FLOOR_THIN);
+  else drawGumSprite(ctx, "front", LOWER_TEETH, false, MOUTH_IN, res, GUM);
   ctx.restore();
 }
 
@@ -291,70 +214,40 @@ function drawInner(ctx: Ctx) {
 }
 
 function drawChewing(ctx: Ctx) {
-  ctx.fillStyle = C.gum;
-  rrect(ctx, CHEW_PANEL.x, CHEW_PANEL.y, CHEW_PANEL.w, CHEW_PANEL.h, 54);
-  ctx.fill();
-  // üst / alt çene ayırıcı
-  ctx.strokeStyle = C.gumDark;
-  ctx.lineWidth = 4;
-  ctx.lineCap = "round";
-  ctx.setLineDash([2, 10]);
-  ctx.beginPath();
-  ctx.moveTo(30, CHEW_DIVIDER_Y);
-  ctx.lineTo(WORLD_W - 30, CHEW_DIVIDER_Y);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  CHEW_TILES.forEach((m) => {
-    toothShape(ctx, m, C.tooth, [30, 30, 30, 30]);
-    ctx.strokeStyle = C.toothLine;
-    ctx.lineWidth = 3;
-    ctx.lineCap = "round";
-    const cx = m.x + m.w / 2;
-    const cy = m.y + m.h / 2;
-    ctx.beginPath();
-    ctx.moveTo(m.x + 18, cy);
-    ctx.lineTo(m.x + m.w - 18, cy);
-    ctx.moveTo(cx, m.y + 14);
-    ctx.lineTo(cx, m.y + m.h - 14);
-    ctx.moveTo(m.x + 26, m.y + 20);
-    ctx.lineTo(cx - 8, cy - 8);
-    ctx.moveTo(m.x + m.w - 26, m.y + m.h - 20);
-    ctx.lineTo(cx + 8, cy + 8);
-    ctx.stroke();
-  });
+  CHEW_SLABS.forEach((r, i) => drawJawSlab(ctx, r, i + 1));
+  drawChewTiles(ctx, true);
+  drawChewTiles(ctx, false);
 }
 
 function drawTongue(ctx: Ctx) {
   drawMouthFrame(ctx, "tongue");
   ctx.save();
   clipMouth(ctx);
-  const g = ctx.createLinearGradient(0, TONGUE.y, 0, TONGUE.y + TONGUE.h);
-  g.addColorStop(0, "#FF8FA3");
-  g.addColorStop(1, "#E5607A");
-  ctx.fillStyle = g;
-  rrect(ctx, TONGUE.x, TONGUE.y, TONGUE.w, TONGUE.h, 120);
-  ctx.fill();
-  // orta çizgi ve papiller
-  ctx.strokeStyle = "rgba(120,20,50,0.35)";
-  ctx.lineWidth = 4;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.moveTo(180, TONGUE.y + 30);
-  ctx.lineTo(180, TONGUE.y + TONGUE.h - 30);
-  ctx.stroke();
-  ctx.fillStyle = "rgba(255,255,255,0.22)";
-  for (let i = 0; i < 46; i++) {
-    const x = TONGUE.x + 30 + rand(i * 2.3) * (TONGUE.w - 60);
-    const y = TONGUE.y + 26 + rand(i * 4.1) * (TONGUE.h - 52);
-    ctx.beginPath();
-    ctx.arc(x, y, 2 + rand(i * 7.7) * 2, 0, Math.PI * 2);
+  // Gerçekçi, papillalı, ıslak parlak dil (sprite); üretilemezse eski düz dil
+  drawTongueSprite(ctx, "scene", spriteResolution(), () => {
+    const g = ctx.createLinearGradient(0, TONGUE.y, 0, TONGUE.y + TONGUE.h);
+    g.addColorStop(0, "#FF8FA3");
+    g.addColorStop(1, "#E5607A");
+    ctx.fillStyle = g;
+    rrect(ctx, TONGUE.x, TONGUE.y, TONGUE.w, TONGUE.h, 120);
     ctx.fill();
-  }
+    ctx.strokeStyle = "rgba(120,20,50,0.35)";
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(180, TONGUE.y + 30);
+    ctx.lineTo(180, TONGUE.y + TONGUE.h - 30);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,0.22)";
+    for (let i = 0; i < 46; i++) {
+      const x = TONGUE.x + 30 + rand(i * 2.3) * (TONGUE.w - 60);
+      const y = TONGUE.y + 26 + rand(i * 4.1) * (TONGUE.h - 52);
+      ctx.beginPath();
+      ctx.arc(x, y, 2 + rand(i * 7.7) * 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
   ctx.restore();
-}
-
-function drawTutorialTooth(ctx: Ctx) {
-  toothShape(ctx, { x: 100, y: 170, w: 160, h: 200 }, C.tooth, [40, 40, 70, 70]);
 }
 
 const SCENES: Record<PhaseKind, (ctx: Ctx) => void> = {
@@ -364,7 +257,7 @@ const SCENES: Record<PhaseKind, (ctx: Ctx) => void> = {
   chewing: drawChewing,
   tongue: drawTongue,
   floss: drawFloss,
-  tutorial: drawTutorialTooth,
+  tutorial: (ctx) => drawTutorialToothSprite(ctx, spriteResolution(), () => drawTutorialTooth(ctx)),
 };
 
 // ---- Artıklar: plak, çikolata, cips, dil pası, mikrop ------------------------------
@@ -636,11 +529,101 @@ export interface RenderOptions {
   reducedMotion: boolean;
   /** Eğitim ekranında hareketsizken gösterilen yönlendirici el. */
   showTutorialHand: boolean;
+  /** Sahne önbelleği (varsayılan açık). Yalnızca testlerde/karşılaştırmada kapatılır. */
+  cache?: boolean;
+}
+
+// ---- Sahne önbelleği -------------------------------------------------------------
+// Yüz, ağız ve dişler oyun boyunca değişmez ama çizimi pahalıdır (degradeler, gölgeler). Her karede yeniden çizmek yerine
+// bir kez ayrı bir tuvale çizilir, sonra her karede tek `drawImage` ile basılır. Ekran boyutu ya da aşama türü
+// değişince yeniden çizilir. Önbellek her canvas'a özeldir (öğretici ve oyun tuvali birbirini bozmaz).
+
+/** Sahnenin kapladığı dünya alanı (yüz elipsi dünya sınırının biraz dışına taşar). */
+const SCENE_AREA = { x: -40, y: -16, w: WORLD_W + 80, h: WORLD_H + 108 };
+/** Çok büyük ekranlarda bellek şişmesin: bundan büyük önbellek kurulmaz, doğrudan çizilir. */
+const MAX_CACHE_PIXELS = 12_000_000;
+
+interface SceneCache {
+  key: string;
+  canvas: HTMLCanvasElement;
+  /** Önbellek tuvalinin sol-üst köşesinin ekrandaki (cihaz pikseli) tam sayı konumu. */
+  dx: number;
+  dy: number;
+}
+const sceneCaches = new WeakMap<Ctx, SceneCache>();
+
+function buildSceneCache(kind: PhaseKind, base: DOMMatrix, key: string): SceneCache | null {
+  if (typeof document === "undefined") return null;
+  // Yalnızca ölçek + öteleme (GameCanvas böyle kurar); başka bir dönüşümde doğrudan çizilir.
+  if (base.b !== 0 || base.c !== 0 || !(base.a > 0) || !(base.d > 0)) return null;
+  const x0 = Math.floor(base.e + base.a * SCENE_AREA.x);
+  const y0 = Math.floor(base.f + base.d * SCENE_AREA.y);
+  const w = Math.ceil(base.e + base.a * (SCENE_AREA.x + SCENE_AREA.w)) - x0;
+  const h = Math.ceil(base.f + base.d * (SCENE_AREA.y + SCENE_AREA.h)) - y0;
+  if (!(w > 0) || !(h > 0) || w * h > MAX_CACHE_PIXELS) return null;
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const cctx = canvas.getContext("2d");
+  if (!cctx) return null;
+  // Dünya (X,Y) önbellekte, doğrudan çizimdeki cihaz konumuna tam oturacak şekilde çizilir.
+  cctx.setTransform(base.a, 0, 0, base.d, base.e - x0, base.f - y0);
+  SCENES[kind](cctx);
+  return { key, canvas, dx: x0, dy: y0 };
+}
+
+/**
+ * Sahneyi çizer. `base`: bu karenin başındaki (yüz dönme ölçeği uygulanmadan önceki) dönüşüm.
+ * `crisp`: ek ölçek yok; önbellek tam piksel hizasında basılır (bulanıklık olmaz).
+ */
+function drawScene(ctx: Ctx, kind: PhaseKind, base: DOMMatrix | null, crisp: boolean, useCache: boolean): void {
+  if (!base || !useCache) {
+    SCENES[kind](ctx);
+    return;
+  }
+  const key = `${kind}|${base.a}|${base.d}|${base.e}|${base.f}`;
+  let cache = sceneCaches.get(ctx) ?? null;
+  if (!cache || cache.key !== key) {
+    cache = buildSceneCache(kind, base, key);
+    if (cache) sceneCaches.set(ctx, cache);
+    else sceneCaches.delete(ctx);
+  }
+  if (!cache) {
+    SCENES[kind](ctx);
+    return;
+  }
+  if (crisp) {
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(cache.canvas, cache.dx, cache.dy);
+    ctx.restore();
+  } else {
+    // Yüz dönerken: önbellek dünya koordinatında, o anki (yatay daralmış) dönüşümle basılır.
+    ctx.drawImage(cache.canvas, (cache.dx - base.e) / base.a, (cache.dy - base.f) / base.d, cache.canvas.width / base.a, cache.canvas.height / base.d);
+  }
+}
+
+// ---- Önceden hazırlama ---------------------------------------------------------------
+// Gerçekçi diş sprite'ları (yükseklik haritasından ışık hesabı) ağırdır; ilk kez gerektiği anda hesaplanırsa takılma olur.
+// Bu yüzden öğretici/ilk aşamalar sırasında, kareler arasında az az (her 4.–16. karede bir sprite) önceden hazırlanır.
+// Gerekirse sprite ilk kullanımda zaten hesaplanır (hazırlık yalnızca takılmayı önler).
+let warmTick = 0;
+function warmArt(base: DOMMatrix | null, engine: GameEngine): void {
+  if (!base) return;
+  // Parmak boştayken her 4. karede, fırçalarken her 16. karede bir sprite (takılma hissedilmesin)
+  if ((++warmTick & (engine.brushDown ? 15 : 3)) !== 0) return;
+  const res = quantizeRes(base.a);
+  // Sırayla: önce ilk aşamaların dişleri, sonra diş eti/dil, en son çiğneme dişleri; her çağrıda yalnızca biri ilerler
+  if (!warmTeeth(UPPER_TEETH, LOWER_TEETH, res, 6)) return;
+  if (!warmGums(UPPER_TEETH, LOWER_TEETH, MOUTH_IN, res, 6)) return;
+  warmCrowns(res, 6);
 }
 
 /** Canvas'ı tek karede çizer. `ctx` dünya koordinatlarına (WORLD_W x WORLD_H) hazır olmalı. */
 export function renderFrame(ctx: Ctx, engine: GameEngine, t: number, opts: RenderOptions): void {
   const kind = engine.currentKind;
+  const base = typeof ctx.getTransform === "function" ? ctx.getTransform() : null;
+  if (base) setDeviceScale(base.a);
   const [c1, c2] = BG[kind] ?? BG.outer!;
   const bg = ctx.createLinearGradient(0, 0, 0, WORLD_H);
   bg.addColorStop(0, c1);
@@ -657,7 +640,7 @@ export function renderFrame(ctx: Ctx, engine: GameEngine, t: number, opts: Rende
     ctx.scale(sx, 1);
     ctx.translate(-WORLD_W / 2, -WORLD_H / 2);
   }
-  SCENES[kind](ctx);
+  drawScene(ctx, kind, base, sx === 1, opts.cache !== false);
 
   for (const p of engine.patches) {
     const fade = p.done ? Math.max(0, 1 - p.cleanedFor / 350) : 1 - p.clean * 0.92;
@@ -696,6 +679,7 @@ export function renderFrame(ctx: Ctx, engine: GameEngine, t: number, opts: Rende
     if (floss) drawFlossTool(ctx, engine.brush.x, engine.brush.y, engine.brushDown, t, opts.reducedMotion);
     else drawBrush(ctx, engine.brush.x, engine.brush.y, engine.brushDown, t, opts.reducedMotion);
   }
+  if (opts.cache !== false) warmArt(base, engine);
 }
 
 function star(ctx: Ctx, x: number, y: number, r: number) {

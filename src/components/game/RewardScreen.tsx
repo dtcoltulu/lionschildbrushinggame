@@ -84,10 +84,37 @@ export function RewardScreen({ campaign, durationMs, onReplay }: { campaign: Cam
           </p>
         )}
 
-        <div className="mt-2 w-full rounded-3xl bg-white p-4 text-ink shadow-xl">
-          <p className="text-xl font-extrabold">{tr.reward.showStaff}</p>
-          <p className="mt-1 text-2xl font-black text-mint-deep">{campaign.rewardLine}</p>
-        </div>
+        {campaign.clinicOffer ? (
+          <div className="mt-2 w-full rounded-3xl bg-white p-4 text-ink shadow-xl" data-testid="clinic-offer">
+            <p className="text-2xl font-black text-mint-deep">{campaign.clinicOffer.title}</p>
+            <p className="mt-1 text-lg font-extrabold leading-snug">{campaign.clinicOffer.text}</p>
+            {campaign.clinicOffer.detail && <p className="mt-1 text-base font-bold text-ink/80">{campaign.clinicOffer.detail}</p>}
+            {campaign.clinicOffer.logoPath && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={campaign.clinicOffer.logoPath} alt={campaign.clinicOffer.logoAlt ?? ""} className="mx-auto mt-3 h-12 w-auto" />
+            )}
+            {campaign.clinicOffer.website && (
+              // Dış bağlantı: yeni sekmede açılır, yönlendiren adres (referrer) gönderilmez; dokunulması kaydedilmez.
+              // Dar ekranda (320 px) tek satırda kalsın diye yazı küçülür; en kötü durumda adres satır kırar, taşmaz.
+              <a
+                href={`https://${campaign.clinicOffer.website}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex min-h-[44px] max-w-full items-center justify-center gap-2 rounded-full bg-purple-soft px-3 py-1.5 text-sm font-black text-purple min-[360px]:px-4 min-[360px]:text-base min-[400px]:text-lg"
+                data-testid="clinic-website"
+              >
+                <span aria-hidden="true">🌐</span>
+                <span className="underline decoration-2 underline-offset-4 [overflow-wrap:anywhere]">{campaign.clinicOffer.website}</span>
+                <span className="sr-only"> ({tr.reward.newTab})</span>
+              </a>
+            )}
+          </div>
+        ) : (
+          <div className="mt-2 w-full rounded-3xl bg-white p-4 text-ink shadow-xl">
+            <p className="text-xl font-extrabold">{tr.reward.showStaff}</p>
+            <p className="mt-1 text-2xl font-black text-mint-deep">{campaign.rewardLine}</p>
+          </div>
+        )}
 
         <p className="mt-1 text-lg font-semibold">{tr.reward.learned}</p>
         <ul className="grid w-full gap-2">
