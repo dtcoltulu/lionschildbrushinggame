@@ -2,6 +2,7 @@ import type { CampaignConfig } from "@/config/campaigns";
 import { tr } from "@/content/tr";
 import type { StoredEvent } from "@/types/analytics";
 import { formatDuration, formatPercent, hourlyForDate, type Kpis } from "./kpi";
+import { hasRange, NO_RANGE, rangeLabel, type DateRange } from "./range";
 
 /** Türkçe Excel varsayılanı noktalı virgüldür; UTF-8 BOM Türkçe karakterleri korur. */
 const SEP = ";";
@@ -29,7 +30,7 @@ export interface ReportLine {
 export function reportLines(k: Kpis): ReportLine[] {
   const lines: ReportLine[] = [
     { label: "Toplam erişim (benzersiz ziyaretçi)", value: String(k.landingVisitors), note: `${k.landingViews} sayfa görüntüleme` },
-    { label: "Oyuna başlayan", value: String(k.starters) },
+    { label: "Oyuna başlayan", value: String(k.starters), note: `Başlatma oranı: ${formatPercent(k.startRate)} (başlayan / toplam erişim)` },
     { label: "Tamamlayan (benzersiz)", value: String(k.completers) },
     { label: "Tamamlama oranı", value: formatPercent(k.completionRate) },
     { label: "Toplam başarılı tamamlanma", value: String(k.totalCompletions), note: "Tekrar oynamalar dahil" },
@@ -43,6 +44,18 @@ export function reportLines(k: Kpis): ReportLine[] {
       { label: "“Evet” (diğer yüzeyler kalmışken “yeterli” dedi)", value: String(c.yes), note: formatPercent(c.yesRate) },
       { label: "“Hayır” (doğru farkındalık)", value: String(c.no), note: formatPercent(c.noRate) },
       { label: "En az bir kez “Evet” diyen çocuk", value: String(c.childrenYes), note: `cevaplayanların ${formatPercent(c.children > 0 ? c.childrenYes / c.children : null)}` },
+      {
+        label: "Başlangıç yanılgısı: ilk cevabı “Evet” olan çocuk",
+        value: formatPercent(c.firstYesRate),
+        note: `${c.firstYes} / ${c.children} çocuk (ilk cevap henüz geri bildirim görülmeden verilir)`,
+      },
+      { label: "İlk oyunlarda “Evet” oranı", value: formatPercent(c.firstPlay.yesRate), note: `${c.firstPlay.total} cevap` },
+      { label: "Tekrar oyunlarda “Evet” oranı", value: formatPercent(c.replayPlays.yesRate), note: `${c.replayPlays.total} cevap` },
+      {
+        label: "Soruların oyuna eklediği süre (medyan)",
+        value: formatDuration(c.overheadMedianMs),
+        note: `${c.overheadSamples} oyun; soru süresi oyun süresine sayılmaz`,
+      },
     );
   }
   return lines;
@@ -53,13 +66,14 @@ export function hourLabel(h: number): string {
   return `${p(h)}:00–${p((h + 1) % 24)}:00`;
 }
 
-export function reportCsv(c: CampaignConfig, k: Kpis, generatedAt: Date): string {
+export function reportCsv(c: CampaignConfig, k: Kpis, generatedAt: Date, range: DateRange = NO_RANGE): string {
   const rows: (string | number | null)[][] = [
     [c.reportTitle],
     [c.reportSubtitle],
     ["Kampanya", c.campaignId],
     ["Tarih", c.eventDateLabel],
     ["Yer", c.eventLocation],
+    ...(hasRange(range) ? [["Rapor dönemi", rangeLabel(range)]] : []),
     ["Rapor oluşturma zamanı", generatedAt.toISOString()],
     [],
     ["ÖZET"],

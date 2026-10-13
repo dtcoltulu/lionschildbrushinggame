@@ -38,7 +38,7 @@ Kimlikler: `sessionId` (tarayıcı başına rastgele UUID, localStorage), `playI
 | `phase_completed` | Her aşama bitince (`phase` 1–4, `durationMs`) |
 | `game_completed` | Her tamamlamada (`playIndex`, `durationMs` = aktif oyun süresi) |
 | `reward_screen_viewed` | Ödül ekranı açılınca |
-| `self_check_yes` / `self_check_no` | Yalnızca `selfCheck` açık kampanyada: "Sence yeterli ve etkin temizlendi mi?" cevabı; `phase` 1–5 (sorunun sorulduğu aşama). Evet = aşama bitince, diğer yüzeyler kalmışken "yeterli" dedi; Hayır = doğru farkındalık |
+| `self_check_yes` / `self_check_no` | Yalnızca `selfCheck` açık kampanyada (asıl ve deneme): "Sence yeterli ve etkin temizlendi mi?" cevabı; `phase` 1–5 (sorunun sorulduğu aşama). Evet = aşama bitince, diğer yüzeyler kalmışken "yeterli" dedi; Hayır = doğru farkındalık |
 
 `session_start_time` = `sessions.first_seen_at`; `game_duration`/`completion_time` = `durationMs`.
 
@@ -49,6 +49,8 @@ Kimlikler: `sessionId` (tarayıcı başına rastgele UUID, localStorage), `playI
 ## Tasarım kararları
 
 - **KPI hesabı SQL yerine TypeScript'te.** Bir kampanya birkaç bin satırdır; tüm olaylar sayfalanarak okunup tek bir saf fonksiyonla hesaplanır. Böylece panel, rapor, CSV ve testler aynı mantığı paylaşır (SQL + TS çifte mantığı sapma riski taşırdı). Hacim on binleri aşarsa SQL görünümlerine taşınabilir.
+- **Tarih aralığı süzgeci de saf fonksiyon** (`src/lib/range.ts`): panel, rapor ve CSV önce olayları kampanya saat diliminde yerel güne göre süzer (uçlar dahil; oturumlar yalnızca aralıkta olayı olanlarla kalır), sonra aynı `computeKpis`'i çalıştırır. Veri silinmez; kalıcı hizmetteki test oyunlarını etkinlik gününden ayırmanın yolu budur.
+- **Soru süresi oyun süresine sayılmaz** (motor "asking" durumunda sayaç durur), bu yüzden "Ortalama süre" sorunun oyunu ne kadar uzattığını göstermez. Koruma göstergesi olarak aynı `playId`'li olaylardan (soru dahil gerçek süre − aktif süre) medyanı hesaplanır; yeni olay ya da sütun gerekmez.
 - **Tarayıcı veritabanına bağlanmaz.** Supabase SDK istemci paketinde yok; anahtar sızıntısı yüzeyi sıfır.
 - **Canvas, yama tabanlı temizleme** (piksel maskesi yok): hızlı, deterministik, test edilebilir; çocuk takılırsa ipucu → kolaylaştırma → "Yardım".
 - **Gerçekçi diş sprite'ları:** el çizimi degrade yığınları "plastik" duruyordu; hacim, ışık ve parlama için yükseklik haritası + eğimden aydınlatma kullanılır (tek dosyalık küçük bir motor, kütüphane yok). Sprite'lar cihaz ölçeğine yakın çözünürlükte (1.5–3 piksel/birim) üretilir; ölçüm (yazılım çizimli Chromium): bir azı dişi ≈ 5–15 ms, 24 ön diş ≈ 130 ms, hepsi arka planda kareler arasında hazırlanır.

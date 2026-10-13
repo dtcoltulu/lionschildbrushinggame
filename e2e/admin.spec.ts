@@ -96,59 +96,141 @@ test.describe("Yönetici erişimi", () => {
   });
 });
 
-test.describe("Kendini değerlendirme sayıları (deneme kampanyası paneli)", () => {
+test.describe("Kendini değerlendirme sayıları (panel)", () => {
   const uuid = () => crypto.randomUUID();
+  const MAIN = "lions-118y-2026-10-11";
+  const TRIAL = "test-deneme";
 
-  test("Evet/Hayır sayısı, oranı ve aşama dökümü panelde, raporda ve CSV'de görünür; asıl kampanya paneli etkilenmez", async ({ page, request }) => {
+  test("Evet/Hayır sayısı, oranı ve aşama dökümü her iki kampanyanın panelinde, raporda ve CSV'de görünür; kampanyalar birbirini etkilemez", async ({ page, request }) => {
     await page.goto("/admin/login");
     await page.getByLabel("Parola").fill(PASSWORD);
     await page.getByRole("button", { name: "Giriş yap" }).click();
     await expect(page).toHaveURL(/\/admin$/);
 
-    // Asıl kampanya panelinde bu bölüm yok (özellik açık değil, cevap da yok)
-    await expect(page.getByTestId("selfcheck")).toHaveCount(0);
-
     // Önceki testlerden kalan cevaplar olabilir: farkı ölç.
-    const read = async () => {
-      await page.goto("/admin?k=test-deneme");
+    const read = async (campaign: string) => {
+      await page.goto(`/admin?k=${campaign}`);
       await expect(page.getByTestId("selfcheck")).toBeVisible();
       if ((await page.getByTestId("selfcheck-empty").count()) > 0) return { yes: 0, no: 0 };
       return { yes: Number(await page.getByTestId("selfcheck-yes").innerText()), no: Number(await page.getByTestId("selfcheck-no").innerText()) };
     };
-    const before = await read();
-
     // İki çocuk: A (Evet@1, Hayır@2), B (Hayır@1, Hayır@3)  → +1 Evet, +3 Hayır
-    const post = async (events: { name: string; phase: number }[]) => {
-      const res = await request.post("/api/events", {
-        data: { sessionId: uuid(), campaignId: "test-deneme", sentAt: Date.now(), events: events.map((e) => ({ id: uuid(), name: e.name, ts: Date.now(), phase: e.phase })) },
-      });
-      expect(res.status()).toBe(200);
+    const post = async (campaignId: string) => {
+      const kids = [
+        [{ name: "self_check_yes", phase: 1 }, { name: "self_check_no", phase: 2 }],
+        [{ name: "self_check_no", phase: 1 }, { name: "self_check_no", phase: 3 }],
+      ];
+      for (const events of kids) {
+        const res = await request.post("/api/events", {
+          data: { sessionId: uuid(), campaignId, sentAt: Date.now(), events: events.map((e) => ({ id: uuid(), name: e.name, ts: Date.now(), phase: e.phase })) },
+        });
+        expect(res.status()).toBe(200);
+      }
     };
-    await post([{ name: "self_check_yes", phase: 1 }, { name: "self_check_no", phase: 2 }]);
-    await post([{ name: "self_check_no", phase: 1 }, { name: "self_check_no", phase: 3 }]);
 
-    const after = await read();
-    expect(after.yes - before.yes).toBe(1);
-    expect(after.no - before.no).toBe(3);
-    await expect(page.getByTestId("selfcheck-yes-rate")).toContainText("%");
-    await expect(page.getByTestId("selfcheck-no-rate")).toContainText("%");
-    await expect(page.getByTestId("selfcheck-total")).toHaveText(String(after.yes + after.no));
-    const table = page.getByTestId("selfcheck-phases");
-    await expect(table).toContainText("1. Dış yüzeyler");
-    await expect(table).toContainText("2. Diş araları");
-    await expect(table).toContainText("3. İç yüzeyler");
-    await expect(page.getByRole("table", { name: "Son olaylar" })).toContainText("Soru: Evet");
+    for (const [campaign, other] of [
+      [MAIN, TRIAL],
+      [TRIAL, MAIN],
+    ] as const) {
+      const otherBefore = await read(other);
+      const before = await read(campaign);
+      await post(campaign);
+      const after = await read(campaign);
+      expect(after.yes - before.yes).toBe(1);
+      expect(after.no - before.no).toBe(3);
+      await expect(page.getByTestId("selfcheck-yes-rate")).toContainText("%");
+      await expect(page.getByTestId("selfcheck-no-rate")).toContainText("%");
+      await expect(page.getByTestId("selfcheck-total")).toHaveText(String(after.yes + after.no));
+      // Başlangıç yanılgısı (ilk cevap), ilk oyun / tekrar ayrımı ve soruların eklediği süre görünür
+      await expect(page.getByTestId("selfcheck-first-yes-rate")).toContainText("%");
+      await expect(page.getByTestId("selfcheck-first-play-rate")).toContainText("%");
+      await expect(page.getByTestId("selfcheck-replay-rate")).toBeVisible();
+      await expect(page.getByTestId("selfcheck-overhead")).toBeVisible();
+      const table = page.getByTestId("selfcheck-phases");
+      await expect(table).toContainText("1. Dış yüzeyler");
+      await expect(table).toContainText("2. Diş araları");
+      await expect(table).toContainText("3. İç yüzeyler");
+      await expect(page.getByRole("table", { name: "Son olaylar" })).toContainText("Soru: Evet");
 
-    // Yazdırılabilir rapor ve CSV
-    await page.goto("/admin/report?k=test-deneme");
-    await expect(page.getByText("Sence yeterli ve etkin temizlendi mi?").first()).toBeVisible();
-    await expect(page.getByText("“Evet” (diğer yüzeyler kalmışken “yeterli” dedi)")).toBeVisible();
-    const csv = await (await page.request.get("/api/admin/export?k=test-deneme&type=report")).text();
-    expect(csv).toContain("KENDİNİ DEĞERLENDİRME");
-    expect(csv).toContain("Aşama 1;Dış yüzeyler;");
+      // Yazdırılabilir rapor ve CSV
+      await page.goto(`/admin/report?k=${campaign}`);
+      await expect(page.getByText("Sence yeterli ve etkin temizlendi mi?").first()).toBeVisible();
+      await expect(page.getByText("“Evet” (diğer yüzeyler kalmışken “yeterli” dedi)")).toBeVisible();
+      const csv = await (await page.request.get(`/api/admin/export?k=${campaign}&type=report`)).text();
+      expect(csv).toContain("KENDİNİ DEĞERLENDİRME");
+      expect(csv).toContain("Aşama 1;Dış yüzeyler;");
 
-    // Asıl kampanya: hâlâ cevap/bölüm yok
+      // Diğer kampanyanın sayıları değişmedi
+      expect(await read(other)).toEqual(otherBefore);
+    }
+  });
+});
+
+test.describe("Tarih aralığı filtresi (panel, rapor, CSV)", () => {
+  const MAIN = "lions-118y-2026-10-11";
+  // Kampanya saat diliminde (İstanbul) bugünden `offset` gün sonrası: YYYY-MM-DD
+  const day = (offset: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul" }).format(new Date(Date.now() + offset * 86_400_000));
+
+  test("aralık dışındaki olaylar sayılmaz, içindekiler sayılır; form, rapor ve CSV aynı aralığı kullanır; veri silinmez", async ({ page, request }) => {
+    await page.goto("/admin/login");
+    await page.getByLabel("Parola").fill(PASSWORD);
+    await page.getByRole("button", { name: "Giriş yap" }).click();
+    await expect(page).toHaveURL(/\/admin$/);
+
+    // Bu testin kendi olayı: bir ziyaretçi sayfayı açtı (bugün)
+    const res = await request.post("/api/events", {
+      data: { sessionId: crypto.randomUUID(), campaignId: MAIN, sentAt: Date.now(), events: [{ id: crypto.randomUUID(), name: "landing_view", ts: Date.now() }] },
+    });
+    expect(res.status()).toBe(200);
+
+    const landing = async (query: string) => {
+      await page.goto(`/admin${query}`);
+      return Number(await page.getByTestId("kpi-landing").innerText());
+    };
+    const all = await landing("");
+    expect(all).toBeGreaterThanOrEqual(1);
+
+    // Bugünü kapsayan aralıkta hepsi; gelecekte ya da geçmişte kalan aralıkta hiçbiri
+    expect(await landing(`?from=${day(-1)}&to=${day(1)}`)).toBe(all);
+    expect(await landing(`?from=${day(0)}`)).toBe(all);
+    expect(await landing(`?from=${day(2)}`)).toBe(0);
+    expect(await landing(`?to=${day(-2)}`)).toBe(0);
+    // Geçersiz değerler yok sayılır (tüm dönem gösterilir)
+    expect(await landing(`?from=2026-02-30&to=abc`)).toBe(all);
+
+    // Süzülmüş görünüm: form alanları dolu, dönem notu görünür, rapor ve CSV bağlantıları aralığı taşır
+    await page.goto(`/admin?from=${day(2)}&to=${day(3)}`);
+    await expect(page.getByTestId("range-from")).toHaveValue(day(2));
+    await expect(page.getByTestId("range-to")).toHaveValue(day(3));
+    await expect(page.getByTestId("range-note")).toContainText("Gösterilen dönem");
+    await expect(page.getByTestId("report-link")).toHaveAttribute("href", new RegExp(`from=${day(2)}&to=${day(3)}`));
+
+    // Formdan uygulama ve temizleme
     await page.goto("/admin");
-    await expect(page.getByTestId("selfcheck")).toHaveCount(0);
+    await page.getByTestId("range-from").fill(day(2));
+    await page.getByTestId("range-to").fill(day(3));
+    await page.getByTestId("range-apply").click();
+    await expect(page).toHaveURL(new RegExp(`from=${day(2)}`));
+    await expect(page.getByTestId("kpi-landing")).toHaveText("0");
+    await page.getByTestId("range-clear").click();
+    await expect(page.getByTestId("kpi-landing")).toHaveText(String(all));
+
+    // Rapor: dönem başlığı, sayılar aralıkla sınırlı; CSV bağlantısı aralığı taşır
+    await page.goto(`/admin/report?k=${MAIN}&from=${day(2)}&to=${day(3)}`);
+    await expect(page.getByTestId("report-range")).toContainText("Rapor dönemi:");
+    await expect(page.getByTestId("report-value").first()).toHaveText("0"); // Toplam erişim
+    await expect(page.getByTestId("csv-link")).toHaveAttribute("href", new RegExp(`from=${day(2)}&to=${day(3)}`));
+
+    // CSV: aralıksız tüm olaylar; gelecekteki aralıkta yalnızca başlık satırı; rapor CSV'sinde dönem satırı
+    const rows = (s: string) => s.split("\r\n").filter(Boolean).length;
+    const eventsAll = await (await page.request.get(`/api/admin/export?k=${MAIN}&type=events`)).text();
+    const eventsNone = await (await page.request.get(`/api/admin/export?k=${MAIN}&type=events&from=${day(2)}`)).text();
+    expect(rows(eventsAll)).toBeGreaterThan(1);
+    expect(rows(eventsNone)).toBe(1);
+    const report = await (await page.request.get(`/api/admin/export?k=${MAIN}&type=report&from=${day(-1)}&to=${day(1)}`)).text();
+    expect(report).toContain("Rapor dönemi;");
+
+    // Veri silinmedi: aralıksız görünüm aynı sayıyı gösterir
+    expect(await landing("")).toBe(all);
   });
 });

@@ -27,6 +27,15 @@ export interface SelfCheckPhase {
   yesRate: number | null;
 }
 
+/** Bir cevap grubunun Evet/Hayır sayısı ve Evet oranı. */
+export interface SelfCheckSplit {
+  yes: number;
+  no: number;
+  total: number;
+  /** Evet / toplam (0..1); cevap yoksa null. */
+  yesRate: number | null;
+}
+
 /**
  * Soru her aşama bittikten sonra (diğer yüzeyler hâlâ kalmışken) sorulur: "Evet" = çocuk işi erken bırakmak istedi,
  * "Hayır" = doğru farkındalık. Oranlar cevap sayısı üzerindendir (bir çocuk birden çok kez cevaplar).
@@ -41,6 +50,21 @@ export interface SelfCheckStats {
   children: number;
   /** En az bir kez "Evet" diyen benzersiz çocuk (tarayıcı). */
   childrenYes: number;
+  /**
+   * "Başlangıç yanılgısı": çocuğun (tarayıcının) zaman sırasıyla İLK cevabı "Evet" olanların sayısı (payda: `children`).
+   * İlk cevap henüz hiçbir geri bildirim görülmeden verildiği için en temiz ölçüdür; sonraki cevaplar "doğru cevabı öğrenme"den etkilenir.
+   */
+  firstYes: number;
+  firstYesRate: number | null;
+  /** Cevaplar çocuğun ilk oyunu ile tekrar oyunlarına bölünür (tekrarlarda doğru cevap öğrenilmiş olabilir). */
+  firstPlay: SelfCheckSplit;
+  replayPlays: SelfCheckSplit;
+  /**
+   * Soruların oyuna eklediği süre (medyan): (soru dahil gerçek süre) − (aktif oyun süresi). Soru süresi oyun süresine sayılmadığı için
+   * "Ortalama süre" bunu göstermez; bu, sorunun oyunu ne kadar uzattığını (koruma göstergesi) ölçer. Tamamlanan ve en az bir cevabı olan oyunlar.
+   */
+  overheadMedianMs: number | null;
+  overheadSamples: number;
   byPhase: SelfCheckPhase[];
 }
 
@@ -48,6 +72,8 @@ export interface Kpis {
   landingViews: number;
   landingVisitors: number;
   starters: number;
+  /** Başlatma oranı: oyunu başlatan / QR landing'i açan benzersiz ziyaretçi (0..1; en çok 1). */
+  startRate: number | null;
   completers: number;
   completionRate: number | null; // 0..1
   totalCompletions: number;
@@ -91,6 +117,14 @@ export function localParts(iso: string, tz: string): { date: string; hour: numbe
 
 /** Aykırı değerleri (unutulmuş telefon vb.) dışlamak için üst sınır. */
 const MAX_VALID_DURATION_MS = 15 * 60 * 1000;
+/** Bir oyunun başlangıcı ile bitişi arasındaki gerçek süre bundan uzunsa (telefon bırakılmış) soru süresi hesabına katılmaz. */
+const MAX_WALL_CLOCK_MS = 30 * 60 * 1000;
+
+/** Sıralı dizinin medyanı; boşsa null. */
+function medianOf(sorted: number[]): number | null {
+  if (!sorted.length) return null;
+  return sorted.length % 2 ? sorted[(sorted.length - 1) / 2]! : (sorted[sorted.length / 2 - 1]! + sorted[sorted.length / 2]!) / 2;
+}
 
 export function computeKpis(events: StoredEvent[], sessions: StoredSession[], tz: string): Kpis {
   const distinct = (name: StoredEvent["name"]) =>
@@ -113,11 +147,7 @@ export function computeKpis(events: StoredEvent[], sessions: StoredSession[], tz
     .map((e) => e.durationMs as number)
     .sort((a, b) => a - b);
   const avg = durations.length ? durations.reduce((s, d) => s + d, 0) / durations.length : null;
-  const median = durations.length
-    ? durations.length % 2
-      ? durations[(durations.length - 1) / 2]!
-      : (durations[durations.length / 2 - 1]! + durations[durations.length / 2]!) / 2
-    : null;
+  const median = medianOf(durations);
 
   const buckets = new Map<string, HourRow>();
   for (const e of events) {
@@ -172,6 +202,7 @@ export function computeKpis(events: StoredEvent[], sessions: StoredSession[], tz
     landingViews: count("landing_view"),
     landingVisitors,
     starters,
+    startRate: landingVisitors > 0 ? Math.min(1, starters / landingVisitors) : null,
     completers,
     completionRate: starters > 0 ? completers / starters : null,
     totalCompletions: count("game_completed"),
@@ -191,19 +222,81 @@ export function computeKpis(events: StoredEvent[], sessions: StoredSession[], tz
   };
 }
 
+function splitOf(yes: number, no: number): SelfCheckSplit {
+  const total = yes + no;
+  return { yes, no, total, yesRate: total > 0 ? yes / total : null };
+}
+
+/** `a`, `b`'den ÖNCE mi? Zaman sırasıyla; zamanlar eşitse (ya da çözümlenemezse) kimliğe göre, böylece sonuç kararlıdır. */
+function isEarlier(a: StoredEvent, b: StoredEvent): boolean {
+  const ta = Date.parse(a.occurredAt);
+  const tb = Date.parse(b.occurredAt);
+  if (Number.isFinite(ta) && Number.isFinite(tb) && ta !== tb) return ta < tb;
+  return a.id < b.id;
+}
+
+/**
+ * Soruların oyuna eklediği süre (medyan): tamamlanan ve en az bir cevabı olan her oyun için
+ * (game_completed − game_started/replay_started gerçek süresi) − (aktif oyun süresi). Aynı `playId`'li olaylar eşlenir.
+ * Gerçek süre fazla uzun (telefon bırakılmış) ya da olaylar eksikse o oyun atlanır; negatif fark (saat farkı) 0 sayılır.
+ */
+function questionOverhead(events: StoredEvent[]): { medianMs: number | null; samples: number } {
+  const started = new Map<string, number>();
+  const completed = new Map<string, { at: number; activeMs: number }>();
+  const answered = new Set<string>();
+  for (const e of events) {
+    if (!e.playId) continue;
+    if (e.name === "game_started" || e.name === "replay_started") {
+      const t = Date.parse(e.occurredAt);
+      const prev = started.get(e.playId);
+      if (Number.isFinite(t) && (prev === undefined || t < prev)) started.set(e.playId, t);
+    } else if (e.name === "game_completed") {
+      const t = Date.parse(e.occurredAt);
+      if (Number.isFinite(t) && e.durationMs !== null && e.durationMs > 0 && e.durationMs <= MAX_VALID_DURATION_MS && !completed.has(e.playId)) {
+        completed.set(e.playId, { at: t, activeMs: e.durationMs });
+      }
+    } else if (e.name === "self_check_yes" || e.name === "self_check_no") {
+      answered.add(e.playId);
+    }
+  }
+  const overheads: number[] = [];
+  for (const [playId, c] of completed) {
+    const s = started.get(playId);
+    if (s === undefined || !answered.has(playId)) continue;
+    const wall = c.at - s;
+    if (wall <= 0 || wall > MAX_WALL_CLOCK_MS) continue;
+    overheads.push(Math.max(0, wall - c.activeMs));
+  }
+  overheads.sort((a, b) => a - b);
+  return { medianMs: medianOf(overheads), samples: overheads.length };
+}
+
 function computeSelfCheck(events: StoredEvent[]): SelfCheckStats {
   let yes = 0;
   let no = 0;
+  let firstPlayYes = 0;
+  let firstPlayNo = 0;
+  let replayYes = 0;
+  let replayNo = 0;
   const answered = new Set<string>();
   const saidYes = new Set<string>();
+  const firstAnswer = new Map<string, StoredEvent>();
   const phases = new Map<number, { yes: number; no: number }>();
   for (const e of events) {
     if (e.name !== "self_check_yes" && e.name !== "self_check_no") continue;
     const isYes = e.name === "self_check_yes";
     if (isYes) yes += 1;
     else no += 1;
+    // Çocuğun ilk oyunu (playIndex 1; eski kayıtlarda yoksa ilk sayılır) ile tekrar oyunları (playIndex ≥ 2)
+    if (e.playIndex !== null && e.playIndex > 1) {
+      if (isYes) replayYes += 1;
+      else replayNo += 1;
+    } else if (isYes) firstPlayYes += 1;
+    else firstPlayNo += 1;
     answered.add(e.sessionId);
     if (isYes) saidYes.add(e.sessionId);
+    const prev = firstAnswer.get(e.sessionId);
+    if (!prev || isEarlier(e, prev)) firstAnswer.set(e.sessionId, e);
     if (e.phase !== null) {
       const a = phases.get(e.phase) ?? { yes: 0, no: 0 };
       if (isYes) a.yes += 1;
@@ -215,6 +308,9 @@ function computeSelfCheck(events: StoredEvent[]): SelfCheckStats {
   const byPhase: SelfCheckPhase[] = [...phases.entries()]
     .sort((a, b) => a[0] - b[0])
     .map(([phase, a]) => ({ phase, yes: a.yes, no: a.no, total: a.yes + a.no, yesRate: a.yes / (a.yes + a.no) }));
+  let firstYes = 0;
+  for (const e of firstAnswer.values()) if (e.name === "self_check_yes") firstYes += 1;
+  const overhead = questionOverhead(events);
   return {
     yes,
     no,
@@ -223,6 +319,12 @@ function computeSelfCheck(events: StoredEvent[]): SelfCheckStats {
     noRate: total > 0 ? no / total : null,
     children: answered.size,
     childrenYes: saidYes.size,
+    firstYes,
+    firstYesRate: answered.size > 0 ? firstYes / answered.size : null,
+    firstPlay: splitOf(firstPlayYes, firstPlayNo),
+    replayPlays: splitOf(replayYes, replayNo),
+    overheadMedianMs: overhead.medianMs,
+    overheadSamples: overhead.samples,
     byPhase,
   };
 }

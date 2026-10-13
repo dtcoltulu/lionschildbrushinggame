@@ -1,5 +1,5 @@
 import { tr } from "@/content/tr";
-import { formatPercent, type SelfCheckStats } from "@/lib/kpi";
+import { formatDuration, formatPercent, type SelfCheckStats } from "@/lib/kpi";
 
 /**
  * "Sence yeterli ve etkin temizlendi mi?" cevapları. Soru her aşama bittikten sonra (sahne tamamen temizken, ama diğer
@@ -37,6 +37,37 @@ export function SelfCheckSection({ c, printable = false }: { c: SelfCheckStats; 
               sub={`cevaplayanların ${formatPercent(c.children > 0 ? c.childrenYes / c.children : null)}`}
             />
           </dl>
+
+          <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Stat
+              testId="selfcheck-first-yes-rate"
+              label="Başlangıç yanılgısı"
+              value={formatPercent(c.firstYesRate)}
+              sub={`ilk cevabı “Evet”: ${c.firstYes} / ${c.children} çocuk`}
+            />
+            <Stat
+              testId="selfcheck-first-play-rate"
+              label="İlk oyunda “Evet”"
+              value={formatPercent(c.firstPlay.yesRate)}
+              sub={`${c.firstPlay.total} cevap`}
+            />
+            <Stat
+              testId="selfcheck-replay-rate"
+              label="Tekrar oyunlarda “Evet”"
+              value={formatPercent(c.replayPlays.yesRate)}
+              sub={`${c.replayPlays.total} cevap`}
+            />
+            <Stat
+              testId="selfcheck-overhead"
+              label="Soruların eklediği süre"
+              value={c.overheadMedianMs === null ? "—" : formatDuration(c.overheadMedianMs)}
+              sub={`medyan, ${c.overheadSamples} oyun`}
+            />
+          </dl>
+          <p className="mt-2 text-xs text-ink/60">
+            <strong>Başlangıç yanılgısı</strong> = çocuğun (tarayıcının) kaydedilen <em>ilk</em> cevabı “Evet” olanların oranıdır; henüz hiçbir geri bildirim görülmeden verildiği için en temiz ölçüdür.
+            Tekrar oyunlarda çocuk doğru cevabı öğrenmiş olabilir. <strong>Soruların eklediği süre</strong>, soru dahil gerçek süre ile oyun süresi (soru süresi sayılmaz) arasındaki farktır.
+          </p>
 
           <div className="mt-4 overflow-x-auto">
             <table className="w-full border-collapse text-sm" data-testid="selfcheck-phases">

@@ -6,28 +6,33 @@ import { reportLines } from "@/lib/csv";
 import { requireAdmin } from "@/lib/admin-guard";
 import { getStore } from "@/lib/get-store";
 import { computeKpis, hourlyForDate } from "@/lib/kpi";
+import { filterByRange, hasRange, parseRange, rangeLabel, rangeParams } from "@/lib/range";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Etkinlik Raporu | Diş Kahramanı" };
 
-export default async function ReportPage({ searchParams }: { searchParams: Promise<{ k?: string }> }) {
+export default async function ReportPage({ searchParams }: { searchParams: Promise<{ k?: string; from?: string; to?: string }> }) {
   await requireAdmin("/admin/report");
   const sp = await searchParams;
   const campaign = resolveCampaign(sp.k);
+  const range = parseRange(sp.from, sp.to);
   const store = getStore();
   if (!store) return <main className="p-6">Veri deposu yapılandırılmamış.</main>;
   const data = await store.loadCampaign(campaign.campaignId);
-  const k = computeKpis(data.events, data.sessions, campaign.timezone);
+  // Tarih aralığı yalnızca görünen sayıları sınırlar; veriler silinmez.
+  const view = filterByRange(data, range, campaign.timezone);
+  const k = computeKpis(view.events, view.sessions, campaign.timezone);
   const generated = new Intl.DateTimeFormat("tr-TR", { timeZone: campaign.timezone, dateStyle: "long", timeStyle: "short" }).format(new Date());
+  const link = (path: string, extra: Record<string, string> = {}) => `${path}?${new URLSearchParams({ k: campaign.campaignId, ...rangeParams(range), ...extra }).toString()}`;
 
   return (
     <main className="mx-auto max-w-3xl bg-white px-6 py-8 text-ink">
       <div className="no-print mb-6 flex flex-wrap gap-2">
         <PrintButton />
-        <a href={`/api/admin/export?k=${campaign.campaignId}&type=report`} className="inline-flex min-h-[44px] items-center rounded-full bg-gold px-5 font-extrabold" data-testid="csv-link">
+        <a href={link("/api/admin/export", { type: "report" })} className="inline-flex min-h-[44px] items-center rounded-full bg-gold px-5 font-extrabold" data-testid="csv-link">
           CSV indir
         </a>
-        <a href={`/admin?k=${campaign.campaignId}`} className="inline-flex min-h-[44px] items-center px-3 font-semibold underline">← Panele dön</a>
+        <a href={link("/admin")} className="inline-flex min-h-[44px] items-center px-3 font-semibold underline">← Panele dön</a>
       </div>
 
       <header className="border-b-4 border-purple pb-4 text-center">
@@ -38,6 +43,11 @@ export default async function ReportPage({ searchParams }: { searchParams: Promi
         <p className="mt-2 text-sm text-ink/70">
           {campaign.eventDateLabel} · {campaign.eventLocation}
         </p>
+        {hasRange(range) && (
+          <p className="mt-1 text-base font-bold" data-testid="report-range">
+            Rapor dönemi: {rangeLabel(range)}
+          </p>
+        )}
       </header>
 
       <section className="mt-6" aria-labelledby="ozet">

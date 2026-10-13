@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { CAMPAIGNS, findCampaign, FALLBACK_CAMPAIGN_ID } from "@/config/campaigns";
 
-describe("kampanya ayarları: yeni özellikler yalnızca deneme kampanyasında", () => {
-  it("asıl kampanyada (etkinlik) soru ve klinik fırsatı kapalı; diş macunu kartı değişmez", () => {
+describe("kampanya ayarları: soru iki kampanyada da açık, klinik fırsatı yalnızca deneme kampanyasında", () => {
+  it("asıl kampanyada (etkinlik) soru açık; klinik fırsatı kapalı ve diş macunu kartı değişmez", () => {
     const main = findCampaign(FALLBACK_CAMPAIGN_ID)!;
     expect(main.campaignId).toBe("lions-118y-2026-10-11");
-    expect(main.selfCheck).toBeUndefined();
+    expect(main.selfCheck).toBe(true);
     expect(main.clinicOffer).toBeUndefined();
     expect(main.rewardLine).toBe("Diş macunu hediyeni al.");
   });

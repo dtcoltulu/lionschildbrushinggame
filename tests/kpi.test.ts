@@ -187,7 +187,45 @@ describe("kendini değerlendirme (Evet / Hayır) göstergeleri", () => {
 
   it("cevap yokken sıfırlar ve null oran (bölme hatası yok)", () => {
     const e = computeKpis(events, sessions, TZ).selfCheck;
-    expect(e).toEqual({ yes: 0, no: 0, total: 0, yesRate: null, noRate: null, children: 0, childrenYes: 0, byPhase: [] });
+    expect(e).toEqual({
+      yes: 0,
+      no: 0,
+      total: 0,
+      yesRate: null,
+      noRate: null,
+      children: 0,
+      childrenYes: 0,
+      firstYes: 0,
+      firstYesRate: null,
+      firstPlay: { yes: 0, no: 0, total: 0, yesRate: null },
+      replayPlays: { yes: 0, no: 0, total: 0, yesRate: null },
+      overheadMedianMs: null,
+      overheadSamples: 0,
+      byPhase: [],
+    });
+  });
+
+  it("başlatma oranı: başlatan / QR landing; landing yoksa null; en çok %100", () => {
+    const base = computeKpis(events, sessions, TZ);
+    expect(base.startRate).toBeCloseTo(3 / 4); // 3 başlatan (A B D), 4 ziyaretçi (A B C D)
+    expect(computeKpis([], [], TZ).startRate).toBeNull();
+    // Landing olayı olmayan (ör. aralık dışında kalmış) başlatanlar oranı %100'ün üstüne çıkarmaz
+    const noLanding = events.filter((e) => e.name !== "landing_view" || e.sessionId === "A");
+    expect(computeKpis(noLanding, sessions, TZ).startRate).toBe(1);
+  });
+
+  it("rapor satırları ve CSV yeni göstergeleri (ilk cevap, ilk oyun/tekrar, soru süresi, başlatma oranı) içerir", () => {
+    const lines = reportLines(k);
+    const byLabel = (start: string) => lines.find((l) => l.label.startsWith(start))!;
+    expect(byLabel("Oyuna başlayan").note).toBe("Başlatma oranı: %75,0 (başlayan / toplam erişim)");
+    expect(byLabel("Başlangıç yanılgısı").value).toBe("%50,0"); // A ve C ilk cevabı Evet; B, D Hayır → 2/4
+    expect(byLabel("Başlangıç yanılgısı").note).toContain("2 / 4 çocuk");
+    expect(byLabel("İlk oyunlarda").note).toBe("6 cevap"); // playIndex'siz eski kayıtlar ilk oyun sayılır
+    expect(byLabel("Tekrar oyunlarda").value).toBe("—");
+    expect(byLabel("Soruların oyuna eklediği süre").value).toBe("—"); // playId'siz kayıtlar: ölçülemez
+    const csv = reportCsv(CAMPAIGNS[0]!, k, new Date("2026-10-11T12:00:00Z"));
+    expect(csv).toContain("Başlangıç yanılgısı: ilk cevabı “Evet” olan çocuk;%50,0;");
+    expect(csv).toContain("İlk oyunlarda “Evet” oranı;%33,3;6 cevap");
   });
 
   it("rapor satırları ve CSV yalnızca cevap varsa soruyu içerir", () => {
@@ -205,5 +243,81 @@ describe("kendini değerlendirme (Evet / Hayır) göstergeleri", () => {
     expect(csv).toContain("Aşama 1;Dış yüzeyler;2;2;4;%50,0");
     expect(csv).toContain("Aşama 2;Diş araları;0;2;2;%0,0");
     expect(reportCsv(c, none, new Date("2026-10-11T12:00:00Z"))).not.toContain("KENDİNİ DEĞERLENDİRME");
+  });
+});
+
+describe("kendini değerlendirme: ilk cevap, ilk oyun / tekrar ve soruların eklediği süre", () => {
+  const T = (s: string) => `2026-10-11T10:${s}Z`; // 10:MM:SS UTC
+  const ans = (sid: string, yes: boolean, at: string, extra: Partial<StoredEvent> = {}) =>
+    ev(sid, yes ? "self_check_yes" : "self_check_no", T(at), { phase: 1, ...extra });
+
+  it("çocuğun İLK cevabı zaman sırasına göre bulunur (dizideki sıraya göre değil); eşit zamanda kimliğe göre", () => {
+    const list: StoredEvent[] = [
+      // A: önce Evet, sonra Hayır → ilk cevap Evet
+      ans("A", true, "00:10"),
+      ans("A", false, "00:40", { phase: 2 }),
+      // B: önce Hayır, sonra Evet → ilk cevap Hayır
+      ans("B", false, "00:10"),
+      ans("B", true, "00:40", { phase: 2 }),
+      // C: dizide Hayır önce görünür ama zamanca Evet daha erken → ilk cevap Evet
+      ans("C", false, "01:30", { phase: 2 }),
+      ans("C", true, "00:50"),
+      // D: yalnızca Hayır
+      ans("D", false, "00:20"),
+    ];
+    const s = computeKpis(list, [], TZ).selfCheck;
+    expect(s.children).toBe(4);
+    expect(s.firstYes).toBe(2); // A ve C
+    expect(s.firstYesRate).toBe(0.5);
+    expect(s.childrenYes).toBe(3); // A, B, C en az bir kez Evet dedi: "ilk" ile "en az bir kez" farklı şeyi ölçer
+
+    // Zamanlar tıpatıp eşitse kimliği küçük olan ilk sayılır: sonuç dizi sırasından bağımsız ve kararlıdır
+    const a = ev("E", "self_check_yes", T("02:00"), { id: "a1", phase: 1 });
+    const b = ev("E", "self_check_no", T("02:00"), { id: "b1", phase: 1 });
+    expect(computeKpis([a, b], [], TZ).selfCheck.firstYes).toBe(1);
+    expect(computeKpis([b, a], [], TZ).selfCheck.firstYes).toBe(1);
+  });
+
+  it("ilk oyun / tekrar oyun ayrımı (playIndex ≥ 2 tekrar; yok ya da 1 ilk oyun)", () => {
+    const list: StoredEvent[] = [
+      ans("A", true, "00:10", { playIndex: 1 }),
+      ans("A", false, "00:20", { playIndex: 1, phase: 2 }),
+      ans("B", false, "00:30"), // playIndex yok: ilk oyun sayılır
+      ans("A", false, "05:10", { playIndex: 2 }),
+      ans("A", false, "05:20", { playIndex: 2, phase: 2 }),
+      ans("A", true, "09:10", { playIndex: 3 }),
+    ];
+    const s = computeKpis(list, [], TZ).selfCheck;
+    expect(s.firstPlay).toEqual({ yes: 1, no: 2, total: 3, yesRate: 1 / 3 });
+    expect(s.replayPlays).toEqual({ yes: 1, no: 2, total: 3, yesRate: 1 / 3 });
+    expect(s.firstPlay.total + s.replayPlays.total).toBe(s.total);
+    expect(s.firstPlay.yes + s.replayPlays.yes).toBe(s.yes);
+  });
+
+  it("soruların eklediği süre = soru dahil gerçek süre − aktif süre; yalnızca tamamlanan ve cevaplı oyunlar; medyan", () => {
+    const play = (sid: string, pid: string, startAt: string, endAt: string | null, activeMs: number, answers: boolean) => {
+      const list: StoredEvent[] = [ev(sid, "game_started", T(startAt), { playId: pid, playIndex: 1 })];
+      if (answers) list.push(ans(sid, false, startAt.slice(0, 3) + "20", { playId: pid, playIndex: 1 }));
+      if (endAt) list.push(ev(sid, "game_completed", T(endAt), { playId: pid, playIndex: 1, durationMs: activeMs }));
+      return list;
+    };
+    const list: StoredEvent[] = [
+      ...play("A", "P1", "00:00", "01:30", 60_000, true), // gerçek 90 sn − aktif 60 sn = 30 sn
+      ...play("B", "P2", "10:00", "11:30", 50_000, true), // 90 − 50 = 40 sn
+      ...play("C", "P3", "20:00", "20:40", 50_000, true), // 40 − 50 < 0 → 0 (saat farkı)
+      ...play("D", "P4", "30:00", "31:30", 60_000, false), // cevap yok: soru sorulmamış, dışlanır
+      ...play("E", "P5", "40:00", null, 0, true), // tamamlanmamış: dışlanır
+      ev("F", "game_started", "2026-10-11T10:50:00Z", { playId: "P6", playIndex: 1 }), // 2 saat sonra bitiyor: telefon bırakılmış
+      ans("F", true, "50:10", { playId: "P6", playIndex: 1 }),
+      ev("F", "game_completed", "2026-10-11T12:50:00Z", { playId: "P6", playIndex: 1, durationMs: 60_000 }),
+    ];
+    const s = computeKpis(list, [], TZ).selfCheck;
+    expect(s.overheadSamples).toBe(3); // P1, P2, P3
+    expect(s.overheadMedianMs).toBe(30_000); // [0, 30, 40] sn → medyan 30 sn
+
+    // Cevap hiç yoksa ölçülmez
+    const none = computeKpis(play("A", "P1", "00:00", "01:30", 60_000, false), [], TZ).selfCheck;
+    expect(none.overheadMedianMs).toBeNull();
+    expect(none.overheadSamples).toBe(0);
   });
 });

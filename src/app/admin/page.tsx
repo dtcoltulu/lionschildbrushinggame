@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AutoRefresh } from "@/components/admin/AutoRefresh";
+import { DateRangeForm } from "@/components/admin/DateRangeForm";
 import { EventsTable } from "@/components/admin/EventsTable";
 import { HourlyChart } from "@/components/admin/HourlyChart";
 import { HourlyTable } from "@/components/admin/HourlyTable";
@@ -9,15 +10,21 @@ import { CAMPAIGNS, resolveCampaign } from "@/config/campaigns";
 import { requireAdmin } from "@/lib/admin-guard";
 import { getStore } from "@/lib/get-store";
 import { computeKpis, hourlyForDate } from "@/lib/kpi";
+import { filterByRange, parseRange, rangeParams } from "@/lib/range";
 import { describeStoreError } from "@/lib/store-error";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Yönetim | Diş Kahramanı" };
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ k?: string; d?: string }> }) {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ k?: string; d?: string; from?: string; to?: string }>;
+}) {
   await requireAdmin("/admin");
   const sp = await searchParams;
   const campaign = resolveCampaign(sp.k);
+  const range = parseRange(sp.from, sp.to);
   const store = getStore();
 
   if (!store) {
@@ -47,16 +54,19 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     );
   }
 
-  const k = computeKpis(data.events, data.sessions, campaign.timezone);
+  // Tarih aralığı yalnızca görünen sayıları sınırlar; veriler silinmez.
+  const view = filterByRange(data, range, campaign.timezone);
+  const k = computeKpis(view.events, view.sessions, campaign.timezone);
   const date = sp.d && k.dates.includes(sp.d) ? sp.d : null;
   const hours = hourlyForDate(k.hourly, date);
-  const recent = [...data.events].sort((a, b) => (a.occurredAt < b.occurredAt ? 1 : -1)).slice(0, 100);
-  const q = (over: Record<string, string | undefined>) => {
+  const recent = [...view.events].sort((a, b) => (a.occurredAt < b.occurredAt ? 1 : -1)).slice(0, 100);
+  const withRange = (path: string, over: Record<string, string | undefined> = {}) => {
     const p = new URLSearchParams();
-    const merged = { k: campaign.campaignId, d: date ?? undefined, ...over };
+    const merged = { k: campaign.campaignId, ...rangeParams(range), ...over };
     for (const [key, v] of Object.entries(merged)) if (v) p.set(key, v);
-    return `/admin?${p.toString()}`;
+    return `${path}?${p.toString()}`;
   };
+  const q = (over: Record<string, string | undefined>) => withRange("/admin", { d: date ?? undefined, ...over });
 
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6">
@@ -72,7 +82,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         </div>
         <div className="no-print flex flex-wrap items-center gap-2">
           <AutoRefresh />
-          <Link href={`/admin/report?k=${campaign.campaignId}`} className="inline-flex min-h-[44px] items-center rounded-full bg-gold px-5 font-extrabold text-ink" data-testid="report-link">
+          <Link href={withRange("/admin/report")} className="inline-flex min-h-[44px] items-center rounded-full bg-gold px-5 font-extrabold text-ink" data-testid="report-link">
             Etkinlik Raporu Oluştur
           </Link>
           <Link href="/qr" className="inline-flex min-h-[44px] items-center rounded-full bg-white px-4 font-bold text-purple ring-2 ring-purple">
@@ -93,6 +103,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           ))}
         </nav>
       )}
+
+      <DateRangeForm action="/admin" campaignId={campaign.campaignId} range={range} />
 
       <KpiCards k={k} />
 
@@ -131,7 +143,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <section aria-labelledby="events" className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 id="events" className="text-xl font-extrabold">Son olaylar</h2>
-          <a href={`/api/admin/export?k=${campaign.campaignId}&type=events`} className="inline-flex min-h-[44px] items-center text-sm font-bold text-purple underline">
+          <a href={withRange("/api/admin/export", { type: "events" })} className="inline-flex min-h-[44px] items-center text-sm font-bold text-purple underline">
             Ham olayları CSV indir
           </a>
         </div>

@@ -14,7 +14,7 @@ QR kod baskıya girdikten sonra **değiştirilemez**. Bu yüzden:
 
 1. <https://supabase.com> → **New project**. Bölge: `Central EU (Frankfurt)` (İstanbul'a yakın). Güçlü bir veritabanı parolası belirleyin ve saklayın.
 2. Proje hazır olunca **SQL Editor → New query**: `supabase/migrations/0001_init.sql` dosyasının **tamamını** yapıştırıp **Run** deyin. "Success" görmelisiniz.
-   - Sonraki geçişleri de **sırayla** çalıştırın: `0002_self_check_events.sql` ("Sence yeterli ve etkin temizlendi mi?" cevap olayları). **Yeni sürüm yayına alınmadan ÖNCE uygulanmalı**; tek atomik `ALTER`'dır, mevcut verilere dokunmaz. (Yeni kurulumda 0001 ve 0002'yi art arda çalıştırın.)
+   - Sonraki geçişleri de **sırayla** çalıştırın: `0002_self_check_events.sql` ("Sence yeterli ve etkin temizlendi mi?" cevap olayları). **Yeni sürüm yayına alınmadan ÖNCE uygulanmalı**; tek atomik `ALTER`'dır, mevcut verilere dokunmaz. (Yeni kurulumda 0001 ve 0002'yi art arda çalıştırın.) Soru artık asıl kampanyada da açık olduğundan bu geçiş olmadan canlıya çıkmayın. (Mevcut canlı veritabanında 13.10.2026'da uygulandı.)
 3. **Table Editor**'da `sessions` ve `events` tablolarını görün. Her ikisinde **RLS enabled** yazmalı (SQL bunu açar; **policy eklemeyin**).
 4. **Project Settings → API** sayfasından iki değeri alın:
    - **Project URL** → `SUPABASE_URL`
