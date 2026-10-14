@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { OPEN_APPEAR, OPEN_TO } from "@/game/constants";
+import { mixHex } from "@/game/draw";
 import { GameEngine } from "@/game/engine";
-import { CHEW_KINDS, CHEW_TILES, buildPhases, buildTutorialPhase, LOWER_TEETH, MOUTH_IN, toothRank, UPPER_TEETH } from "@/game/layout";
+import { CHEW_KINDS, CHEW_TILES, buildPhases, buildTutorialPhase, JAW_DROP, LOWER_TEETH, MOUTH_IN, toothRank, UPPER_TEETH } from "@/game/layout";
 import { crownPixels, drawChewTiles, warmCrowns } from "@/game/occlusal";
+import { BG, FACE } from "@/game/palette";
 import { renderFrame } from "@/game/render";
 import { drawGumSprite, warmGums } from "@/game/gums";
 import { setDeviceScale } from "@/game/shade";
@@ -12,29 +15,42 @@ interface Call {
   name: string;
   args: unknown[];
 }
-type MockCtx = CanvasRenderingContext2D & { calls: Call[]; props: Record<string, unknown> };
+type MockCtx = CanvasRenderingContext2D & { calls: Call[]; props: Record<string, unknown>; trace: string[] };
 
-/** Çizim çağrılarını kaydeden sahte 2D bağlam (gerçek canvas gerektirmez). */
+/** İz satırı için değer biçimi: sayılar yuvarlanır, renkler küçük harfe çevrilir ("#5A2456" ile "#5a2456" aynıdır). */
+const fmt = (a: unknown): string => (typeof a === "number" ? String(+a.toFixed(6)) : typeof a === "string" ? a.toLowerCase() : typeof a === "object" && a ? "{}" : String(a));
+
+/**
+ * Çizim çağrılarını kaydeden sahte 2D bağlam (gerçek canvas gerektirmez).
+ * `calls`: yöntem çağrıları; `trace`: yöntem çağrıları VE özellik atamaları, sırayla (iki çizimin birebir aynı olduğunu göstermek için).
+ */
 function makeCtx(transform?: { a: number; b: number; c: number; d: number; e: number; f: number }): MockCtx {
   const calls: Call[] = [];
-  const props: Record<string, unknown> = {};
-  const gradient = () => ({ addColorStop: (o: number, c: string) => void calls.push({ name: "addColorStop", args: [o, c] }) });
+  const trace: string[] = [];
+  const props: Record<string, unknown> = { globalAlpha: 1 };
+  const record = (name: string, args: unknown[]) => {
+    calls.push({ name, args });
+    trace.push(`${name}(${args.map(fmt).join(",")})`);
+  };
+  const gradient = () => ({ addColorStop: (o: number, c: string) => record("addColorStop", [o, c]) });
   const ctx = new Proxy({} as Record<string, unknown>, {
     get(_t, key: string) {
       if (key === "calls") return calls;
       if (key === "props") return props;
+      if (key === "trace") return trace;
       if (key === "getTransform") return transform ? () => transform : undefined;
       if (key in props) return props[key];
       if (key === "createLinearGradient" || key === "createRadialGradient") {
         return (...args: unknown[]) => {
-          calls.push({ name: key, args });
+          record(key, args);
           return gradient();
         };
       }
-      return (...args: unknown[]) => void calls.push({ name: key, args });
+      return (...args: unknown[]) => record(key, args);
     },
     set(_t, key: string, v) {
       props[key] = v;
+      trace.push(`${key}=${fmt(v)}`);
       return true;
     },
   });
@@ -329,5 +345,193 @@ describe("sahne önbelleği", () => {
     const ctx = makeCtx({ a: 2, b: 0, c: 0, d: 2, e: 0, f: 0 });
     expect(() => renderFrame(ctx, engine, 0, opts)).not.toThrow();
     expect(ctx.calls.filter((c) => c.name === "ellipse").length).toBeGreaterThan(0);
+  });
+});
+
+describe("renk karışımı (mixHex)", () => {
+  it("uçlar birebir, orta nokta yuvarlanmış; aralık dışı değerler kırpılır; çıktı hep küçük harfli #rrggbb", () => {
+    expect(mixHex("#5A2456", "#0F4C5C", 0)).toBe("#5a2456");
+    expect(mixHex("#5A2456", "#0F4C5C", 1)).toBe("#0f4c5c");
+    expect(mixHex("#000000", "#FFFFFF", 0.5)).toBe("#808080");
+    expect(mixHex("#102030", "#FFFFFF", -3)).toBe("#102030");
+    expect(mixHex("#102030", "#FFFFFF", 9)).toBe("#ffffff");
+  });
+});
+
+// Düğüm ortamında (tuval yok) diş sprite'larının piksel hesabı ilk kullanımda birkaç saniye sürer: bol süre tanınır.
+describe("ağız açılma geçişi çizimi (diş araları → iç yüzey)", { timeout: 60_000 }, () => {
+  const opts = { reducedMotion: false, showTutorialHand: false } as const;
+  const T = { a: 2, b: 0, c: 0, d: 2, e: 7.5, f: 3.25 };
+  const inTransition = (e: GameEngine): boolean => e.status === "transition";
+  const finish = (e: GameEngine) => {
+    let guard = 0;
+    while (e.status === "playing" && guard++ < 400) e.assistClean();
+  };
+  /** Arka plan degradesinin iki rengi (küçük harfli): çizimin ilk iki `addColorStop` çağrısı. */
+  const bgStops = (ctx: MockCtx) => ctx.calls.filter((c) => c.name === "addColorStop").slice(0, 2).map((c) => (c.args[1] as string).toLowerCase());
+
+  /** Diş araları aşaması az önce bitmiş: ağız açılma geçişinin ilk karesi. */
+  function engineAtOpening(): GameEngine {
+    const e = new GameEngine(buildPhases(), {}, { reducedMotion: false });
+    e.start();
+    finish(e); // dış yüzey
+    while (inTransition(e)) e.update(50);
+    finish(e); // diş araları → ağız açılarak iç yüzeye geçiş başlar
+    e.sparkles.length = 0;
+    return e;
+  }
+
+  it("geçişin her karesi (çene inmeden başlayıp yerine oturana dek) hatasız, sonlu sayılarla ve dengeli çizilir", () => {
+    for (const cache of [true, false]) {
+      const e = engineAtOpening();
+      expect(e.opening).toBe(true);
+      let frames = 0;
+      let rendered = 0;
+      while (inTransition(e) && frames < 400) {
+        // her 2. kare çizilir (kare süresi 32 ms ≈ 30 fps; sprite hazırlığı da tetiklenir)
+        if (frames % 2 === 0) {
+          const ctx = makeCtx(T);
+          expect(() => renderFrame(ctx, e, frames * 16, { ...opts, cache })).not.toThrow();
+          expectSane(ctx);
+          rendered++;
+        }
+        e.update(16);
+        frames++;
+      }
+      expect(frames).toBeGreaterThan(60); // ≈ 1,5 sn
+      expect(rendered).toBeGreaterThan(30);
+    }
+  });
+
+  it("çene iner ama yüz dönmez: yüz her karede aynı yerde ve ölçeksiz çizilir; alt dişler ve diş eti çene açıklığı kadar aşağı kayar", () => {
+    const e = engineAtOpening();
+    let maxShift = 0;
+    while (inTransition(e)) {
+      const ctx = makeCtx(T);
+      renderFrame(ctx, e, 0, { ...opts, cache: false });
+      const faces = ctx.calls.filter((c) => c.name === "ellipse" && c.args[2] === 214 && c.args[3] === 300);
+      expect(faces).toHaveLength(1);
+      expect(faces[0]!.args.slice(0, 2)).toEqual([180, 290]);
+      expect(ctx.calls.some((c) => c.name === "scale")).toBe(false); // eski yüz dönme çizimi yatay ölçekliyordu
+      const shifts = ctx.calls.filter((c) => c.name === "translate" && c.args[0] === 0).map((c) => c.args[1] as number);
+      expect(shifts.some((dy) => Math.abs(dy - JAW_DROP * e.openAmount) < 1e-9), `kare ${e.transitionProgress.toFixed(2)}`).toBe(true);
+      maxShift = Math.max(maxShift, ...shifts);
+      e.update(16);
+    }
+    expect(maxShift).toBeGreaterThan(JAW_DROP * 0.98); // çene tam iner (hafif aşımla)
+    expect(maxShift).toBeLessThan(JAW_DROP * 1.1);
+  });
+
+  it("çene kapalıyken ağız boşluğu (boğaz, bademcik, küçük dil) görünmez; çene indikçe belirir ve tam açıkken tam görünür", () => {
+    const throatAlpha = (ctx: MockCtx) => {
+      const i = ctx.trace.findIndex((s) => s.startsWith("createRadialGradient(180,318,6,180,318,124)"));
+      expect(i, "boğaz degradesi çizilmeli").toBeGreaterThan(0);
+      const alphas = ctx.trace.slice(0, i).filter((s) => s.startsWith("globalAlpha="));
+      return Number(alphas[alphas.length - 1]!.split("=")[1]);
+    };
+    const e = engineAtOpening();
+    const closed = makeCtx(T);
+    renderFrame(closed, e, 0, { ...opts, cache: false });
+    expect(e.openAmount).toBe(0);
+    expect(throatAlpha(closed)).toBe(0);
+
+    while (inTransition(e) && e.openAmount < 0.15) e.update(16);
+    const ajar = makeCtx(T);
+    renderFrame(ajar, e, 0, { ...opts, cache: false });
+    expect(throatAlpha(ajar)).toBeCloseTo(Math.min(1, e.openAmount * 3), 5);
+    expect(throatAlpha(ajar)).toBeGreaterThan(0);
+
+    while (inTransition(e) && e.openAmount < 0.9) e.update(16);
+    const wide = makeCtx(T);
+    renderFrame(wide, e, 0, { ...opts, cache: false });
+    expect(throatAlpha(wide)).toBe(1);
+  });
+
+  it("çene tam inince geçiş karesi, iç yüzey oynanış karesiyle birebir aynı çizilir (geçişin sonunda atlama yok)", () => {
+    const e = engineAtOpening();
+    while (inTransition(e) && e.transitionProgress < OPEN_TO + OPEN_APPEAR + 0.02) e.update(16);
+    expect(e.status).toBe("transition");
+    expect(e.currentKind).toBe("inner"); // sahne (lekeler) çene inince değişti
+    expect(e.openAmount).toBe(1);
+    expect(e.openBlend).toBe(1);
+    const during = makeCtx(T);
+    renderFrame(during, e, 777, { ...opts, cache: false });
+    while (inTransition(e)) e.update(16);
+    expect(e.status).toBe("playing");
+    const after = makeCtx(T);
+    renderFrame(after, e, 777, { ...opts, cache: false });
+    expect(during.trace.length).toBeGreaterThan(100);
+    expect(during.trace).toEqual(after.trace);
+  });
+
+  it("çene inince yeni lekeler birden çıkmaz: kısa sürede belirir ve oynanış başlamadan tam görünür", () => {
+    // Son çizilen mikrobun saydamlığı = belirme oranı (yeni lekeler temiz değil, kaçmıyor)
+    const lastAlpha = (ctx: MockCtx) => {
+      const alphas = ctx.trace.filter((s) => s.startsWith("globalAlpha="));
+      return Number(alphas[alphas.length - 1]!.split("=")[1]);
+    };
+    const e = engineAtOpening();
+    const alphas: number[] = [];
+    while (inTransition(e) && e.transitionProgress < OPEN_TO + OPEN_APPEAR + 0.03) {
+      e.update(16);
+      if (e.currentKind !== "inner" || e.transitionProgress < OPEN_TO + 0.02) continue;
+      const ctx = makeCtx(T);
+      renderFrame(ctx, e, 0, { ...opts, cache: false });
+      const expected = Math.min(1, (e.transitionProgress - OPEN_TO) / OPEN_APPEAR);
+      expect(lastAlpha(ctx)).toBeCloseTo(expected, 5);
+      alphas.push(lastAlpha(ctx));
+    }
+    expect(alphas.length).toBeGreaterThan(5);
+    expect(alphas[0]!).toBeLessThan(0.3); // başta neredeyse görünmez
+    expect(alphas[alphas.length - 1]!).toBe(1); // sonda tam görünür
+    for (let i = 1; i < alphas.length; i++) expect(alphas[i]!).toBeGreaterThanOrEqual(alphas[i - 1]! - 1e-9); // yalnızca belirir
+  });
+
+  it("arka plan ve yüz rengi diş araları renginden iç yüzey rengine yumuşakça geçer; geçiş sonunda iç yüzey renginde", () => {
+    const e = engineAtOpening();
+    const first = makeCtx(T);
+    renderFrame(first, e, 0, { ...opts, cache: false });
+    expect(bgStops(first)).toEqual([BG.gaps![0].toLowerCase(), BG.gaps![1].toLowerCase()]);
+    // "#rrggbb" iki renk arasındaki uzaklık (kanal farklarının toplamı): doğrusal karışımda yalnızca azalır
+    const dist = (a: string, b: string) => [1, 3, 5].reduce((s, i) => s + Math.abs(parseInt(a.slice(i, i + 2), 16) - parseInt(b.slice(i, i + 2), 16)), 0);
+    let prevGap = dist(BG.gaps![0], BG.inner![0]) + 1;
+    while (inTransition(e)) {
+      e.update(16);
+      if (!inTransition(e)) break;
+      const ctx = makeCtx(T);
+      renderFrame(ctx, e, 0, { ...opts, cache: false });
+      const gap = dist(bgStops(ctx)[0]!, BG.inner![0]); // iç yüzey rengine uzaklık
+      expect(gap).toBeLessThanOrEqual(prevGap); // renk yalnızca hedefe yaklaşır
+      prevGap = gap;
+    }
+    expect(prevGap).toBeLessThan(2);
+    const last = makeCtx(T);
+    renderFrame(last, e, 0, { ...opts, cache: false });
+    expect(bgStops(last)).toEqual([BG.inner![0].toLowerCase(), BG.inner![1].toLowerCase()]);
+    expect(last.props.fillStyle).toBeDefined();
+    expect(FACE.inner!.toLowerCase()).toMatch(/^#[0-9a-f]{6}$/);
+  });
+
+  it("azaltılmış harekette geçiş animasyonu çizilmez: eski sahne, çene inince yeni (iç yüzey) sahne doğrudan çizilir", () => {
+    const reduced = { ...opts, reducedMotion: true, cache: false } as const;
+    const e = engineAtOpening();
+    let sawGaps = false;
+    let sawInner = false;
+    while (inTransition(e)) {
+      const ctx = makeCtx(T);
+      expect(() => renderFrame(ctx, e, 0, reduced)).not.toThrow();
+      expectSane(ctx);
+      const stops = bgStops(ctx);
+      // renk karışımı yok: ya tam diş araları ya tam iç yüzey rengi
+      if (e.currentKind === "gaps") {
+        sawGaps = true;
+        expect(stops).toEqual([BG.gaps![0].toLowerCase(), BG.gaps![1].toLowerCase()]);
+      } else {
+        sawInner = true;
+        expect(stops).toEqual([BG.inner![0].toLowerCase(), BG.inner![1].toLowerCase()]);
+      }
+      e.update(96); // seyrek kare: bu test yalnızca "hareketsiz geçiş" mantığını sınar
+    }
+    expect(sawGaps && sawInner).toBe(true);
   });
 });

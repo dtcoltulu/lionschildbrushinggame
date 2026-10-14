@@ -1,10 +1,11 @@
-import { devices, expect, test, type Page } from "@playwright/test";
-import { captureEvents, finishGameWithHelp, scrubWholeCanvas, type Captured } from "./helpers";
+import { devices, expect, test, type Locator, type Page } from "@playwright/test";
+import { JAW_DROP, MOUTH, MOUTH_IN } from "../src/game/layout";
+import { answerCheckIfOpen, captureEvents, finishGameWithHelp, scrubWholeCanvas, type Captured } from "./helpers";
 
 test.describe("Oyun akışı", () => {
   test("QR adresi → öğretici → 6 aşama → ödül → tekrar oyna; olaylar doğru", async ({ page }) => {
     const cap = captureEvents(page);
-    // Ses, animasyon ve yüz dönme dahil hiçbir yakalanmamış JS hatası olmamalı.
+    // Ses, animasyon ve ağız açılması dahil hiçbir yakalanmamış JS hatası olmamalı.
     const pageErrors: string[] = [];
     page.on("pageerror", (err) => pageErrors.push(err.message));
     await page.goto("/oyun");
@@ -40,8 +41,8 @@ test.describe("Oyun akışı", () => {
     const reward = page.getByTestId("reward-screen");
     await expect(reward).toContainText("TEBRİKLER!");
     await expect(reward).toContainText("DİŞ KAHRAMANI OLDUN!");
-    await expect(reward).toContainText("Bu ekranı Lions standındaki görevliye göster.");
-    await expect(reward).toContainText("Diş macunu hediyeni al.");
+    // Asıl kampanya: diş macunu / standdaki görevli kartı yerine Koşuyolu Park ücretsiz muayene fırsatı ve web sitesi
+    await expectClinicOffer(reward);
     await expect(reward).toContainText("Günde 3 kez fırçala");
     await expect(reward).toContainText("Yaklaşık 2 dakika fırçala");
     await expect(reward).toContainText("Dişlerini düzenli kontrol ettir");
@@ -95,6 +96,79 @@ test.describe("Oyun akışı", () => {
     await finishGameWithHelp(page);
   });
 
+  test("diş araları bitince yüz dönmez: çene iner, ağız kocaman açılır; sonra iç yüzeyler fırçalanır", async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on("pageerror", (err) => pageErrors.push(err.message));
+    await page.goto("/oyun");
+    await page.getByTestId("start").click();
+    await page.getByTestId("skip-tutorial").click();
+    const dlg = page.getByTestId("check-dialog");
+    // 1. aşama bitince çıkan soruyu geç; 2. aşama (diş araları) bitince çıkan soruda dur
+    await expect
+      .poll(
+        async () => {
+          if (await dlg.isVisible()) {
+            if ((await page.getByTestId("play-screen").getAttribute("data-phase")) === "2") return "diş araları bitti";
+            await answerCheckIfOpen(page);
+            return "ilk soru";
+          }
+          await page.getByTestId("help").click({ timeout: 500 }).catch(() => {});
+          return "oynanıyor";
+        },
+        { timeout: 120_000, intervals: [100] },
+      )
+      .toBe("diş araları bitti");
+    await page.getByTestId("check-no").click();
+    await expect(page.getByTestId("check-continue")).toBeVisible();
+
+    // Sayfa içinden her karede üç nokta okunur: yüzün yanağı (yüz), yüzün dışı (arka plan) ve alt dudağın tam açık ağızdaki yeri.
+    const lipY = MOUTH_IN.y + MOUTH_IN.h + JAW_DROP + (MOUTH.y + MOUTH.h - (MOUTH_IN.y + MOUTH_IN.h)) / 2;
+    const probe = page.evaluate(
+      ({ face, bg, lip, ms }) =>
+        new Promise<{ t: number; face: number[]; bg: number[]; lip: number[] }[]>((resolve) => {
+          const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game-canvas"]')!;
+          const ctx = canvas.getContext("2d")!;
+          const W = canvas.clientWidth;
+          const H = canvas.clientHeight;
+          const dpr = canvas.width / W;
+          const scale = Math.min(W / 360, H / 520);
+          const ox = (W - 360 * scale) / 2;
+          const oy = (H - 520 * scale) / 2;
+          const at = (p: number[]) => Array.from(ctx.getImageData(Math.round(dpr * (ox + scale * p[0]!)), Math.round(dpr * (oy + scale * p[1]!)), 1, 1).data);
+          const out: { t: number; face: number[]; bg: number[]; lip: number[] }[] = [];
+          const t0 = performance.now();
+          const tick = () => {
+            const t = performance.now() - t0;
+            out.push({ t, face: at(face), bg: at(bg), lip: at(lip) });
+            if (t < ms) requestAnimationFrame(tick);
+            else resolve(out);
+          };
+          requestAnimationFrame(tick);
+        }),
+      { face: [20, 200], bg: [2, 500], lip: [180, lipY], ms: 2600 },
+    );
+    await page.getByTestId("check-continue").click();
+
+    // Sahne değişince yeni aşama başlar: "Aaa de!" ve iç yüzey yönergesi
+    await expect(page.getByTestId("callout")).toHaveText("Aaa de!");
+    await expect(page.getByTestId("message")).toContainText("Ağzını kocaman aç");
+    await expect(page.getByTestId("play-screen")).toHaveAttribute("data-phase", "3");
+
+    const samples = await probe;
+    expect(samples.length).toBeGreaterThan(30);
+    const lum = (c: number[]) => 0.3 * c[0]! + 0.59 * c[1]! + 0.11 * c[2]!;
+    const coral = (c: number[]) => c[0]! > 200 && c[1]! > 70 && c[1]! < 150 && c[2]! > 70 && c[2]! < 150; // dudak #FF6B6B
+    // Yüz dönmez: yanak noktası ilk karesinden son karesine dek yüzün rengindedir (yüz yana dönse arka plan görünürdü)
+    for (const s of samples) expect(lum(s.face) - lum(s.bg), `t=${Math.round(s.t)} ms`).toBeGreaterThan(30);
+    // Çene iner: başta alt dudağın olacağı nokta yüzün rengidir, sonda dudak rengidir
+    expect(coral(samples[0]!.lip)).toBe(false);
+    expect(samples.some((s) => coral(s.lip))).toBe(true);
+    expect(coral(samples[samples.length - 1]!.lip)).toBe(true);
+    // Oynanış sürüyor: iç yüzeyler bitirilebilir
+    await finishGameWithHelp(page);
+    expect(pageErrors).toEqual([]);
+  });
+
   test("ses düğmesi çalışır ve tercih saklanır", async ({ page }) => {
     await page.goto("/oyun");
     const btn = page.getByRole("button", { name: "Sesi kapat" });
@@ -126,13 +200,27 @@ test.describe("Bağlantı sorunları", () => {
     const cap = captureEvents(page);
     await page.goto("/oyun");
     await expect.poll(() => cap.names.includes("landing_view"), { timeout: 10_000 }).toBe(true);
+    // Klinik logosu oyun başında yüklenip service worker önbelleğine alınır (çevrimdışı ödül ekranında görünsün)
+    await expect
+      .poll(
+        async () =>
+          page.evaluate(async () => {
+            const c = await caches.open("lions-static-v1");
+            return (await c.keys()).some((r) => r.url.endsWith("/assets/kosuyolu-park.png"));
+          }),
+        { timeout: 20_000 },
+      )
+      .toBe(true);
 
     await context.setOffline(true);
     await page.getByTestId("start").click();
     await page.getByTestId("skip-tutorial").click();
     await expect(page.getByTestId("play-screen")).toBeVisible();
     await finishGameWithHelp(page);
-    // Oyun çevrimdışı tamamlandı: ödül ekranı geldi. Kuyrukta bekleyen olaylar var.
+    // Oyun çevrimdışı tamamlandı: ödül ekranı geldi ve klinik logosu yüklü (kırık resim değil). Kuyrukta bekleyen olaylar var.
+    const logo = page.getByTestId("clinic-offer").getByRole("img", { name: "Koşuyolu Park Diş Kliniği" });
+    await expect(logo).toBeVisible();
+    expect(await logo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
     const queued = await page.evaluate(() => JSON.parse(localStorage.getItem("lions.q") ?? "[]").length);
     expect(queued).toBeGreaterThanOrEqual(6);
 
@@ -285,7 +373,7 @@ async function playAnsweringQuestions(page: Page, answers: Answer[]): Promise<Qu
           results.push({ phase, answer: a, text: await fb.innerText() });
           await page.getByTestId("check-continue").click();
           await expect(dlg).toBeHidden();
-          // Cevaptan sonra sonraki aşamaya geçilir (yüz dönmesi/geçiş dahil): aşama göstergesi bir artar.
+          // Cevaptan sonra sonraki aşamaya geçilir (ağız açılması/geçiş dahil): aşama göstergesi bir artar.
           await expect(page.getByTestId("play-screen")).toHaveAttribute("data-phase", String(phase + 1), { timeout: 8000 });
           return "playing";
         }
@@ -317,6 +405,24 @@ function expectQuestionRun(run: QuestionRun) {
   expect(results[2]!.text).not.toContain("diş araları"); // 3. aşama bitince diş araları artık sayılmaz
 }
 
+/** Ödül ekranında diş macunu / standdaki görevli yerine Koşuyolu Park ücretsiz muayene fırsatı ve web sitesi bağlantısı görünür. */
+async function expectClinicOffer(reward: Locator) {
+  const offer = reward.getByTestId("clinic-offer");
+  await expect(offer).toContainText("Ücretsiz muayene fırsatı!");
+  await expect(offer).toContainText("Koşuyolu Park Diş Kliniği");
+  await expect(offer.getByRole("img", { name: "Koşuyolu Park Diş Kliniği" })).toBeVisible();
+  // Kartın sonunda klinik web sitesi: dokunulabilir, yeni sekmede açılır, yönlendiren adres gönderilmez
+  const site = offer.getByTestId("clinic-website");
+  await expect(site).toBeVisible();
+  await expect(site).toContainText("www.kosuyolupark.com");
+  await expect(site).toHaveAttribute("href", "https://www.kosuyolupark.com");
+  await expect(site).toHaveAttribute("target", "_blank");
+  await expect(site).toHaveAttribute("rel", /noopener/);
+  await expect(site).toHaveAttribute("rel", /noreferrer/);
+  await expect(reward).not.toContainText("Diş macunu hediyeni al.");
+  await expect(reward).not.toContainText("görevliye göster");
+}
+
 /** Cevaplar anonim olay olarak, o kampanyanın kimliğiyle ve aşama numarasıyla gönderilir; sayılar cevaplarla eşleşir (ANSWERS). */
 async function expectAnswersSent(page: Page, cap: Captured, campaignId: string) {
   await page.evaluate(() => window.dispatchEvent(new Event("pagehide")));
@@ -337,47 +443,28 @@ async function expectAnswersSent(page: Page, cap: Captured, campaignId: string) 
 }
 
 test.describe('Kendini değerlendirme: "Sence yeterli ve etkin temizlendi mi?" (asıl ve deneme kampanyası)', () => {
-  test("ASIL kampanyada her aşama BİTİNCE (son aşama hariç) soru çıkar; oyun durur; Evet/Hayır geri bildirimi, geçiş ve sayım çalışır; ödül ekranı (diş macunu) değişmez", async ({ page }) => {
+  test("ASIL kampanyada her aşama BİTİNCE (son aşama hariç) soru çıkar; oyun durur; Evet/Hayır geri bildirimi, geçiş ve sayım çalışır; ödül ekranında diş macunu yerine klinik fırsatı çıkar", async ({ page }) => {
     const cap = captureEvents(page);
     const pageErrors: string[] = [];
     page.on("pageerror", (err) => pageErrors.push(err.message));
     await page.goto("/oyun");
     expectQuestionRun(await playAnsweringQuestions(page, ANSWERS));
 
-    // Ödül ekranı eskisi gibi: diş macunu / standdaki görevli; klinik fırsatı kartı yalnızca deneme kampanyasındadır.
-    const reward = page.getByTestId("reward-screen");
-    await expect(reward).toContainText("Bu ekranı Lions standındaki görevliye göster.");
-    await expect(reward).toContainText("Diş macunu hediyeni al.");
-    await expect(reward.getByTestId("clinic-offer")).toHaveCount(0);
-    await expect(reward.getByTestId("clinic-website")).toHaveCount(0);
+    // Ödül ekranı: diş macunu/standdaki görevli yerine Koşuyolu Park ücretsiz muayene fırsatı ve web sitesi
+    await expectClinicOffer(page.getByTestId("reward-screen"));
 
     await expectAnswersSent(page, cap, "lions-118y-2026-10-11");
     expect(pageErrors).toEqual([]);
   });
 
-  test("deneme kampanyasında aynı soru çıkar; ödül ekranında diş macunu yerine Koşuyolu Park ücretsiz muayene fırsatı ve web sitesi görünür", async ({ page }) => {
+  test("deneme kampanyasında da aynı soru çıkar ve aynı klinik fırsatı görünür", async ({ page }) => {
     const cap = captureEvents(page);
     const pageErrors: string[] = [];
     page.on("pageerror", (err) => pageErrors.push(err.message));
     await page.goto("/oyun?k=test-deneme");
     expectQuestionRun(await playAnsweringQuestions(page, ANSWERS));
 
-    // Ödül ekranı: diş macunu/standdaki görevli yerine Koşuyolu Park ücretsiz muayene fırsatı
-    const reward = page.getByTestId("reward-screen");
-    const offer = reward.getByTestId("clinic-offer");
-    await expect(offer).toContainText("Ücretsiz muayene fırsatı!");
-    await expect(offer).toContainText("Koşuyolu Park Diş Kliniği");
-    await expect(offer.getByRole("img", { name: "Koşuyolu Park Diş Kliniği" })).toBeVisible();
-    // Kartın sonunda klinik web sitesi: dokunulabilir, yeni sekmede açılır, yönlendiren adres gönderilmez
-    const site = offer.getByTestId("clinic-website");
-    await expect(site).toBeVisible();
-    await expect(site).toContainText("www.kosuyolupark.com");
-    await expect(site).toHaveAttribute("href", "https://www.kosuyolupark.com");
-    await expect(site).toHaveAttribute("target", "_blank");
-    await expect(site).toHaveAttribute("rel", /noopener/);
-    await expect(site).toHaveAttribute("rel", /noreferrer/);
-    await expect(reward).not.toContainText("Diş macunu hediyeni al.");
-    await expect(reward).not.toContainText("görevliye göster");
+    await expectClinicOffer(page.getByTestId("reward-screen"));
 
     await expectAnswersSent(page, cap, "test-deneme");
     expect(pageErrors).toEqual([]);

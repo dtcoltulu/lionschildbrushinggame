@@ -4,7 +4,7 @@
 
 - Üyelik, isim, telefon, e-posta **yok**. Reklam ve üçüncü taraf takip aracı **yok**.
 - Telefon öncelikli, 45–90 saniyelik oyun; kaybetme ve skor yarışı yok.
-- Oyun akışı (6 aşama, 24 diş: üst çene 12 + alt çene 12): dış yüzeyler (çikolata, cips, plak, mikrop) → diş araları ve diş eti kenarı ("Detaylı temizle!") → iç yüzeyler ("Bitmedi!") → çiğneme yüzeyleri → dil → diş ipi. Aşamalar `src/game/layout.ts` içinde tanımlıdır. Her aşama bitince neşeli "yu-up-pi" sesi çalar; diş araları bitince yüz dönerek iç yüzeye geçilir.
+- Oyun akışı (6 aşama, 24 diş: üst çene 12 + alt çene 12): dış yüzeyler (çikolata, cips, plak, mikrop) → diş araları ve diş eti kenarı ("Detaylı temizle!") → iç yüzeyler ("Aaa de!") → çiğneme yüzeyleri → dil → diş ipi. Aşamalar `src/game/layout.ts` içinde tanımlıdır. Her aşama bitince neşeli "yu-up-pi" sesi çalar; diş araları bitince çene aşağı iner, ağız kocaman açılır (damak, küçük dil, bademcikler ve dil görünür) ve dişlerin iç yüzeyleri fırçalanır.
 - Anonim analytics + yönetici paneli + CSV / yazdırılabilir rapor + QR üretici.
 - Etkinlik bilgileri konfigürasyondan değişir; başka Lions etkinliklerinde yeniden kullanılabilir.
 
@@ -107,14 +107,14 @@ Bu adreslerin hepsi giriş gerektirir. Giriş yapmamış ziyaretçiler `/admin/l
 
 ## Soru ve klinik fırsatı (kampanya ayarları)
 
-Özellikler `src/config/campaigns.ts` içindeki kampanya ayarlarından açılıp kapatılır. **Soru (`selfCheck`) hem asıl kampanyada (`lions-118y-2026-10-11`, `/oyun`) hem deneme kampanyasında (`/oyun?k=test-deneme`) açıktır.** **Klinik fırsatı kartı (`clinicOffer`) yalnızca deneme kampanyasındadır**: asıl kampanyanın ödül ekranı (diş macunu) eskisi gibidir (e2e testi bunu doğrular).
+Özellikler `src/config/campaigns.ts` içindeki kampanya ayarlarından açılıp kapatılır. **Soru (`selfCheck`) hem asıl kampanyada (`lions-118y-2026-10-11`, `/oyun`) hem deneme kampanyasında (`/oyun?k=test-deneme`) açıktır.** **Klinik fırsatı kartı (`clinicOffer`) da her iki kampanyada açıktır**: ödül ekranında diş macunu kartı yerine "Ücretsiz muayene fırsatı!" + Koşuyolu Park logosu + web sitesi bağlantısı çıkar (e2e testi iki kampanyayı da doğrular). Diş macunu kartına geri dönmek için kampanyadaki `clinicOffer` satırını kaldırın.
 
 ⚠️ Asıl adreste yapılan denemeler (soru cevapları dahil) **gerçek sayılara girer**: denemeleri `?k=test-deneme` ile yapın. Veri silmeden bir günü/aralığı ayırmak için panelde **tarih filtresi** vardır.
 
 | Ayar | Ne yapar |
 |---|---|
 | `selfCheck: true` | Aşama 1–5 **bittikten sonra** (sahne tamamen temizken, sonraki aşamaya geçmeden) oyun durur ve **"Sence yeterli ve etkin temizlendi mi?"** sorusu çıkar. **Evet** → "Henüz bitmedi! Sırada diş araları, iç yüzeyler… var." (kalan yüzeyleri sayar), **Hayır** → "Aferin, işi biliyorsun!…" tebriki; ardından oyun sonraki aşamaya geçer. Son aşamada (diş ipi) soru yoktur (her yer gerçekten temiz). Soru süresi oyun süresine sayılmaz. |
-| `clinicOffer: {…}` | Ödül ekranında "standdaki görevliye göster / diş macunu" kartı yerine **klinik fırsatı** gösterilir (ör. Koşuyolu Park Diş Kliniği ücretsiz muayene). Etkinlik bitip diş macunu kalmadığında kullanılır. Yalnızca doğrulanmış bilgiyi yazın; randevu/telefon gibi ek satır için `detail`, klinik sitesi için `website` (yalnızca alan adı, ör. `www.kosuyolupark.com`; kartın en altında dokunulabilir bağlantı olur, yeni sekmede açılır, referrer gönderilmez, dokunma kaydedilmez) alanı vardır. |
+| `clinicOffer: {…}` | Ödül ekranında "standdaki görevliye göster / diş macunu" kartı yerine **klinik fırsatı** gösterilir (ör. Koşuyolu Park Diş Kliniği ücretsiz muayene). Etkinlik bitip diş macunu kalmadığında kullanılır; tanım `src/config/campaigns.ts` içinde tek yerdedir (`KOSUYOLU_PARK_OFFER`) ve iki kampanya aynı tanımı kullanır. Klinik logosu oyun başında önceden yüklenir, service worker önbelleğine girer: internet kopsa da ödül ekranında kırık resim görünmez. Yalnızca doğrulanmış bilgiyi yazın; randevu/telefon gibi ek satır için `detail`, klinik sitesi için `website` (yalnızca alan adı, ör. `www.kosuyolupark.com`; kartın en altında dokunulabilir bağlantı olur, yeni sekmede açılır, referrer gönderilmez, dokunma kaydedilmez) alanı vardır. |
 
 **Cevapların ölçümü (anonim):** her cevap bir olaydır: `self_check_yes` (çocuk "Evet" dedi = diğer yüzeyler kalmışken "yeterli" dedi, işi erken bırakmak istedi) ya da `self_check_no` ("Hayır" = doğru farkındalık); `phase` = biten aşama (1–5). Panelde (`/admin` ve `/admin?k=test-deneme`) **Evet / Hayır sayısı ve oranı**, aşama bazlı döküm, "en az bir kez Evet diyen çocuk" görünür; yazdırılabilir raporda ve CSV'de de yer alır. Oranlar cevap sayısı üzerindendir (bir çocuk her aşamada bir kez cevaplar). Çocuk bazlı ve koruma göstergeleri:
 

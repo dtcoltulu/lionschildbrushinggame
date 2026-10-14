@@ -59,8 +59,8 @@ export interface EngineCallbacks {
   onComplete?: (totalMs: number) => void;
   onSwipe?: () => void;
   onPatchCleaned?: () => void;
-  /** Yüz dönerken, sahnenin değiştiği anda bir kez çağrılır. */
-  onTurn?: () => void;
+  /** Ağız açılmaya başlarken (çene inmeye başladığı anda) bir kez çağrılır: ses için. Sahne bundan biraz sonra, çene tam inince değişir. */
+  onOpen?: () => void;
   /** Aşama BİTTİ (sahne tamamen temiz): "yeterli temizlendi mi?" sorusu açıldı; sonraki aşamaya geçiş `answerCheck()` ile başlar. */
   onCheck?: (phaseIndex: number) => void;
 }

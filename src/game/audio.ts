@@ -218,7 +218,7 @@ function vocalGlide(start: number, dur: number, f0: number, f1: number, formant0
   osc.stop(t0 + dur + 0.03);
 }
 
-/** Süzülen kısa "vınn": yüz dönerken. */
+/** Süzülen kısa "vınn": çene inerken. */
 function whoosh(): void {
   if (!ctx || muted) return;
   const t0 = ctx.currentTime;
@@ -363,8 +363,11 @@ export const sfx = {
     const text = CHEERS[phaseIndex % CHEERS.length]!;
     setTimeout(() => speak(text), SPEECH.delayMs);
   },
-  /** Yüz dönerken. */
-  turn: () => whoosh(),
+  /** Ağız açılırken (çene inerken): süzülen "vınn", çene yerine oturunca yumuşak bir "aaa". */
+  open: () => {
+    whoosh();
+    vocalGlide(0.3, 0.42, 240, 200, 850, 800, 0.05);
+  },
   phase: () => {
     [523, 659, 784].forEach((f, i) => tone(f, i * 0.09, 0.18, "triangle", 0.07));
   },

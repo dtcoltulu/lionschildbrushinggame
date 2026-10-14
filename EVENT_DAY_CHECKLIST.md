@@ -70,10 +70,10 @@ Yazdırıp standda bulundurun. Kutuları işaretleyin.
 ## 🏆 8. Ödül ekranı testi
 
 - [ ] "TEBRİKLER! DİŞ KAHRAMANI OLDUN!" görünüyor
-- [ ] "Bu ekranı Lions standındaki görevliye göster." ve "Diş macunu hediyeni al." görünüyor
+- [ ] Ödül kartı doğru: diş macunu dağıtılacaksa kampanya ayarında `clinicOffer` satırı **kaldırılmış** olmalı (o zaman "Bu ekranı Lions standındaki görevliye göster." ve "Diş macunu hediyeni al." görünür); `clinicOffer` açıksa "Ücretsiz muayene fırsatı!" + Koşuyolu Park kartı ve site bağlantısı görünür
 - [ ] Altın şeritte **"Süren: 1 dk 12 sn"** (oyunun gerçek süresi) ve altında **bugünün tarihi ve saati** var; süre 2 dakikadan kısaysa **"Hızlı fırçaladın! Minimum 2 dakika…"**, 2 dakika ve üzeriyse **"Tebrikler, ideal süreye ulaştın!…"** mesajı çıkıyor
 - [ ] **Şeritteki tarih/saat doğru** ve parıltı/yıldızlar **hareket ediyor** (görevliler eski ekran görüntüsünü böyle ayırt eder: görüntüde hareket yoktur, tarih/saat bugüne uymaz). Saniye sayacı bilerek yok: çocuklar "süre hâlâ akıyor" diye şaşırdı.
-- [ ] Görevliler bilgilendirildi: ödül ekranı = 1 diş macunu; "Tekrar Oyna" ile gelen ekran için ekibin ortak kararı (ör. aynı çocuğa tekrar verilmez)
+- [ ] Görevliler bilgilendirildi: (diş macunu kartı açıkken) ödül ekranı = 1 diş macunu; "Tekrar Oyna" ile gelen ekran için ekibin ortak kararı (ör. aynı çocuğa tekrar verilmez)
 
 ## 🎈 Etkinlik sırasında
 

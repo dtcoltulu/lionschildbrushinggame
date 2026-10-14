@@ -9,11 +9,9 @@ import { drawGumBand, gumBandPath, gumMarginCubics, traceCubics, type Cubic, typ
  * yuvarlak diş eti kenarı, damak kıvrımları, dil papillaları). Sahne önbelleği içinde bir kez çizilir.
  */
 
-export type GumKind = "front" | "palate" | "floor";
+export type GumKind = "front" | "palate";
 
 const PAD = 2;
-/** İç görünüşte alt çenenin diş eti şeridi kalınlığı (dişlerin diş etinin altında kalan payını örtmeli). */
-export const FLOOR_THIN = 34;
 const MARGIN_RADIUS = 6.5;
 
 interface Colors {
@@ -24,7 +22,6 @@ interface Colors {
 const COLORS: Record<GumKind, Colors> = {
   front: { near: [250, 160, 178], far: [238, 100, 128] },
   palate: { near: [246, 160, 176], far: [208, 98, 124] },
-  floor: { near: [255, 150, 170], far: [238, 96, 124] },
 };
 
 const bezierAt = (c: Cubic, t: number): Pt => {
@@ -45,7 +42,7 @@ interface Band {
   farY: number;
 }
 
-function bandField(kind: GumKind, teeth: Rect[], upper: boolean, mouth: Rect, res: number, thin: number): Band {
+function bandField(kind: GumKind, teeth: Rect[], upper: boolean, mouth: Rect, res: number): Band {
   const cubics = gumMarginCubics(teeth, upper, mouth);
   let minY = Infinity;
   let maxY = -Infinity;
@@ -56,9 +53,8 @@ function bandField(kind: GumKind, teeth: Rect[], upper: boolean, mouth: Rect, re
   const farY = upper ? mouth.y - 8 : mouth.y + mouth.h + 8;
   const bx = mouth.x - 6 - PAD;
   const bw = mouth.w + 12 + 2 * PAD;
-  // `thin` > 0: yalnızca kenardan `thin` birim kalınlıkta ince şerit (iç görünüşte alt çene: arkasında dil var)
-  const by = upper ? mouth.y - 8 - PAD : (thin > 0 ? minY - PAD : minY - PAD);
-  const bottom = upper ? maxY + PAD : (thin > 0 ? maxY + thin + PAD : farY + PAD);
+  const by = upper ? mouth.y - 8 - PAD : minY - PAD;
+  const bottom = upper ? maxY + PAD : farY + PAD;
   const F = createField(bw, bottom - by, res);
   const lx = (x: number) => x - bx;
   const ly = (y: number) => y - by;
@@ -134,8 +130,8 @@ function gumLook(kind: GumKind, upper: boolean, band: Band): Look {
 const sprites = new Map<string, HTMLCanvasElement | null>();
 let spritesRes = 0;
 
-function ensureBand(kind: GumKind, teeth: Rect[], upper: boolean, mouth: Rect, res: number, thin: number): { sprite: HTMLCanvasElement | null; band: { bx: number; by: number } } {
-  const key = `${kind}|${upper ? 1 : 0}|${thin}`;
+function ensureBand(kind: GumKind, teeth: Rect[], upper: boolean, mouth: Rect, res: number): { sprite: HTMLCanvasElement | null; band: { bx: number; by: number } } {
+  const key = `${kind}|${upper ? 1 : 0}`;
   // Yalnızca sprite ve konumu saklanır (büyük yükseklik dizileri hesap bitince atılır)
   let entry = bandMeta.get(key);
   if (res !== spritesRes) {
@@ -145,43 +141,11 @@ function ensureBand(kind: GumKind, teeth: Rect[], upper: boolean, mouth: Rect, r
     entry = undefined;
   }
   if (!entry) {
-    const band = bandField(kind, teeth, upper, mouth, res, thin);
+    const band = bandField(kind, teeth, upper, mouth, res);
     const sprite = bakeToCanvas(lightField(band.F, gumLook(kind, upper, band)), band.F.W, band.F.H, (c) => {
       c.setTransform(res, 0, 0, res, -band.bx * res, -band.by * res);
-      if (thin > 0) {
-        thinBandPath(c, band.cubics, thin);
-        // Alt kenar dile doğru yumuşakça kaybolur (sert, kıvrımlı bir şerit kenarı olmasın)
-        let top = Infinity;
-        let bot = -Infinity;
-        for (const cu of band.cubics) for (const k of [1, 3, 5, 7]) {
-          top = Math.min(top, cu[k]!);
-          bot = Math.max(bot, cu[k]!);
-        }
-        // Dişlerin diş etinin altında kalan boynu (≈ 12 birim) tamamen örtülür; ondan sonra dile doğru kaybolur
-        const g = c.createLinearGradient(0, top, 0, bot + thin);
-        const solid = Math.min(0.9, (bot - top + 19) / (bot - top + thin));
-        g.addColorStop(0, "rgba(0,0,0,1)");
-        g.addColorStop(solid, "rgba(0,0,0,1)");
-        g.addColorStop(1, "rgba(0,0,0,0)");
-        c.fillStyle = g;
-        c.fill();
-        // Yanlara doğru da yumuşakça kaybolur (dikey kenarlı dikdörtgen görünmesin)
-        const ex0 = band.cubics[0]![0];
-        const ex1 = band.cubics[band.cubics.length - 1]![6];
-        const fx0 = band.cubics[1]![0];
-        const fx1 = band.cubics[band.cubics.length - 2]![6];
-        const hx = c.createLinearGradient(ex0, 0, ex1, 0);
-        hx.addColorStop(0, "rgba(0,0,0,0)");
-        hx.addColorStop(Math.min(0.45, (fx0 - 1 - ex0) / (ex1 - ex0)), "rgba(0,0,0,1)");
-        hx.addColorStop(Math.max(0.55, (fx1 + 1 - ex0) / (ex1 - ex0)), "rgba(0,0,0,1)");
-        hx.addColorStop(1, "rgba(0,0,0,0)");
-        c.fillStyle = hx;
-        c.fillRect(ex0 - 2, top - 6, ex1 - ex0 + 4, bot + thin - top + 12);
-        return;
-      } else {
-        gumBandPath(c, teeth, upper, mouth);
-        c.fillStyle = "#000";
-      }
+      gumBandPath(c, teeth, upper, mouth);
+      c.fillStyle = "#000";
       c.fill();
     });
     sprites.set(key, sprite);
@@ -192,26 +156,12 @@ function ensureBand(kind: GumKind, teeth: Rect[], upper: boolean, mouth: Rect, r
 }
 const bandMeta = new Map<string, { band: { bx: number; by: number } }>();
 
-/** Kenar ile ondan `thin` birim uzaktaki paralel kenar arasındaki ince şerit (iç görünüşte alt çene). */
-function thinBandPath(ctx: Ctx, cubics: Cubic[], thin: number): void {
-  const dy = thin; // alt çenede diş eti aşağıda: kenarın altına doğru kalınlık
-  traceCubics(ctx, cubics);
-  const rev = cubics
-    .slice()
-    .reverse()
-    .map((c): Cubic => [c[6], c[7] + dy, c[4], c[5] + dy, c[2], c[3] + dy, c[0], c[1] + dy]);
-  const last = cubics[cubics.length - 1]!;
-  ctx.lineTo(last[6], last[7] + dy);
-  for (const c of rev) ctx.bezierCurveTo(c[2], c[3], c[4], c[5], c[6], c[7]);
-  ctx.closePath();
-}
-
 /**
  * Diş eti şeridini sprite olarak çizer (dişlerin üstüne biner); kenar çizgisi ve parlak iç çizgi vektördür.
- * `thin`: yalnızca iç görünüşte alt çene için ince şerit kalınlığı. Sprite üretilemezse basit çizim kullanılır.
+ * Sprite üretilemezse basit çizim kullanılır.
  */
-export function drawGumSprite(ctx: Ctx, kind: GumKind, teeth: Rect[], upper: boolean, mouth: Rect, res: number, pal: GumPalette, thin = 0): void {
-  const { sprite, band } = ensureBand(kind, teeth, upper, mouth, res, thin);
+export function drawGumSprite(ctx: Ctx, kind: GumKind, teeth: Rect[], upper: boolean, mouth: Rect, res: number, pal: GumPalette): void {
+  const { sprite, band } = ensureBand(kind, teeth, upper, mouth, res);
   if (!sprite) {
     drawGumBand(ctx, teeth, upper, mouth, pal);
     return;
@@ -221,26 +171,25 @@ export function drawGumSprite(ctx: Ctx, kind: GumKind, teeth: Rect[], upper: boo
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
   const margin = gumMarginCubics(teeth, upper, mouth);
-  traceCubics(ctx, thin > 0 ? margin.slice(1, -1) : margin);
+  traceCubics(ctx, margin);
   ctx.lineWidth = 2.2;
   ctx.strokeStyle = pal.margin;
   ctx.stroke();
   ctx.restore();
 }
 
-/** Diş eti sprite'larını arka planda hazırlar (ön görünüş: üst+alt, iç görünüş: damak + alt şerit). */
+/** Diş eti sprite'larını arka planda hazırlar (üst ve alt çene ön diş eti, üst çene damağı) ve dili. */
 export function warmGums(upperTeeth: Rect[], lowerTeeth: Rect[], mouth: Rect, res: number, budgetMs: number): boolean {
   if (typeof performance === "undefined") return true;
   const t0 = performance.now();
-  const jobs: [GumKind, Rect[], boolean, number][] = [
-    ["front", upperTeeth, true, 0],
-    ["front", lowerTeeth, false, 0],
-    ["palate", upperTeeth, true, 0],
-    ["floor", lowerTeeth, false, FLOOR_THIN],
+  const jobs: [GumKind, Rect[], boolean][] = [
+    ["front", upperTeeth, true],
+    ["front", lowerTeeth, false],
+    ["palate", upperTeeth, true],
   ];
-  for (const [kind, teeth, upper, thin] of jobs) {
-    if (res === spritesRes && sprites.has(`${kind}|${upper ? 1 : 0}|${thin}`)) continue;
-    ensureBand(kind, teeth, upper, mouth, res, thin);
+  for (const [kind, teeth, upper] of jobs) {
+    if (res === spritesRes && sprites.has(`${kind}|${upper ? 1 : 0}`)) continue;
+    ensureBand(kind, teeth, upper, mouth, res);
     if (performance.now() - t0 >= budgetMs) return false;
   }
   return warmTongue(res);

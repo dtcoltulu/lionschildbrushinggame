@@ -71,8 +71,8 @@ export function SoundCheck() {
       <button type="button" className={btn} onClick={play(() => sfx.yay(1))}>
         ✨ Büyü sesi
       </button>
-      <button type="button" className={btn} onClick={play(() => sfx.turn())}>
-        🌀 Yüz dönme sesi
+      <button type="button" className={btn} onClick={play(() => sfx.open())}>
+        😮 Ağız açma sesi
       </button>
       <button type="button" className={btn} onClick={play(() => sfx.fanfare())}>
         🏆 Final sesi
