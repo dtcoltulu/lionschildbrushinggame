@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { GameEngine } from "@/game/engine";
+import { OPEN_FROM, OPEN_TO } from "@/game/constants";
+import { artBlend, GameEngine, jawOpening } from "@/game/engine";
 import { StrokeTracker } from "@/game/brush";
 import { buildPhases, buildTutorialPhase } from "@/game/layout";
 import type { PatchState, Point } from "@/game/types";
@@ -175,7 +176,7 @@ describe("GameEngine", () => {
   });
 });
 
-describe("Yüz dönme geçişi (diş araları → iç yüzey)", () => {
+describe("Ağız açılma geçişi (diş araları → iç yüzey): yüz dönmez, çene iner", () => {
   /** TypeScript döngü sonrası durumu daraltmasın diye ayrı işlev. */
   const inTransition = (e: GameEngine): boolean => e.status === "transition";
 
@@ -185,55 +186,105 @@ describe("Yüz dönme geçişi (diş araları → iç yüzey)", () => {
     while (e.status === "playing" && guard++ < 400) e.assistClean();
   }
 
-  it("yalnızca iç yüzeye geçerken döner; ilk geçişte (dış→diş araları) dönmez", () => {
-    const turns: number[] = [];
+  it("yalnızca iç yüzeye geçerken ağız açılır; ilk geçişte (dış→diş araları) açılmaz", () => {
+    const opens: number[] = [];
     const starts: number[] = [];
-    const e = new GameEngine(buildPhases(), { onTurn: () => turns.push(e.phaseIndex), onPhaseStart: (i) => starts.push(i) });
+    const e = new GameEngine(buildPhases(), { onOpen: () => opens.push(e.phaseIndex), onPhaseStart: (i) => starts.push(i) });
     e.start();
     finishPhaseByAssist(e); // aşama 0 → geçiş
     expect(inTransition(e)).toBe(true);
-    expect(e.turning).toBe(false);
-    expect(e.turnScale).toBe(1);
+    expect(e.opening).toBe(false);
+    expect(e.openAmount).toBe(0);
+    expect(e.openBlend).toBe(0);
     while (inTransition(e)) e.update(50);
-    expect(turns).toEqual([]);
+    expect(opens).toEqual([]);
     expect(e.currentKind).toBe("gaps");
 
-    finishPhaseByAssist(e); // aşama 1 (diş araları) → iç yüzeye dönerek geçiş
+    finishPhaseByAssist(e); // aşama 1 (diş araları) → iç yüzeye ağız açılarak geçiş
     expect(inTransition(e)).toBe(true);
-    expect(e.turning).toBe(true);
+    expect(e.opening).toBe(true);
     expect(e.currentKind).toBe("gaps"); // henüz eski sahne
+    expect(e.openAmount).toBe(0); // çene daha inmedi
     expect(starts).toEqual([0, 1]);
   });
 
-  it("yarıda sahne değişir, yüz yana bakar (ölçek ~0), sonunda oynanış başlar", () => {
-    const turns: string[] = [];
+  it("çene iner (açıklık 0 → 1, hafif aşımla); çene tam inince sahne değişir; oynanış geçişin sonunda başlar", () => {
+    const opens: { kind: string; open: number; progress: number }[] = [];
     const starts: number[] = [];
-    const e = new GameEngine(buildPhases(), { onTurn: () => turns.push(e.currentKind), onPhaseStart: (i) => starts.push(i) });
+    const e = new GameEngine(buildPhases(), {
+      onOpen: () => opens.push({ kind: e.currentKind, open: e.openAmount, progress: e.transitionProgress }),
+      onPhaseStart: (i) => starts.push(i),
+    });
     e.start();
     finishPhaseByAssist(e);
     while (inTransition(e)) e.update(50);
     finishPhaseByAssist(e);
 
-    let minScale = 1;
-    let swappedAtScale = -1;
+    let maxOpen = 0;
+    let swappedAtOpen = -1;
+    let prev = 0;
     let guard = 0;
     while (inTransition(e) && guard++ < 500) {
       e.update(16);
-      minScale = Math.min(minScale, e.turnScale);
-      if (turns.length === 1 && swappedAtScale < 0) swappedAtScale = e.turnScale;
+      if (!inTransition(e)) break; // geçiş bu karede bitti: göstergeler sıfırlanır
+      const o = e.openAmount;
+      maxOpen = Math.max(maxOpen, o);
+      if (starts.length === 3 && swappedAtOpen < 0) swappedAtOpen = o;
+      // çene önce iner (aşım dahil), sonra yerine oturur; hiçbir karede negatif ya da aşırı açık değil
+      expect(o).toBeGreaterThanOrEqual(0);
+      expect(o).toBeLessThan(1.1);
+      // karışım (dış → iç) geriye gitmez
+      expect(e.openBlend).toBeGreaterThanOrEqual(prev - 1e-9);
+      prev = e.openBlend;
     }
-    expect(minScale).toBeLessThan(0.1); // tam yan dönüş
-    expect(swappedAtScale).toBeLessThan(0.15); // sahne yan dönükken değişti (kesme görünmez)
-    expect(turns).toEqual(["inner"]); // onTurn bir kez, yeni sahneyle
+    expect(maxOpen).toBeGreaterThan(1); // çene biraz fazla iner ...
+    expect(maxOpen).toBeLessThan(1.1); // ... ama çok değil
+    expect(swappedAtOpen).toBeGreaterThan(0.98); // sahne çene tam inince (ağız tam açıkken) değişti: kesme görünmez
+    expect(swappedAtOpen).toBeLessThan(1.02);
+    // onOpen (ses) bir kez, çene inmeye başlarken: sahne henüz değişmedi, çene daha neredeyse inmedi
+    expect(opens).toHaveLength(1);
+    expect(opens[0]!.kind).toBe("gaps");
+    expect(opens[0]!.progress).toBeGreaterThanOrEqual(OPEN_FROM);
+    expect(opens[0]!.progress).toBeLessThan(OPEN_FROM + 0.05);
+    expect(opens[0]!.open).toBeLessThan(0.1);
     expect(starts).toEqual([0, 1, 2]); // aşama 2 (iç yüzey) bir kez başladı
     expect(e.status).toBe("playing");
-    expect(e.turning).toBe(false);
-    expect(e.turnScale).toBe(1);
+    expect(e.opening).toBe(false);
+    expect(e.openAmount).toBe(0); // geçiş bitti; iç yüzey sahnesini çizim kendisi açık çizer
+    expect(e.openBlend).toBe(0);
     expect(e.currentKind).toBe("inner");
     expect(e.patches.every((p) => !p.done)).toBe(true); // temiz sayfa, lekeler dolu
   });
 
-  it("dönme sırasında fırçalama sayılmaz ve ilerleme geriye gitmez", () => {
+  it("çene açıklığı ve diş sanatı karışımı eğrileri: önce sabit, sonra tek yönlü; sonunda tam 1", () => {
+    expect(jawOpening(0)).toBe(0);
+    expect(jawOpening(OPEN_FROM)).toBeCloseTo(0, 9);
+    expect(jawOpening(OPEN_TO)).toBeCloseTo(1, 9);
+    expect(jawOpening(1)).toBeCloseTo(1, 9);
+    // OPEN_FROM'dan aşım noktasına kadar artar (tek yönlü iniş), sonra hafifçe geri döner
+    let prev = 0;
+    let peak = 0;
+    for (let p = OPEN_FROM; p <= OPEN_TO + 1e-9; p += 0.005) {
+      const v = jawOpening(p);
+      peak = Math.max(peak, v);
+      if (v < prev - 1e-9) expect(peak).toBeGreaterThan(1); // geri dönüş yalnızca aşımdan sonra
+      prev = v;
+    }
+    expect(peak).toBeGreaterThan(1.02);
+    expect(peak).toBeLessThan(1.08);
+    // karışım: 0 → 1, monoton, çene inmeden başlamaz, çene inince tamam
+    expect(artBlend(0)).toBe(0);
+    expect(artBlend(OPEN_FROM)).toBe(0);
+    expect(artBlend(OPEN_TO)).toBe(1);
+    expect(artBlend(1)).toBe(1);
+    let b = 0;
+    for (let p = 0; p <= 1; p += 0.01) {
+      expect(artBlend(p)).toBeGreaterThanOrEqual(b - 1e-12);
+      b = artBlend(p);
+    }
+  });
+
+  it("ağız açılırken fırçalama sayılmaz ve ilerleme geriye gitmez", () => {
     const seen: number[] = [];
     const e = new GameEngine(buildPhases(), { onProgress: (v) => seen.push(v) });
     e.start();
@@ -255,13 +306,13 @@ describe("Yüz dönme geçişi (diş araları → iç yüzey)", () => {
 
   it("tam oyun yine 6 aşamayla biter ve onComplete bir kez çağrılır", () => {
     let completes = 0;
-    const turnCount = { n: 0 };
-    const e = new GameEngine(buildPhases(), { onComplete: () => completes++, onTurn: () => turnCount.n++ });
+    const openCount = { n: 0 };
+    const e = new GameEngine(buildPhases(), { onComplete: () => completes++, onOpen: () => openCount.n++ });
     e.start();
     playAll(e);
     expect(e.status).toBe("done");
     expect(completes).toBe(1);
-    expect(turnCount.n).toBe(1); // tüm oyunda tek kez döner
+    expect(openCount.n).toBe(1); // tüm oyunda ağız tek kez açılır
   });
 });
 
@@ -353,19 +404,19 @@ describe('Kendini değerlendirme sorusu ("Sence yeterli ve etkin temizlendi mi?"
     expect(asked).toEqual([0]);
   });
 
-  it("yüz dönmesi (diş araları → iç yüzey) soru cevaplanınca başlar, önce değil", () => {
+  it("ağız açılması (diş araları → iç yüzey) soru cevaplanınca başlar, önce değil", () => {
     const e = new GameEngine(buildPhases(), {}, { selfCheck: true });
     e.start();
     finishPhase(e); // 0. aşama
     e.answerCheck();
     untilPlaying(e);
-    finishPhase(e); // 1. aşama (diş araları): sonraki iç yüzey → yüz dönecek
+    finishPhase(e); // 1. aşama (diş araları): sonraki iç yüzey → ağız açılacak
     expect(e.status).toBe("asking");
-    expect(e.turning).toBe(false); // soru sırasında dönme başlamadı
-    expect(e.turnScale).toBe(1);
+    expect(e.opening).toBe(false); // soru sırasında ağız açılması başlamadı
+    expect(e.openAmount).toBe(0);
     e.answerCheck();
     expect(e.status).toBe("transition");
-    expect(e.turning).toBe(true);
+    expect(e.opening).toBe(true);
   });
 
   it("son aşamada (diş ipi) soru yok: tam oyunda 5 soru [0..4] sorulur, her seferinde sahne tamamen temiz, oyun bir kez biter", () => {

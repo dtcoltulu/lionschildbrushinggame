@@ -1,10 +1,11 @@
 import { devices, expect, test, type Locator, type Page } from "@playwright/test";
-import { captureEvents, finishGameWithHelp, scrubWholeCanvas, type Captured } from "./helpers";
+import { JAW_DROP, MOUTH, MOUTH_IN } from "../src/game/layout";
+import { answerCheckIfOpen, captureEvents, finishGameWithHelp, scrubWholeCanvas, type Captured } from "./helpers";
 
 test.describe("Oyun akışı", () => {
   test("QR adresi → öğretici → 6 aşama → ödül → tekrar oyna; olaylar doğru", async ({ page }) => {
     const cap = captureEvents(page);
-    // Ses, animasyon ve yüz dönme dahil hiçbir yakalanmamış JS hatası olmamalı.
+    // Ses, animasyon ve ağız açılması dahil hiçbir yakalanmamış JS hatası olmamalı.
     const pageErrors: string[] = [];
     page.on("pageerror", (err) => pageErrors.push(err.message));
     await page.goto("/oyun");
@@ -93,6 +94,79 @@ test.describe("Oyun akışı", () => {
     await page.getByTestId("start").click();
     await page.getByTestId("skip-tutorial").click();
     await finishGameWithHelp(page);
+  });
+
+  test("diş araları bitince yüz dönmez: çene iner, ağız kocaman açılır; sonra iç yüzeyler fırçalanır", async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on("pageerror", (err) => pageErrors.push(err.message));
+    await page.goto("/oyun");
+    await page.getByTestId("start").click();
+    await page.getByTestId("skip-tutorial").click();
+    const dlg = page.getByTestId("check-dialog");
+    // 1. aşama bitince çıkan soruyu geç; 2. aşama (diş araları) bitince çıkan soruda dur
+    await expect
+      .poll(
+        async () => {
+          if (await dlg.isVisible()) {
+            if ((await page.getByTestId("play-screen").getAttribute("data-phase")) === "2") return "diş araları bitti";
+            await answerCheckIfOpen(page);
+            return "ilk soru";
+          }
+          await page.getByTestId("help").click({ timeout: 500 }).catch(() => {});
+          return "oynanıyor";
+        },
+        { timeout: 120_000, intervals: [100] },
+      )
+      .toBe("diş araları bitti");
+    await page.getByTestId("check-no").click();
+    await expect(page.getByTestId("check-continue")).toBeVisible();
+
+    // Sayfa içinden her karede üç nokta okunur: yüzün yanağı (yüz), yüzün dışı (arka plan) ve alt dudağın tam açık ağızdaki yeri.
+    const lipY = MOUTH_IN.y + MOUTH_IN.h + JAW_DROP + (MOUTH.y + MOUTH.h - (MOUTH_IN.y + MOUTH_IN.h)) / 2;
+    const probe = page.evaluate(
+      ({ face, bg, lip, ms }) =>
+        new Promise<{ t: number; face: number[]; bg: number[]; lip: number[] }[]>((resolve) => {
+          const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game-canvas"]')!;
+          const ctx = canvas.getContext("2d")!;
+          const W = canvas.clientWidth;
+          const H = canvas.clientHeight;
+          const dpr = canvas.width / W;
+          const scale = Math.min(W / 360, H / 520);
+          const ox = (W - 360 * scale) / 2;
+          const oy = (H - 520 * scale) / 2;
+          const at = (p: number[]) => Array.from(ctx.getImageData(Math.round(dpr * (ox + scale * p[0]!)), Math.round(dpr * (oy + scale * p[1]!)), 1, 1).data);
+          const out: { t: number; face: number[]; bg: number[]; lip: number[] }[] = [];
+          const t0 = performance.now();
+          const tick = () => {
+            const t = performance.now() - t0;
+            out.push({ t, face: at(face), bg: at(bg), lip: at(lip) });
+            if (t < ms) requestAnimationFrame(tick);
+            else resolve(out);
+          };
+          requestAnimationFrame(tick);
+        }),
+      { face: [20, 200], bg: [2, 500], lip: [180, lipY], ms: 2600 },
+    );
+    await page.getByTestId("check-continue").click();
+
+    // Sahne değişince yeni aşama başlar: "Aaa de!" ve iç yüzey yönergesi
+    await expect(page.getByTestId("callout")).toHaveText("Aaa de!");
+    await expect(page.getByTestId("message")).toContainText("Ağzını kocaman aç");
+    await expect(page.getByTestId("play-screen")).toHaveAttribute("data-phase", "3");
+
+    const samples = await probe;
+    expect(samples.length).toBeGreaterThan(30);
+    const lum = (c: number[]) => 0.3 * c[0]! + 0.59 * c[1]! + 0.11 * c[2]!;
+    const coral = (c: number[]) => c[0]! > 200 && c[1]! > 70 && c[1]! < 150 && c[2]! > 70 && c[2]! < 150; // dudak #FF6B6B
+    // Yüz dönmez: yanak noktası ilk karesinden son karesine dek yüzün rengindedir (yüz yana dönse arka plan görünürdü)
+    for (const s of samples) expect(lum(s.face) - lum(s.bg), `t=${Math.round(s.t)} ms`).toBeGreaterThan(30);
+    // Çene iner: başta alt dudağın olacağı nokta yüzün rengidir, sonda dudak rengidir
+    expect(coral(samples[0]!.lip)).toBe(false);
+    expect(samples.some((s) => coral(s.lip))).toBe(true);
+    expect(coral(samples[samples.length - 1]!.lip)).toBe(true);
+    // Oynanış sürüyor: iç yüzeyler bitirilebilir
+    await finishGameWithHelp(page);
+    expect(pageErrors).toEqual([]);
   });
 
   test("ses düğmesi çalışır ve tercih saklanır", async ({ page }) => {
@@ -299,7 +373,7 @@ async function playAnsweringQuestions(page: Page, answers: Answer[]): Promise<Qu
           results.push({ phase, answer: a, text: await fb.innerText() });
           await page.getByTestId("check-continue").click();
           await expect(dlg).toBeHidden();
-          // Cevaptan sonra sonraki aşamaya geçilir (yüz dönmesi/geçiş dahil): aşama göstergesi bir artar.
+          // Cevaptan sonra sonraki aşamaya geçilir (ağız açılması/geçiş dahil): aşama göstergesi bir artar.
           await expect(page.getByTestId("play-screen")).toHaveAttribute("data-phase", String(phase + 1), { timeout: 8000 });
           return "playing";
         }

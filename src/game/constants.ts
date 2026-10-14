@@ -18,8 +18,15 @@ export const EASY_AFTER_MS = 11000;
 export const PHASE_EASY_ALL_MS = 24000;
 
 export const PHASE_TRANSITION_MS = 1400;
-/** Yüz dönme geçişi (dış yüzey/diş aralarından iç yüzeye geçerken): yarısında sahne değişir. */
-export const TURN_TRANSITION_MS = 1900;
+/**
+ * Ağız açılma geçişi (diş aralarından iç yüzeye geçerken): yüz dönmez, çene aşağı iner ve ağız kocaman açılır.
+ * Geçiş ilerlemesinin (0..1) `OPEN_FROM`–`OPEN_TO` aralığında çene iner; `OPEN_TO`'da sahne (lekeler) değişir.
+ */
+export const OPEN_TRANSITION_MS = 1500;
+export const OPEN_FROM = 0.1;
+export const OPEN_TO = 0.5;
+/** Çene tam inince yeni lekelerin görünür olma süresi (geçiş ilerlemesinin oranı; ≈ 0,2 sn): lekeler birden çıkmaz, belirir. */
+export const OPEN_APPEAR = 0.14;
 export const START_DELAY_MS = 900;
 /** Arka plandan dönüşte sürenin şişmemesi için tek karede en fazla sayılan süre. */
 export const MAX_DT_MS = 100;

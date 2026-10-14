@@ -68,6 +68,18 @@ function archRow(spec: ArchSpec, upper: boolean): Rect[] {
 export const UPPER_TEETH: Rect[] = archRow(UPPER_ARCH, true);
 export const LOWER_TEETH: Rect[] = archRow(LOWER_ARCH, false);
 
+// ---- İç yüzey aşaması: ağız kocaman açık --------------------------------------------
+// Yüz dönmez; çene aşağı iner (diş hekiminde "aaa de" gibi). Üst çene ve üst dudak yerinde kalır; alt dişler, dil ve alt dudak
+// `JAW_DROP` kadar iner. Aradaki boşlukta damak, küçük dil, bademcikler ve dil görünür; dişlerin arka yüzeyleri fırçalanır.
+/** Çene tam açıkken alt çenenin (alt dişler, alt dudak, dil) aşağı indiği mesafe (dünya birimi). */
+export const JAW_DROP = 84;
+/** Ağız tam açıkken dudak ve ağız içi sınırları: yalnızca alt kenar `JAW_DROP` kadar iner. */
+export const MOUTH_OPEN = { ...MOUTH, h: MOUTH.h + JAW_DROP };
+export const MOUTH_IN_OPEN = { ...MOUTH_IN, h: MOUTH_IN.h + JAW_DROP };
+/** İç yüzey aşamasındaki dişler: üst sıra yerinde, alt sıra çene ile birlikte aşağıda. */
+export const INNER_UPPER_TEETH: Rect[] = UPPER_TEETH;
+export const INNER_LOWER_TEETH: Rect[] = LOWER_TEETH.map((t) => ({ ...t, y: t.y + JAW_DROP }));
+
 // ---- Çiğneme yüzeyleri: 12 diş (her çenede 6), üstten görünüş -------------------
 // Her çenenin iki sırası vardır (sol ve sağ taraf); her sırada öndeki küçük azı + iki azı bitişik dizilir (gerçek çene gibi).
 export type CrownKind = "premolar" | "molar4" | "molar5";
@@ -138,7 +150,7 @@ function outer(): PhaseSpec {
 }
 
 function inner(): PhaseSpec {
-  return { kind: "inner", patches: [...rowPatches(UPPER_TEETH, INNER_UP, 60), ...rowPatches(LOWER_TEETH, INNER_LO, 90)] };
+  return { kind: "inner", patches: [...rowPatches(INNER_UPPER_TEETH, INNER_UP, 60), ...rowPatches(INNER_LOWER_TEETH, INNER_LO, 90)] };
 }
 
 /** Diş araları (ve diş eti kenarı): her iki komşu dişin arasındaki boşlukta artık. */

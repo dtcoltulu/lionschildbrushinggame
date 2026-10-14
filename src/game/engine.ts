@@ -4,9 +4,11 @@ import {
   HINT_AFTER_MS,
   MAX_DT_MS,
   MIN_STROKE,
+  OPEN_FROM,
+  OPEN_TO,
+  OPEN_TRANSITION_MS,
   PHASE_EASY_ALL_MS,
   PHASE_TRANSITION_MS,
-  TURN_TRANSITION_MS,
   SWIPES_PER_PATCH,
 } from "./constants";
 import { StrokeTracker, type Swipe } from "./brush";
@@ -21,6 +23,24 @@ export interface EngineOptions {
    * oyun durur, sonraki aşamaya geçiş cevaptan sonra başlar. Varsayılan: kapalı.
    */
   selfCheck?: boolean;
+}
+
+const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
+
+/**
+ * Çene açıklığı eğrisi: ağız açılma geçişinin ilerlemesi `p` (0..1) → 0 (kapalı) … 1 (tam açık).
+ * `OPEN_FROM`–`OPEN_TO` arasında iner; çene hafifçe fazla iner (en çok ≈ %5) ve yerine oturur. Önce ve sonra sabit.
+ */
+export function jawOpening(p: number): number {
+  const t = clamp01((p - OPEN_FROM) / (OPEN_TO - OPEN_FROM));
+  const c1 = 1.1;
+  return 1 + (c1 + 1) * (t - 1) ** 3 + c1 * (t - 1) ** 2;
+}
+
+/** Diş sanatı karışımı: çene inerken ön yüz (dış) çizimden iç yüz çizimine yumuşakça geçer (0 → 1). */
+export function artBlend(p: number): number {
+  const t = clamp01((p - (OPEN_FROM + 0.1)) / (OPEN_TO - OPEN_FROM - 0.1));
+  return t * t * (3 - 2 * t);
 }
 
 /**
@@ -61,24 +81,30 @@ export class GameEngine {
     return this.phases[Math.min(this.phaseIndex, this.phases.length - 1)]!.kind;
   }
 
-  /** Geçiş yüzün dönmesiyle mi yapılıyor? (yalnızca iç yüzeye geçerken) */
-  turning = false;
+  /** Geçiş çenenin inip ağzın kocaman açılmasıyla mı yapılıyor? (yalnızca diş aralarından iç yüzeye geçerken) */
+  opening = false;
   private swapped = false;
+  /** `onOpen` (ses) bu geçişte çalındı mı? Çene inmeye başlarken bir kez çalınır. */
+  private openCued = false;
 
   private get transitionDuration(): number {
-    return this.turning ? TURN_TRANSITION_MS : PHASE_TRANSITION_MS;
+    return this.opening ? OPEN_TRANSITION_MS : PHASE_TRANSITION_MS;
   }
 
   get transitionProgress(): number {
     return Math.min(1, this.transitionElapsed / this.transitionDuration);
   }
 
-  /** Yüzün yatay ölçeği: 1 → 0 (yan dönüş) → 1. Sahne tam ortada değişir. Dönme yokken 1. */
-  get turnScale(): number {
-    if (this.status !== "transition" || !this.turning) return 1;
-    const p = this.transitionProgress;
-    // Yumuşatılmış (ease-in-out) cos: yan tarafa doğru yavaşlar, döndükten sonra açılır
-    return Math.max(0.03, Math.abs(Math.cos(p * Math.PI)));
+  /** Çene açıklığı: ağız açılma geçişinde 0 → 1 (hafif aşımla); geçiş dışında 0. (İç yüzey aşamasının kendisini çizim bilir.) */
+  get openAmount(): number {
+    if (this.status !== "transition" || !this.opening) return 0;
+    return jawOpening(this.transitionProgress);
+  }
+
+  /** Ağız açılma geçişinde dişlerin dış → iç çizim karışımı (0..1); geçiş dışında 0. */
+  get openBlend(): number {
+    if (this.status !== "transition" || !this.opening) return 0;
+    return artBlend(this.transitionProgress);
   }
 
   start(): void {
@@ -142,7 +168,7 @@ export class GameEngine {
     this.afterProgress();
   }
 
-  /** Kendini değerlendirme sorusu cevaplandı: bitmiş aşamadan sonraki aşamaya geçiş (yüz dönmesi dahil) başlar. */
+  /** Kendini değerlendirme sorusu cevaplandı: bitmiş aşamadan sonraki aşamaya geçiş (ağız açılması dahil) başlar. */
   answerCheck(): void {
     if (this.status !== "asking") return;
     this.beginTransition();
@@ -163,7 +189,11 @@ export class GameEngine {
     } else if (this.status === "transition") {
       this.totalElapsed += dt;
       this.transitionElapsed += dt;
-      if (this.turning && !this.swapped && this.transitionElapsed >= this.transitionDuration / 2) this.swapToNext();
+      if (this.opening && !this.openCued && this.transitionProgress >= OPEN_FROM) {
+        this.openCued = true;
+        this.cb.onOpen?.();
+      }
+      if (this.opening && !this.swapped && this.transitionProgress >= OPEN_TO) this.swapToNext();
       if (this.transitionElapsed >= this.transitionDuration) this.advance();
     }
   }
@@ -264,8 +294,9 @@ export class GameEngine {
     this.status = "transition";
     this.transitionElapsed = 0;
     this.swapped = false;
+    this.openCued = false;
     const next = this.phases[this.phaseIndex + 1];
-    this.turning = next !== undefined && next.kind === "inner";
+    this.opening = next !== undefined && next.kind === "inner";
   }
 
   /**
@@ -285,19 +316,18 @@ export class GameEngine {
     if (ask) this.cb.onCheck?.(this.phaseIndex);
   }
 
-  /** Yüz yan dönünce: sonraki aşamanın sahnesi ve lekeleri yüklenir (oynanış geçişin sonunda başlar). */
+  /** Çene tam inince: sonraki aşamanın sahnesi ve lekeleri yüklenir (oynanış geçişin sonunda başlar). */
   private swapToNext(): void {
     this.swapped = true;
     this.phaseIndex += 1;
     this.loadPhase(this.phaseIndex);
-    this.cb.onTurn?.();
     this.cb.onPhaseStart?.(this.phaseIndex);
   }
 
   private advance(): void {
     if (this.swapped) {
       this.status = "playing";
-      this.turning = false;
+      this.opening = false;
       this.swapped = false;
       return;
     }
@@ -309,7 +339,7 @@ export class GameEngine {
     this.phaseIndex += 1;
     this.loadPhase(this.phaseIndex);
     this.status = "playing";
-    this.turning = false;
+    this.opening = false;
     this.cb.onPhaseStart?.(this.phaseIndex);
   }
 

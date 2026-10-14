@@ -102,3 +102,14 @@ export function domeFill(ctx: Ctx, cx: number, cy: number, rx: number, ry: numbe
   ctx.fill();
   ctx.restore();
 }
+
+/** İki "#RRGGBB" rengini karıştırır (t: 0 → a, 1 → b). Aşama geçişlerinde arka plan ve yüz rengini yumuşatır. */
+export function mixHex(a: string, b: string, t: number): string {
+  const k = Math.min(1, Math.max(0, t));
+  const ch = (s: string, i: number) => parseInt(s.slice(1 + i * 2, 3 + i * 2), 16);
+  const m = (i: number) =>
+    Math.round(ch(a, i) + (ch(b, i) - ch(a, i)) * k)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${m(0)}${m(1)}${m(2)}`;
+}

@@ -1,30 +1,36 @@
-import { BRUSH_RADIUS, WORLD_H, WORLD_W } from "./constants";
-import { rrect, type Ctx } from "./draw";
+import { BRUSH_RADIUS, OPEN_APPEAR, OPEN_TO, WORLD_H, WORLD_W } from "./constants";
+import { mixHex, rrect, type Ctx } from "./draw";
 import type { GameEngine } from "./engine";
 import {
   CHEW_SLABS,
+  JAW_DROP,
   LOWER_TEETH,
   MOUTH,
   MOUTH_IN,
   rand,
+  type Rect,
   TONGUE,
   toothRank,
   UPPER_TEETH,
 } from "./layout";
 import { BG, C, FACE } from "./palette";
-import { drawGumSprite, drawTongueSprite, FLOOR_THIN, warmGums } from "./gums";
+import { drawGumSprite, drawTongueSprite, warmGums } from "./gums";
 import { drawChewTiles, drawJawSlab, warmCrowns } from "./occlusal";
 import { quantizeRes, setDeviceScale, spriteResolution } from "./shade";
 import { drawTeethRow, warmTeeth } from "./toothsprite";
 import { drawTutorialToothSprite } from "./tutorialtooth";
-import { drawTooth, drawTutorialTooth, FLOOR, FRONT_TOOTH, GUM, INNER_TOOTH, PALATE } from "./teeth";
+import { drawTooth, drawTutorialTooth, FRONT_TOOTH, GUM, INNER_TOOTH, PALATE } from "./teeth";
 import type { PatchState, PhaseKind } from "./types";
+
+const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 
 // ---- Yüz ve ağız -----------------------------------------------------------------
 
-/** Sevimli büyük yüz: gözler, kaşlar, yanaklar. Çocuk bu yüzün dişlerini temizler. */
-function drawFace(ctx: Ctx, kind: PhaseKind) {
-  const tint = FACE[kind] ?? FACE.outer!;
+/**
+ * Sevimli büyük yüz: gözler, kaşlar, yanaklar. Çocuk bu yüzün dişlerini temizler.
+ * `open` (0..1): ağız açılırken kaşlar kalkar, gözler biraz büyür ("aaa!"); 0'da çizim ilk haliyle birebir aynıdır.
+ */
+function drawFace(ctx: Ctx, tint: string, open = 0) {
   ctx.fillStyle = tint;
   ctx.beginPath();
   ctx.ellipse(180, 290, 214, 300, 0, 0, Math.PI * 2);
@@ -37,27 +43,29 @@ function drawFace(ctx: Ctx, kind: PhaseKind) {
     ctx.fill();
   }
   // kaşlar
+  const lift = 9 * open;
   ctx.strokeStyle = "rgba(255,255,255,0.75)";
   ctx.lineWidth = 6;
   ctx.lineCap = "round";
   for (const x of [112, 248]) {
     ctx.beginPath();
-    ctx.arc(x, 62, 34, Math.PI * 1.2, Math.PI * 1.8);
+    ctx.arc(x, 62 - lift, 34, Math.PI * 1.2, Math.PI * 1.8);
     ctx.stroke();
   }
   // gözler
+  const eyeY = 60 - lift * 0.35;
   for (const x of [112, 248]) {
     ctx.fillStyle = "#fff";
     ctx.beginPath();
-    ctx.ellipse(x, 60, 24, 26, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, eyeY, 24, 26 + 2.5 * open, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = "#1c1038";
     ctx.beginPath();
-    ctx.arc(x, 70, 11, 0, Math.PI * 2);
+    ctx.arc(x, eyeY + 10 + 2 * open, 11, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = "#fff";
     ctx.beginPath();
-    ctx.arc(x + 4, 65, 3.5, 0, Math.PI * 2);
+    ctx.arc(x + 4, eyeY + 5 + 2 * open, 3.5, 0, Math.PI * 2);
     ctx.fill();
   }
   // burun
@@ -67,101 +75,11 @@ function drawFace(ctx: Ctx, kind: PhaseKind) {
   ctx.fill();
 }
 
-/**
- * İç yüzey aşamasında yüz dönmüştür: gözler yerine kafanın arkası ve saçlar görünür
- * (kulaklar, saç tutamları, tepede bir kıvrım ve altın tokası).
- */
-function drawHeadBack(ctx: Ctx) {
-  const tint = FACE.inner!;
-  ctx.fillStyle = tint;
-  ctx.beginPath();
-  ctx.ellipse(180, 290, 214, 300, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // kulaklar (yüzün iki yanında)
-  for (const [x, dir] of [[26, -1], [334, 1]] as const) {
-    ctx.fillStyle = "#166B7D";
-    ctx.beginPath();
-    ctx.ellipse(x, 196, 24, 34, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(0,0,0,0.22)";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(x + dir * -2, 196, 11, Math.PI * 0.3, Math.PI * 1.7, dir > 0);
-    ctx.stroke();
-  }
-
-  // saç: tepeyi ve alın hizasını (gözlerin olduğu yeri) kaplar, altı dalgalı
-  const hair = "#231F4F";
-  const hairLight = "#4A4699";
-  ctx.save();
-  ctx.beginPath();
-  ctx.ellipse(180, 290, 214, 300, 0, 0, Math.PI * 2);
-  ctx.clip();
-  ctx.fillStyle = hair;
-  ctx.beginPath();
-  ctx.moveTo(-40, -10);
-  ctx.lineTo(400, -10);
-  ctx.lineTo(400, 122);
-  // dalgalı alt kenar (sağdan sola)
-  for (let i = 0; i < 8; i++) {
-    const x1 = 400 - i * 55;
-    const x2 = x1 - 55;
-    ctx.quadraticCurveTo((x1 + x2) / 2, i % 2 ? 100 : 156, x2, 122 + (i % 2 ? -4 : 6));
-  }
-  ctx.lineTo(-40, 122);
-  ctx.closePath();
-  ctx.fill();
-
-  // saç telleri (açık renk vurgu çizgileri)
-  ctx.strokeStyle = hairLight;
-  ctx.lineWidth = 5;
-  ctx.lineCap = "round";
-  for (let i = 0; i < 9; i++) {
-    const x = 20 + i * 40;
-    ctx.beginPath();
-    ctx.moveTo(x, 8);
-    ctx.quadraticCurveTo(x + (i % 2 ? 16 : -16), 52, x + (i % 2 ? 6 : -6), 108);
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  // saçın parlak vurgusu: tepede yumuşak bir yay
-  ctx.strokeStyle = "rgba(160,150,255,0.35)";
-  ctx.lineWidth = 8;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.moveTo(70, 70);
-  ctx.quadraticCurveTo(180, 18, 290, 70);
-  ctx.stroke();
-
-  // tepede sevimli kıvrım / tüy tutamı (açık renk, koyu saçın üstünde belli olsun)
-  ctx.strokeStyle = hairLight;
-  ctx.lineWidth = 9;
-  ctx.beginPath();
-  ctx.moveTo(150, 74);
-  ctx.bezierCurveTo(138, 26, 200, 14, 196, 52);
-  ctx.bezierCurveTo(194, 70, 172, 66, 176, 52);
-  ctx.stroke();
-
-  // altın toka (yıldız)
-  ctx.fillStyle = C.gold;
-  ctx.beginPath();
-  for (let i = 0; i < 10; i++) {
-    const r = i % 2 === 0 ? 17 : 7.5;
-    const a = -Math.PI / 2 + (Math.PI * i) / 5;
-    ctx.lineTo(256 + Math.cos(a) * r, 64 + Math.sin(a) * r);
-  }
-  ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = "#D99A00";
-  ctx.lineWidth = 2;
-  ctx.stroke();
-}
+/** Köşe yarıçapları: üst köşeler sabit, alt köşeler çene indikçe yuvarlaklaşır (ağız "O" biçimine yaklaşır). */
+const openRadii = (base: number, grow: number): [number, number, number, number] => [base, base, base + grow, base + grow];
 
 function drawMouthFrame(ctx: Ctx, kind: PhaseKind) {
-  if (kind === "inner") drawHeadBack(ctx);
-  else drawFace(ctx, kind);
+  drawFace(ctx, FACE[kind] ?? FACE.outer!);
   ctx.fillStyle = C.lip;
   rrect(ctx, MOUTH.x, MOUTH.y, MOUTH.w, MOUTH.h, 96);
   ctx.fill();
@@ -175,42 +93,224 @@ function clipMouth(ctx: Ctx) {
   ctx.clip();
 }
 
-function drawFrontTeeth(ctx: Ctx, kind: PhaseKind, inner: boolean) {
+/** Bir diş sırası: gerçekçi sprite'lar; üretilemezse basit çizim. `inner`: dişin arka (dil/damak tarafı) yüzü. */
+function teethRow(ctx: Ctx, teeth: Rect[], upper: boolean, inner: boolean, res: number) {
+  const pal = inner ? INNER_TOOTH : FRONT_TOOTH;
+  drawTeethRow(ctx, teeth, upper, inner ? "inner" : "front", res, (t, i) => drawTooth(ctx, t, toothRank(i), upper, pal, inner, i < 6 ? -1 : 1));
+}
+
+/** `fn`'yi saydamlık `a` ile çizer (a ≈ 0 ise hiç çizmez, a ≈ 1 ise doğrudan çizer). */
+function withAlpha(ctx: Ctx, a: number, fn: () => void) {
+  if (a <= 0.002) return;
+  if (a >= 0.998) {
+    fn();
+    return;
+  }
+  ctx.save();
+  ctx.globalAlpha *= a;
+  fn();
+  ctx.restore();
+}
+
+/** Ön görünüş (dış yüzeyler, diş araları, diş ipi): kapalı gülüş; dişlerin ön yüzü. */
+function drawFrontTeeth(ctx: Ctx, kind: PhaseKind) {
   drawMouthFrame(ctx, kind);
   ctx.save();
   clipMouth(ctx);
   const res = spriteResolution();
-  if (inner) {
-    // İç yüz: dil (dişlerin arkasında)
-    drawTongueSprite(ctx, "inner", res, () => {
-      ctx.fillStyle = C.tongue;
+  // Önce dişler (boyunları diş etinin altına uzanır), sonra kıvrımlı diş eti şeridi üstlerine biner.
+  teethRow(ctx, UPPER_TEETH, true, false, res);
+  teethRow(ctx, LOWER_TEETH, false, false, res);
+  drawGumSprite(ctx, "front", UPPER_TEETH, true, MOUTH_IN, res, GUM);
+  drawGumSprite(ctx, "front", LOWER_TEETH, false, MOUTH_IN, res, GUM);
+  ctx.restore();
+}
+
+// ---- Açık ağız (iç yüzey aşaması) ---------------------------------------------------
+// Yüz dönmez: çene aşağı iner, ağız kocaman açılır; damak, küçük dil, bademcikler ve dil görünür, dişlerin arka yüzeyleri
+// fırçalanır. Geçiş animasyonu ile statik iç yüzey sahnesi aynı fonksiyonla çizilir (açıklık 1 = statik sahne), böylece
+// geçişin son karesi ile oynanış karesi birebir aynıdır.
+
+/** Dilin zirvesinin (çene tam açıkken) iç görünüş sprite'ına göre aşağı kayması: dil açık ağızda dişlerin arasına yükselir. */
+const TONGUE_DY = 40;
+/** Çene kapalıyken dil alt dişlerin arkasında gizlenir; çene indikçe bu kadar yükselerek görünür olur. */
+const TONGUE_HIDE = 70;
+
+/**
+ * Ağız boşluğunun resmi: yanak iç yüzü, koyu boğaz, bademcik kemerleri ve bademcikler, yumuşak damak, küçük dil ve dil.
+ * `o`: çene açıklığı. Resim tam açık ağız için çizilmiştir; çene indikçe belirir (kapalıyken hiç görünmez, ağız içi düz koyu
+ * kalır) ve dil çeneyle birlikte alçalarak alt dişlerin arkasından yükselir.
+ */
+function drawCavity(ctx: Ctx, o: number) {
+  const res = spriteResolution();
+  ctx.save();
+  ctx.globalAlpha *= Math.min(1, Math.max(0, o * 3));
+  // yanak iç yüzü: kenarlara doğru açık pembe, ortaya (boğaza) doğru koyulaşır
+  const cheeks = ctx.createLinearGradient(MOUTH_IN.x, 0, MOUTH_IN.x + MOUTH_IN.w, 0);
+  cheeks.addColorStop(0, "rgba(214,98,124,0.7)");
+  cheeks.addColorStop(0.2, "rgba(168,60,90,0.42)");
+  cheeks.addColorStop(0.4, "rgba(90,26,46,0)");
+  cheeks.addColorStop(0.6, "rgba(90,26,46,0)");
+  cheeks.addColorStop(0.8, "rgba(168,60,90,0.42)");
+  cheeks.addColorStop(1, "rgba(214,98,124,0.7)");
+  ctx.fillStyle = cheeks;
+  ctx.fillRect(MOUTH_IN.x, MOUTH_IN.y, MOUTH_IN.w, MOUTH_IN.h + JAW_DROP);
+
+  // boğaz: koyu ve derin
+  const throat = ctx.createRadialGradient(180, 318, 6, 180, 318, 124);
+  throat.addColorStop(0, "rgba(12,2,7,0.97)");
+  throat.addColorStop(0.5, "rgba(28,5,14,0.84)");
+  throat.addColorStop(1, "rgba(62,14,32,0)");
+  ctx.fillStyle = throat;
+  ctx.beginPath();
+  ctx.ellipse(180, 318, 128, 88, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // bademcikler ve ön damak kemerleri (iki yanda): kemer boğaz açıklığını çevreler, bademcik kemerin arkasında durur
+  for (const s of [-1, 1]) {
+    const x = (dx: number) => 180 + s * dx;
+    const tonsil = ctx.createRadialGradient(x(96), 314, 3, x(98), 322, 34);
+    tonsil.addColorStop(0, "#E88C9C");
+    tonsil.addColorStop(1, "#8F2F4A");
+    ctx.fillStyle = tonsil;
+    ctx.beginPath();
+    ctx.ellipse(x(98), 322, 19, 31, s * 0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(92,20,42,0.5)";
+    for (const [dx, dy, r] of [[-5, -10, 2.4], [4, 0, 2.1], [-3, 12, 1.9]] as const) {
       ctx.beginPath();
-      ctx.ellipse(180, 400, 176, 104, 0, 0, Math.PI * 2);
+      ctx.arc(x(98 + dx * s), 322 + dy, r, 0, Math.PI * 2);
       ctx.fill();
+    }
+    const arch = ctx.createLinearGradient(x(34), 0, x(96), 0);
+    arch.addColorStop(0, "#E67E96");
+    arch.addColorStop(1, "#A3405E");
+    ctx.fillStyle = arch;
+    ctx.beginPath();
+    ctx.moveTo(x(24), 250);
+    ctx.bezierCurveTo(x(60), 264, x(78), 298, x(72), 340);
+    ctx.lineTo(x(66), 376);
+    ctx.lineTo(x(94), 376);
+    ctx.bezierCurveTo(x(102), 330, x(98), 288, x(60), 246);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,214,224,0.5)";
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(x(28), 256);
+    ctx.bezierCurveTo(x(62), 270, x(80), 302, x(74), 342);
+    ctx.lineTo(x(69), 372);
+    ctx.stroke();
+  }
+
+  // yumuşak damak: üst dişlerin hemen altında, ortada sarkan koyu pembe perde
+  const soft = ctx.createLinearGradient(0, 250, 0, 296);
+  soft.addColorStop(0, "#C04C66");
+  soft.addColorStop(1, "rgba(140,40,70,0)");
+  ctx.fillStyle = soft;
+  ctx.beginPath();
+  ctx.moveTo(58, 250);
+  ctx.quadraticCurveTo(180, 308, 302, 250);
+  ctx.closePath();
+  ctx.fill();
+
+  // küçük dil
+  const uvula = ctx.createLinearGradient(170, 262, 190, 312);
+  uvula.addColorStop(0, "#F0A0AE");
+  uvula.addColorStop(1, "#C4566E");
+  ctx.fillStyle = uvula;
+  ctx.beginPath();
+  ctx.moveTo(169, 262);
+  ctx.bezierCurveTo(165, 280, 165, 294, 171, 306);
+  ctx.bezierCurveTo(175, 314, 185, 314, 189, 306);
+  ctx.bezierCurveTo(195, 294, 195, 280, 191, 262);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "rgba(110,28,52,0.55)";
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(255,228,232,0.6)";
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(174, 270);
+  ctx.quadraticCurveTo(171, 288, 175, 302);
+  ctx.stroke();
+
+  // dil: çeneyle birlikte iner; açık ağızda dişlerin arasına yükselir
+  ctx.save();
+  ctx.translate(0, TONGUE_DY + JAW_DROP * (o - 1) + TONGUE_HIDE * (1 - o));
+  drawTongueSprite(ctx, "inner", res, () => {
+    ctx.fillStyle = C.tongue;
+    ctx.beginPath();
+    ctx.ellipse(180, 394, 204, 106, 0, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.restore();
+
+  // üst dişlerin ağız boşluğuna düşürdüğü yumuşak gölge
+  const shade = ctx.createLinearGradient(0, 256, 0, 306);
+  shade.addColorStop(0, "rgba(20,0,10,0.55)");
+  shade.addColorStop(1, "rgba(20,0,10,0)");
+  ctx.fillStyle = shade;
+  ctx.fillRect(0, 256, WORLD_W, 50);
+  ctx.restore();
+}
+
+/**
+ * Açık ağız. `o`: çene açıklığı (0 kapalı … 1 tam açık; geçişte hafif aşabilir). `b` (0..1): dişlerin, diş etinin ve yüz/arka plan
+ * renklerinin dış görünüşten iç görünüşe karışımı. `o = 1, b = 1` statik iç yüzey sahnesidir.
+ */
+function drawOpenMouth(ctx: Ctx, o: number, b: number) {
+  const d = JAW_DROP * o;
+  const res = spriteResolution();
+  drawFace(ctx, mixHex(FACE.gaps!, FACE.inner!, b), o);
+  ctx.fillStyle = C.lip;
+  rrect(ctx, MOUTH.x, MOUTH.y, MOUTH.w, MOUTH.h + d, openRadii(96, 40 * o));
+  ctx.fill();
+  ctx.fillStyle = C.mouth;
+  rrect(ctx, MOUTH_IN.x, MOUTH_IN.y, MOUTH_IN.w, MOUTH_IN.h + d, openRadii(84, 40 * o));
+  ctx.fill();
+
+  ctx.save();
+  rrect(ctx, MOUTH_IN.x, MOUTH_IN.y, MOUTH_IN.w, MOUTH_IN.h + d, openRadii(84, 40 * o));
+  ctx.clip();
+  drawCavity(ctx, o);
+
+  // Dişler: ön yüz opak; üstüne iç yüz `b` saydamlıkla biner (b = 1'de yalnızca iç yüz). Alt sıra çeneyle birlikte iner.
+  for (const inner of [false, true]) {
+    if (inner ? b <= 0.002 : b >= 0.998) continue;
+    withAlpha(ctx, inner ? b : 1, () => {
+      teethRow(ctx, UPPER_TEETH, true, inner, res);
+      ctx.save();
+      ctx.translate(0, d);
+      teethRow(ctx, LOWER_TEETH, false, inner, res);
+      ctx.restore();
     });
   }
-  // Önce dişler (boyunları diş etinin altına uzanır), sonra kıvrımlı diş eti şeridi üstlerine biner.
-  const pal = inner ? INNER_TOOTH : FRONT_TOOTH;
-  const view = inner ? "inner" : "front";
-  drawTeethRow(ctx, UPPER_TEETH, true, view, res, (t, i) => drawTooth(ctx, t, toothRank(i), true, pal, inner, i < 6 ? -1 : 1));
-  drawTeethRow(ctx, LOWER_TEETH, false, view, res, (t, i) => drawTooth(ctx, t, toothRank(i), false, pal, inner, i < 6 ? -1 : 1));
-  drawGumSprite(ctx, inner ? "palate" : "front", UPPER_TEETH, true, MOUTH_IN, res, inner ? PALATE : GUM);
-  if (inner) drawGumSprite(ctx, "floor", LOWER_TEETH, false, MOUTH_IN, res, FLOOR, FLOOR_THIN);
-  else drawGumSprite(ctx, "front", LOWER_TEETH, false, MOUTH_IN, res, GUM);
+  // Diş eti şeritleri. Üst çene: pembe diş eti (dış) ↔ damak (iç) yumuşak geçiş. Alt çene: dil dişlerin arkasında kaldığı için
+  // her zaman dişlerin altındaki diş eti (boyunları da örter), çeneyle birlikte iner.
+  withAlpha(ctx, 1 - b, () => drawGumSprite(ctx, "front", UPPER_TEETH, true, MOUTH_IN, res, GUM));
+  withAlpha(ctx, b, () => drawGumSprite(ctx, "palate", UPPER_TEETH, true, MOUTH_IN, res, PALATE));
+  ctx.save();
+  ctx.translate(0, d);
+  drawGumSprite(ctx, "front", LOWER_TEETH, false, MOUTH_IN, res, GUM);
+  ctx.restore();
   ctx.restore();
 }
 
 function drawOuter(ctx: Ctx) {
-  drawFrontTeeth(ctx, "outer", false);
+  drawFrontTeeth(ctx, "outer");
 }
 function drawGaps(ctx: Ctx) {
-  drawFrontTeeth(ctx, "gaps", false);
+  drawFrontTeeth(ctx, "gaps");
 }
 function drawFloss(ctx: Ctx) {
-  drawFrontTeeth(ctx, "floss", false);
+  drawFrontTeeth(ctx, "floss");
 }
 function drawInner(ctx: Ctx) {
-  drawFrontTeeth(ctx, "inner", true);
+  drawOpenMouth(ctx, 1, 1);
 }
 
 function drawChewing(ctx: Ctx) {
@@ -375,10 +475,10 @@ function drawDebris(ctx: Ctx, p: PatchState, alpha: number) {
   ctx.restore();
 }
 
-function drawGerm(ctx: Ctx, p: PatchState, t: number, reduced: boolean) {
+function drawGerm(ctx: Ctx, p: PatchState, t: number, reduced: boolean, appear = 1) {
   const flee = p.done ? Math.min(1, p.cleanedFor / 450) : 0;
   const scale = (1 - p.clean * 0.45) * (1 - flee * 0.6);
-  const alpha = 1 - flee;
+  const alpha = (1 - flee) * appear;
   if (alpha <= 0.02) return;
   const wob = reduced ? 0 : Math.sin(t / 220 + p.seed * 8) * 2;
   const cx = p.x;
@@ -572,15 +672,9 @@ function buildSceneCache(kind: PhaseKind, base: DOMMatrix, key: string): SceneCa
   return { key, canvas, dx: x0, dy: y0 };
 }
 
-/**
- * Sahneyi çizer. `base`: bu karenin başındaki (yüz dönme ölçeği uygulanmadan önceki) dönüşüm.
- * `crisp`: ek ölçek yok; önbellek tam piksel hizasında basılır (bulanıklık olmaz).
- */
-function drawScene(ctx: Ctx, kind: PhaseKind, base: DOMMatrix | null, crisp: boolean, useCache: boolean): void {
-  if (!base || !useCache) {
-    SCENES[kind](ctx);
-    return;
-  }
+/** Bu sahne türü ve ekran ölçeği için önbelleği kurar (varsa yeniden kullanır). Önbellek kullanılamıyorsa null. */
+function ensureSceneCache(ctx: Ctx, kind: PhaseKind, base: DOMMatrix | null): SceneCache | null {
+  if (!base) return null;
   const key = `${kind}|${base.a}|${base.d}|${base.e}|${base.f}`;
   let cache = sceneCaches.get(ctx) ?? null;
   if (!cache || cache.key !== key) {
@@ -588,19 +682,22 @@ function drawScene(ctx: Ctx, kind: PhaseKind, base: DOMMatrix | null, crisp: boo
     if (cache) sceneCaches.set(ctx, cache);
     else sceneCaches.delete(ctx);
   }
+  return cache;
+}
+
+/**
+ * Sahneyi çizer. `base`: bu karenin başındaki dönüşüm (yalnızca ölçek + öteleme ise önbellek tam piksel hizasında basılır).
+ */
+function drawScene(ctx: Ctx, kind: PhaseKind, base: DOMMatrix | null, useCache: boolean): void {
+  const cache = useCache ? ensureSceneCache(ctx, kind, base) : null;
   if (!cache) {
     SCENES[kind](ctx);
     return;
   }
-  if (crisp) {
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.drawImage(cache.canvas, cache.dx, cache.dy);
-    ctx.restore();
-  } else {
-    // Yüz dönerken: önbellek dünya koordinatında, o anki (yatay daralmış) dönüşümle basılır.
-    ctx.drawImage(cache.canvas, (cache.dx - base.e) / base.a, (cache.dy - base.f) / base.d, cache.canvas.width / base.a, cache.canvas.height / base.d);
-  }
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(cache.canvas, cache.dx, cache.dy);
+  ctx.restore();
 }
 
 // ---- Önceden hazırlama ---------------------------------------------------------------
@@ -624,32 +721,37 @@ export function renderFrame(ctx: Ctx, engine: GameEngine, t: number, opts: Rende
   const kind = engine.currentKind;
   const base = typeof ctx.getTransform === "function" ? ctx.getTransform() : null;
   if (base) setDeviceScale(base.a);
-  const [c1, c2] = BG[kind] ?? BG.outer!;
+  // Ağız açılırken (diş araları → iç yüzey) çene iner; arka plan ve yüz rengi dıştan içe yumuşakça değişir.
+  const opening = engine.status === "transition" && engine.opening && !opts.reducedMotion;
+  const blend = opening ? engine.openBlend : 0;
+  const [c1, c2] = opening
+    ? [mixHex(BG.gaps![0], BG.inner![0], blend), mixHex(BG.gaps![1], BG.inner![1], blend)]
+    : (BG[kind] ?? BG.outer!);
   const bg = ctx.createLinearGradient(0, 0, 0, WORLD_H);
   bg.addColorStop(0, c1);
   bg.addColorStop(1, c2);
   ctx.fillStyle = bg;
   ctx.fillRect(-2000, -2000, 4000 + WORLD_W, 4000 + WORLD_H);
 
-  // Yüz dönerken (dış/diş araları → iç yüzey) sahne ve lekeler yatayda daralıp yeniden açılır.
-  const sx = opts.reducedMotion ? 1 : engine.turnScale;
   ctx.save();
-  if (sx !== 1) {
-    const hop = Math.sin(engine.transitionProgress * Math.PI) * -10; // dönerken hafifçe yukarı
-    ctx.translate(WORLD_W / 2, WORLD_H / 2 + hop);
-    ctx.scale(sx, 1);
-    ctx.translate(-WORLD_W / 2, -WORLD_H / 2);
+  if (opening) {
+    drawOpenMouth(ctx, engine.openAmount, blend);
+    // İç yüzey sahnesi geçişin sonuna doğru önbelleğe alınır: oynanışın ilk karesinde takılma olmasın.
+    if (engine.transitionProgress > 0.7 && opts.cache !== false) ensureSceneCache(ctx, "inner", base);
+  } else {
+    drawScene(ctx, kind, base, opts.cache !== false);
   }
-  drawScene(ctx, kind, base, sx === 1, opts.cache !== false);
 
+  // Çene tam inince (sahne değişince) yeni lekeler birden çıkmaz, kısa sürede belirir.
+  const appear = opening && engine.currentKind === "inner" ? clamp01((engine.transitionProgress - OPEN_TO) / OPEN_APPEAR) : 1;
   for (const p of engine.patches) {
     const fade = p.done ? Math.max(0, 1 - p.cleanedFor / 350) : 1 - p.clean * 0.92;
-    drawDebris(ctx, p, fade);
+    drawDebris(ctx, p, fade * appear);
   }
-  for (const p of engine.patches) if (p.kind === "germ") drawGerm(ctx, p, t, opts.reducedMotion);
+  for (const p of engine.patches) if (p.kind === "germ") drawGerm(ctx, p, t, opts.reducedMotion, appear);
   ctx.restore();
 
-  if (engine.status === "transition" && !engine.turning && !opts.reducedMotion) drawSheen(ctx, engine.transitionProgress);
+  if (engine.status === "transition" && !engine.opening && !opts.reducedMotion) drawSheen(ctx, engine.transitionProgress);
 
   const floss = kind === "floss";
   if (engine.hintIndex !== null && engine.status === "playing") {

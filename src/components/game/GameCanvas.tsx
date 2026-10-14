@@ -49,7 +49,7 @@ export function GameCanvas({ mode, callbacks, controlRef, selfCheck = false }: P
         onComplete: (ms) => cbRef.current.onComplete?.(ms),
         onSwipe: () => cbRef.current.onSwipe?.(),
         onPatchCleaned: () => cbRef.current.onPatchCleaned?.(),
-        onTurn: () => cbRef.current.onTurn?.(),
+        onOpen: () => cbRef.current.onOpen?.(),
         onCheck: (i) => cbRef.current.onCheck?.(i),
       },
       { reducedMotion: reduced, swipesPerPatch: mode === "tutorial" ? 3 : undefined, selfCheck: mode === "game" && selfCheck },

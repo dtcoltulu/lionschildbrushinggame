@@ -312,12 +312,12 @@ export function quantizeRes(deviceScale: number): number {
 
 let deviceScale = 2;
 
-/** Çizim başında (yüz dönme ölçeği uygulanmadan önce) tuvalin dünya → cihaz pikseli ölçeği; sprite çözünürlüğünü belirler. */
+/** Çizim başında tuvalin dünya → cihaz pikseli ölçeği; sprite çözünürlüğünü belirler. */
 export function setDeviceScale(a: number): void {
   if (a > 0) deviceScale = a;
 }
 
-/** Sprite çözünürlüğü (geçerli cihaz ölçeğinden). Yüz dönerken ya da önbellek dışı çizimde de sabit kalır. */
+/** Sprite çözünürlüğü (geçerli cihaz ölçeğinden). Ağız açılırken ya da önbellek dışı çizimde de sabit kalır. */
 export function spriteResolution(): number {
   return quantizeRes(deviceScale);
 }

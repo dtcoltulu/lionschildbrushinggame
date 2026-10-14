@@ -1,5 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { buildPhases, LOWER_TEETH, MOUTH_IN, TOOTH_GAP, toothRank, UPPER_TEETH, UPPER_EDGE, LOWER_EDGE } from "@/game/layout";
+import { WORLD_H, WORLD_W } from "@/game/constants";
+import {
+  buildPhases,
+  INNER_LOWER_TEETH,
+  INNER_UPPER_TEETH,
+  JAW_DROP,
+  LOWER_TEETH,
+  MOUTH,
+  MOUTH_IN,
+  MOUTH_IN_OPEN,
+  MOUTH_OPEN,
+  TOOTH_GAP,
+  toothRank,
+  UPPER_TEETH,
+  UPPER_EDGE,
+  LOWER_EDGE,
+} from "@/game/layout";
 
 /** Ön dişlerin "gülüş tasarımı" oranları (altın oran / yinelenen estetik oran ilkesi). */
 describe("ön dişler: gülüş tasarımı oranları", () => {
@@ -85,5 +101,68 @@ describe("ön dişler: gülüş tasarımı oranları", () => {
     }
     expect(toothRank(5)).toBe(0);
     expect(toothRank(0)).toBe(5);
+  });
+});
+
+/** İç yüzey aşaması: yüz dönmez, çene iner; üst sıra yerinde, alt sıra çene ile birlikte `JAW_DROP` kadar aşağıdadır. */
+describe("iç yüzey aşaması: ağız kocaman açık", () => {
+  it("açık ağız yalnızca alt kenardan büyür (üst dudak ve üst çene yerinde); dünyaya sığar", () => {
+    expect(MOUTH_OPEN).toEqual({ ...MOUTH, h: MOUTH.h + JAW_DROP });
+    expect(MOUTH_IN_OPEN).toEqual({ ...MOUTH_IN, h: MOUTH_IN.h + JAW_DROP });
+    expect(MOUTH_OPEN.y).toBe(MOUTH.y);
+    expect(MOUTH_OPEN.y + MOUTH_OPEN.h).toBeLessThan(WORLD_H - 20); // alt dudak ekranın altına taşmaz
+    expect(JAW_DROP).toBeGreaterThan(40); // gerçekten "kocaman" açık
+  });
+
+  it("üst sıra dış yüzdekiyle aynı, alt sıra tam JAW_DROP aşağıda; boyut ve yatay yerleşim aynı (sprite'lar yeniden kullanılır)", () => {
+    expect(INNER_UPPER_TEETH).toEqual(UPPER_TEETH);
+    expect(INNER_LOWER_TEETH).toHaveLength(12);
+    INNER_LOWER_TEETH.forEach((t, i) => {
+      const o = LOWER_TEETH[i]!;
+      expect(t.x).toBe(o.x);
+      expect(t.w).toBe(o.w);
+      expect(t.h).toBe(o.h);
+      expect(t.y).toBeCloseTo(o.y + JAW_DROP, 9);
+    });
+  });
+
+  it("açık ağızda dişler ağız içine sığar ve üst ile alt sıra arasında geniş boşluk var (damak, küçük dil, dil görünsün)", () => {
+    for (const row of [INNER_UPPER_TEETH, INNER_LOWER_TEETH]) {
+      expect(row[0]!.x).toBeGreaterThan(MOUTH_IN_OPEN.x + 6);
+      expect(row[11]!.x + row[11]!.w).toBeLessThan(MOUTH_IN_OPEN.x + MOUTH_IN_OPEN.w - 6);
+      for (const t of row) {
+        expect(t.y).toBeGreaterThan(MOUTH_IN_OPEN.y + 14);
+        expect(t.y + t.h).toBeLessThan(MOUTH_IN_OPEN.y + MOUTH_IN_OPEN.h - 14);
+      }
+    }
+    for (let i = 0; i < 12; i++) {
+      const gap = INNER_LOWER_TEETH[i]!.y - (INNER_UPPER_TEETH[i]!.y + INNER_UPPER_TEETH[i]!.h);
+      expect(gap).toBeGreaterThan(JAW_DROP); // dış yüzdeki boşluğun (≈ 20) üstüne tam çene mesafesi eklenmiş
+    }
+  });
+
+  it("iç yüzey lekeleri açık ağızdaki dişlerin üstünde: her dişte bir leke, kendi dişinin içinde, ekranın içinde", () => {
+    const inner = buildPhases()[2]!;
+    expect(inner.kind).toBe("inner");
+    expect(inner.patches).toHaveLength(24);
+    const teeth = [...INNER_UPPER_TEETH, ...INNER_LOWER_TEETH];
+    inner.patches.forEach((p, i) => {
+      const t = teeth[i]!;
+      expect(p.x).toBeGreaterThan(t.x);
+      expect(p.x).toBeLessThan(t.x + t.w);
+      expect(p.y).toBeGreaterThan(t.y);
+      expect(p.y).toBeLessThan(t.y + t.h);
+      expect(p.x - p.r).toBeGreaterThan(0);
+      expect(p.x + p.r).toBeLessThan(WORLD_W);
+      expect(p.y + p.r).toBeLessThan(WORLD_H - 40); // parmak/fırça alt düğmelerin arkasında kalmaz
+    });
+    // alt sıra lekeleri dış yüzdekinden ortalama JAW_DROP kadar aşağıda (her aşamanın sapma tohumu farklı, ortalamada sapma sönümlenir)
+    const outer = buildPhases()[0]!.patches;
+    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    const lowerShift = mean(inner.patches.slice(12).map((p) => p.y)) - mean(outer.slice(12).map((p) => p.y));
+    expect(Math.abs(lowerShift - JAW_DROP)).toBeLessThan(6);
+    // üst sıra yerinde kalır
+    const upperShift = mean(inner.patches.slice(0, 12).map((p) => p.y)) - mean(outer.slice(0, 12).map((p) => p.y));
+    expect(Math.abs(upperShift)).toBeLessThan(6);
   });
 });

@@ -32,9 +32,9 @@ export const tr = {
     },
     {
       name: "İç yüzeyler",
-      intro: "Şimdi iç taraf!",
+      intro: "Ağzını kocaman aç! Dişlerin iç yüzünü fırçala.",
       done: "İç taraf da tamam!",
-      callout: "Bitmedi!",
+      callout: "Aaa de!",
     },
     {
       name: "Çiğneme yüzeyleri",

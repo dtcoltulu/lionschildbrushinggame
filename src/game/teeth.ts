@@ -227,8 +227,6 @@ export interface GumPalette {
 export const GUM: GumPalette = { base: "#F9788F", light: "#FFA3B5", margin: "#DB5873" };
 /** İç görünüşte üst çene: damak. */
 export const PALATE: GumPalette = { base: "#D9708A", light: "#EE95AA", margin: "#BF5772" };
-/** İç görünüşte alt çene: dil ve ağız tabanıyla bütünleşir. */
-export const FLOOR: GumPalette = { base: "#F26E88", light: "#FF8FA3", margin: "#D45672" };
 
 /** Bir kübik Bezier: [x0,y0, c1x,c1y, c2x,c2y, x1,y1]. */
 export type Cubic = [number, number, number, number, number, number, number, number];

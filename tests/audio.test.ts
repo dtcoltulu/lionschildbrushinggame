@@ -104,7 +104,7 @@ describe("sesler", () => {
     const { sfx } = await import("@/game/audio");
     expect(() => {
       sfx.yay(0);
-      sfx.turn();
+      sfx.open();
       sfx.fanfare();
       sfx.clean();
     }).not.toThrow();
@@ -121,20 +121,22 @@ describe("sesler", () => {
     const before = env.created.length;
     audio.setMuted(true);
     audio.sfx.yay(1);
-    audio.sfx.turn();
+    audio.sfx.open();
     audio.sfx.fanfare();
     vi.advanceTimersByTime(2000);
     expect(env.created.length).toBe(before);
     expect(env.said()).toHaveLength(0);
   });
 
-  it("yüz dönme sesi (whoosh) süzgeçli gürültü kurar", async () => {
+  it("ağız açma sesi: süzgeçli gürültü (whoosh) ve yumuşak bir ünlü (\"aaa\") kurar", async () => {
     const env = installFakeBrowser();
     const audio = await import("@/game/audio");
     audio.unlockAudio();
-    audio.sfx.turn();
-    expect(env.created).toContain("buffer");
-    expect(env.created).toContain("filter");
+    audio.sfx.open();
+    expect(env.created).toContain("buffer"); // whoosh
+    expect(env.created.filter((k) => k === "filter")).toHaveLength(2); // whoosh süzgeci + ünlü süzgeci
+    expect(env.created.filter((k) => k === "osc")).toHaveLength(1); // "aaa"
+    expect(env.oscTypes).toEqual(["sawtooth"]);
   });
 
   it("konuşma: yalnızca YEREL Türkçe ses kullanılır; bulut sesi asla", async () => {

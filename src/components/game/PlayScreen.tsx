@@ -107,7 +107,7 @@ export function PlayScreen({ onPhaseComplete, onComplete, selfCheck = false, onC
       onComplete(ms);
     },
     onSwipe: () => sfx.swipe(),
-    onTurn: () => sfx.turn(),
+    onOpen: () => sfx.open(),
     onCheck: (i: number) => {
       // Oyun bu sırada zaten durmuştur (motor "asking"de); çocuk önce temiz sahneyi görür, soru kısa gecikmeyle açılır.
       if (checkTimer.current) clearTimeout(checkTimer.current);
