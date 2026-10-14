@@ -28,7 +28,7 @@ export interface CampaignConfig {
   selfCheck?: boolean;
   /**
    * Doluysa ödül ekranında "standdaki görevliye göster / diş macunu" kartı yerine bu klinik fırsatı gösterilir
-   * (etkinlik bittiği, diş macunu kalmadığı durumlar için).
+   * (etkinlik bittiği, diş macunu kalmadığı durumlar için). Boşsa diş macunu kartı (`rewardLine`) görünür.
    */
   clinicOffer?: ClinicOffer;
   active: boolean;
@@ -52,6 +52,18 @@ export interface ClinicOffer {
   logoAlt?: string;
 }
 
+/**
+ * Koşuyolu Park Diş Kliniği ücretsiz muayene fırsatı. Ödül ekranında diş macunu kartı yerine gösterilir;
+ * asıl ve deneme kampanyası aynı tanımı kullanır (tek yerden değişir). Yalnızca doğrulanmış bilgiyi yazın.
+ */
+const KOSUYOLU_PARK_OFFER: ClinicOffer = {
+  title: "Ücretsiz muayene fırsatı!",
+  text: "Koşuyolu Park Diş Kliniği'nde dişlerini ücretsiz muayene ettirebilirsin.",
+  website: "www.kosuyolupark.com",
+  logoPath: "/assets/kosuyolu-park.png",
+  logoAlt: "Koşuyolu Park Diş Kliniği",
+};
+
 export const CAMPAIGNS: readonly CampaignConfig[] = [
   {
     campaignId: "lions-118y-2026-10-11",
@@ -70,8 +82,10 @@ export const CAMPAIGNS: readonly CampaignConfig[] = [
     logoPath: "/assets/lions-logo.png",
     qrLogoPath: "/assets/lions-logo-hd.png",
     // Her aşama bitince (son aşama hariç) "Sence yeterli ve etkin temizlendi mi?" sorusu; cevaplar anonim sayılır.
-    // Ödül ekranı (diş macunu kartı) değişmez: klinik fırsatı kartı yalnızca deneme kampanyasındadır.
     selfCheck: true,
+    // Ödül ekranında diş macunu / "standdaki görevliye göster" kartı yerine klinik fırsatı (etkinlik bitti, diş macunu dağıtımı yok).
+    // Diş macunu kartına (`rewardLine`) geri dönmek için bu satırı kaldırın.
+    clinicOffer: KOSUYOLU_PARK_OFFER,
     active: true,
   },
   {
@@ -91,16 +105,9 @@ export const CAMPAIGNS: readonly CampaignConfig[] = [
     rewardLine: "Diş macunu hediyeni al.",
     logoPath: "/assets/lions-logo.png",
     qrLogoPath: "/assets/lions-logo-hd.png",
-    // Yeni özellikler önce yalnızca deneme kampanyasında denenir. Soru (selfCheck) asıl kampanyada da açıktır;
-    // klinik fırsatı kartı (diş macunu kartı yerine) yalnızca burada.
+    // Yeni özellikler önce burada denenir. Soru (selfCheck) ve klinik fırsatı artık asıl kampanyada da açıktır.
     selfCheck: true,
-    clinicOffer: {
-      title: "Ücretsiz muayene fırsatı!",
-      text: "Koşuyolu Park Diş Kliniği'nde dişlerini ücretsiz muayene ettirebilirsin.",
-      website: "www.kosuyolupark.com",
-      logoPath: "/assets/kosuyolu-park.png",
-      logoAlt: "Koşuyolu Park Diş Kliniği",
-    },
+    clinicOffer: KOSUYOLU_PARK_OFFER,
     active: true,
   },
 ];

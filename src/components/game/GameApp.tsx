@@ -40,6 +40,13 @@ export function GameApp({ campaigns, defaultCampaignId }: Props) {
   // Telefonda ses: her dokunuşta ses bağlamı (askıdaysa) yeniden açılır
   useEffect(() => installAudioUnlock(), []);
 
+  // Klinik logosu ödül ekranından önce yüklensin: ekranda anında görünür ve service worker önbelleğine girer
+  // (çevrimdışı oynayan çocuk ödül ekranında kırık resim görmez).
+  const clinicLogo = campaign.clinicOffer?.logoPath;
+  useEffect(() => {
+    if (clinicLogo) new Image().src = clinicLogo;
+  }, [clinicLogo]);
+
   // Analytics başlatma + landing_view
   useEffect(() => {
     // URL'den doğrudan okunur (hidratasyon sırasındaki geçici değere güvenilmez): landing_view tek kez, doğru kampanyayla.

@@ -1,4 +1,4 @@
-import { devices, expect, test, type Page } from "@playwright/test";
+import { devices, expect, test, type Locator, type Page } from "@playwright/test";
 import { captureEvents, finishGameWithHelp, scrubWholeCanvas, type Captured } from "./helpers";
 
 test.describe("Oyun akışı", () => {
@@ -40,8 +40,8 @@ test.describe("Oyun akışı", () => {
     const reward = page.getByTestId("reward-screen");
     await expect(reward).toContainText("TEBRİKLER!");
     await expect(reward).toContainText("DİŞ KAHRAMANI OLDUN!");
-    await expect(reward).toContainText("Bu ekranı Lions standındaki görevliye göster.");
-    await expect(reward).toContainText("Diş macunu hediyeni al.");
+    // Asıl kampanya: diş macunu / standdaki görevli kartı yerine Koşuyolu Park ücretsiz muayene fırsatı ve web sitesi
+    await expectClinicOffer(reward);
     await expect(reward).toContainText("Günde 3 kez fırçala");
     await expect(reward).toContainText("Yaklaşık 2 dakika fırçala");
     await expect(reward).toContainText("Dişlerini düzenli kontrol ettir");
@@ -126,13 +126,27 @@ test.describe("Bağlantı sorunları", () => {
     const cap = captureEvents(page);
     await page.goto("/oyun");
     await expect.poll(() => cap.names.includes("landing_view"), { timeout: 10_000 }).toBe(true);
+    // Klinik logosu oyun başında yüklenip service worker önbelleğine alınır (çevrimdışı ödül ekranında görünsün)
+    await expect
+      .poll(
+        async () =>
+          page.evaluate(async () => {
+            const c = await caches.open("lions-static-v1");
+            return (await c.keys()).some((r) => r.url.endsWith("/assets/kosuyolu-park.png"));
+          }),
+        { timeout: 20_000 },
+      )
+      .toBe(true);
 
     await context.setOffline(true);
     await page.getByTestId("start").click();
     await page.getByTestId("skip-tutorial").click();
     await expect(page.getByTestId("play-screen")).toBeVisible();
     await finishGameWithHelp(page);
-    // Oyun çevrimdışı tamamlandı: ödül ekranı geldi. Kuyrukta bekleyen olaylar var.
+    // Oyun çevrimdışı tamamlandı: ödül ekranı geldi ve klinik logosu yüklü (kırık resim değil). Kuyrukta bekleyen olaylar var.
+    const logo = page.getByTestId("clinic-offer").getByRole("img", { name: "Koşuyolu Park Diş Kliniği" });
+    await expect(logo).toBeVisible();
+    expect(await logo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
     const queued = await page.evaluate(() => JSON.parse(localStorage.getItem("lions.q") ?? "[]").length);
     expect(queued).toBeGreaterThanOrEqual(6);
 
@@ -317,6 +331,24 @@ function expectQuestionRun(run: QuestionRun) {
   expect(results[2]!.text).not.toContain("diş araları"); // 3. aşama bitince diş araları artık sayılmaz
 }
 
+/** Ödül ekranında diş macunu / standdaki görevli yerine Koşuyolu Park ücretsiz muayene fırsatı ve web sitesi bağlantısı görünür. */
+async function expectClinicOffer(reward: Locator) {
+  const offer = reward.getByTestId("clinic-offer");
+  await expect(offer).toContainText("Ücretsiz muayene fırsatı!");
+  await expect(offer).toContainText("Koşuyolu Park Diş Kliniği");
+  await expect(offer.getByRole("img", { name: "Koşuyolu Park Diş Kliniği" })).toBeVisible();
+  // Kartın sonunda klinik web sitesi: dokunulabilir, yeni sekmede açılır, yönlendiren adres gönderilmez
+  const site = offer.getByTestId("clinic-website");
+  await expect(site).toBeVisible();
+  await expect(site).toContainText("www.kosuyolupark.com");
+  await expect(site).toHaveAttribute("href", "https://www.kosuyolupark.com");
+  await expect(site).toHaveAttribute("target", "_blank");
+  await expect(site).toHaveAttribute("rel", /noopener/);
+  await expect(site).toHaveAttribute("rel", /noreferrer/);
+  await expect(reward).not.toContainText("Diş macunu hediyeni al.");
+  await expect(reward).not.toContainText("görevliye göster");
+}
+
 /** Cevaplar anonim olay olarak, o kampanyanın kimliğiyle ve aşama numarasıyla gönderilir; sayılar cevaplarla eşleşir (ANSWERS). */
 async function expectAnswersSent(page: Page, cap: Captured, campaignId: string) {
   await page.evaluate(() => window.dispatchEvent(new Event("pagehide")));
@@ -337,47 +369,28 @@ async function expectAnswersSent(page: Page, cap: Captured, campaignId: string) 
 }
 
 test.describe('Kendini değerlendirme: "Sence yeterli ve etkin temizlendi mi?" (asıl ve deneme kampanyası)', () => {
-  test("ASIL kampanyada her aşama BİTİNCE (son aşama hariç) soru çıkar; oyun durur; Evet/Hayır geri bildirimi, geçiş ve sayım çalışır; ödül ekranı (diş macunu) değişmez", async ({ page }) => {
+  test("ASIL kampanyada her aşama BİTİNCE (son aşama hariç) soru çıkar; oyun durur; Evet/Hayır geri bildirimi, geçiş ve sayım çalışır; ödül ekranında diş macunu yerine klinik fırsatı çıkar", async ({ page }) => {
     const cap = captureEvents(page);
     const pageErrors: string[] = [];
     page.on("pageerror", (err) => pageErrors.push(err.message));
     await page.goto("/oyun");
     expectQuestionRun(await playAnsweringQuestions(page, ANSWERS));
 
-    // Ödül ekranı eskisi gibi: diş macunu / standdaki görevli; klinik fırsatı kartı yalnızca deneme kampanyasındadır.
-    const reward = page.getByTestId("reward-screen");
-    await expect(reward).toContainText("Bu ekranı Lions standındaki görevliye göster.");
-    await expect(reward).toContainText("Diş macunu hediyeni al.");
-    await expect(reward.getByTestId("clinic-offer")).toHaveCount(0);
-    await expect(reward.getByTestId("clinic-website")).toHaveCount(0);
+    // Ödül ekranı: diş macunu/standdaki görevli yerine Koşuyolu Park ücretsiz muayene fırsatı ve web sitesi
+    await expectClinicOffer(page.getByTestId("reward-screen"));
 
     await expectAnswersSent(page, cap, "lions-118y-2026-10-11");
     expect(pageErrors).toEqual([]);
   });
 
-  test("deneme kampanyasında aynı soru çıkar; ödül ekranında diş macunu yerine Koşuyolu Park ücretsiz muayene fırsatı ve web sitesi görünür", async ({ page }) => {
+  test("deneme kampanyasında da aynı soru çıkar ve aynı klinik fırsatı görünür", async ({ page }) => {
     const cap = captureEvents(page);
     const pageErrors: string[] = [];
     page.on("pageerror", (err) => pageErrors.push(err.message));
     await page.goto("/oyun?k=test-deneme");
     expectQuestionRun(await playAnsweringQuestions(page, ANSWERS));
 
-    // Ödül ekranı: diş macunu/standdaki görevli yerine Koşuyolu Park ücretsiz muayene fırsatı
-    const reward = page.getByTestId("reward-screen");
-    const offer = reward.getByTestId("clinic-offer");
-    await expect(offer).toContainText("Ücretsiz muayene fırsatı!");
-    await expect(offer).toContainText("Koşuyolu Park Diş Kliniği");
-    await expect(offer.getByRole("img", { name: "Koşuyolu Park Diş Kliniği" })).toBeVisible();
-    // Kartın sonunda klinik web sitesi: dokunulabilir, yeni sekmede açılır, yönlendiren adres gönderilmez
-    const site = offer.getByTestId("clinic-website");
-    await expect(site).toBeVisible();
-    await expect(site).toContainText("www.kosuyolupark.com");
-    await expect(site).toHaveAttribute("href", "https://www.kosuyolupark.com");
-    await expect(site).toHaveAttribute("target", "_blank");
-    await expect(site).toHaveAttribute("rel", /noopener/);
-    await expect(site).toHaveAttribute("rel", /noreferrer/);
-    await expect(reward).not.toContainText("Diş macunu hediyeni al.");
-    await expect(reward).not.toContainText("görevliye göster");
+    await expectClinicOffer(page.getByTestId("reward-screen"));
 
     await expectAnswersSent(page, cap, "test-deneme");
     expect(pageErrors).toEqual([]);
