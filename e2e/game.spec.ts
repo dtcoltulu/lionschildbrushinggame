@@ -2,6 +2,44 @@ import { devices, expect, test, type Locator, type Page } from "@playwright/test
 import { JAW_DROP, MOUTH, MOUTH_IN } from "../src/game/layout";
 import { answerCheckIfOpen, captureEvents, finishGameWithHelp, scrubWholeCanvas, type Captured } from "./helpers";
 
+/**
+ * Sahte konuşma motoru (CI tarayıcısında Türkçe ses yoktur): yerel Türkçe bir ses bildirir, söylenen cümleleri `window.__spoken`
+ * içinde toplar ve her cümle için `start` ile `end` olaylarını gönderir.
+ */
+async function fakeSpeech(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __spoken: string[]; SpeechSynthesisUtterance: unknown };
+    w.__spoken = [];
+    const voices = [{ lang: "tr-TR", localService: true, name: "Sahte Türkçe", default: true, voiceURI: "sahte" }];
+    Object.defineProperty(window, "speechSynthesis", {
+      configurable: true,
+      value: {
+        getVoices: () => voices,
+        addEventListener() {},
+        removeEventListener() {},
+        speaking: false,
+        pending: false,
+        speak(u: { text: string; volume: number; onstart?: () => void; onend?: () => void }) {
+          if (u.text.trim() === "") return; // ısınma cümlesi
+          w.__spoken.push(u.text);
+          setTimeout(() => u.onstart?.(), 10);
+          setTimeout(() => u.onend?.(), 60);
+        },
+        cancel() {},
+        resume() {},
+        pause() {},
+      },
+    });
+    w.SpeechSynthesisUtterance = class {
+      text: string;
+      volume = 1;
+      constructor(t: string) {
+        this.text = t;
+      }
+    };
+  });
+}
+
 test.describe("Oyun akışı", () => {
   test("QR adresi → öğretici → 6 aşama → ödül → tekrar oyna; olaylar doğru", async ({ page }) => {
     const cap = captureEvents(page);
@@ -99,6 +137,7 @@ test.describe("Oyun akışı", () => {
   test("diş araları bitince yüz dönmez: çene iner, ağız kocaman açılır; sonra iç yüzeyler fırçalanır", async ({ page }) => {
     const pageErrors: string[] = [];
     page.on("pageerror", (err) => pageErrors.push(err.message));
+    await fakeSpeech(page);
     await page.goto("/oyun");
     await page.getByTestId("start").click();
     await page.getByTestId("skip-tutorial").click();
@@ -164,6 +203,9 @@ test.describe("Oyun akışı", () => {
     expect(coral(samples[0]!.lip)).toBe(false);
     expect(samples.some((s) => coral(s.lip))).toBe(true);
     expect(coral(samples[samples.length - 1]!.lip)).toBe(true);
+    // Yerel Türkçe ses varsa çene inince cümle bir kez söylenir (ekranda "Aaa de!" yazısı varken)
+    const spoken = await page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken);
+    expect(spoken.filter((t) => t === "Ağzını aç, aa de!")).toHaveLength(1);
     // Oynanış sürüyor: iç yüzeyler bitirilebilir
     await finishGameWithHelp(page);
     expect(pageErrors).toEqual([]);
@@ -316,6 +358,18 @@ test.describe("Bağlantı sorunları", () => {
     await expect(page.getByTestId("state")).toContainText("Açık", { timeout: 5000 });
     await expect(page.getByTestId("tips")).toContainText("sessiz düğmesini");
     await ctx.close();
+  });
+
+  test("ses testi sayfası: 'Konuşmayı dene' cümleyi söyletir ve son konuşmanın durumunu gösterir (sahte Türkçe sesle)", async ({ page }) => {
+    await fakeSpeech(page);
+    await page.goto("/ses-testi");
+    await expect(page.getByTestId("speech")).toContainText("Var");
+    await expect(page.getByTestId("last-speech")).toContainText("Henüz denenmedi");
+    await page.getByTestId("play-voice").click();
+    await expect(page.getByTestId("last-speech")).toContainText("Bitti", { timeout: 5000 });
+    await expect(page.getByTestId("last-speech")).toContainText("Ağzını aç, aa de!");
+    const spoken = await page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken);
+    expect(spoken).toEqual(["Ağzını aç, aa de!"]);
   });
 });
 
