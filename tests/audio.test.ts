@@ -128,15 +128,34 @@ describe("sesler", () => {
     expect(env.said()).toHaveLength(0);
   });
 
-  it("ağız açma sesi: süzgeçli gürültü (whoosh) ve yumuşak bir ünlü (\"aaa\") kurar", async () => {
+  it("ağız açma sesi yalnızca süzgeçli gürültüdür (whoosh): sentez 'aaa' yok (düşük perdeli testere dalgası osuruk gibi çıkıyordu); yerel ses yoksa konuşma da yok", async () => {
     const env = installFakeBrowser();
     const audio = await import("@/game/audio");
     audio.unlockAudio();
     audio.sfx.open();
     expect(env.created).toContain("buffer"); // whoosh
-    expect(env.created.filter((k) => k === "filter")).toHaveLength(2); // whoosh süzgeci + ünlü süzgeci
-    expect(env.created.filter((k) => k === "osc")).toHaveLength(1); // "aaa"
-    expect(env.oscTypes).toEqual(["sawtooth"]);
+    expect(env.created.filter((k) => k === "filter")).toHaveLength(1);
+    expect(env.created.filter((k) => k === "osc")).toHaveLength(0); // hiç osilatör (ünlü taklidi) yok
+    vi.advanceTimersByTime(audio.OPEN_SPEECH_DELAY_MS + 1000);
+    expect(env.said()).toHaveLength(0);
+    expect(env.created.filter((k) => k === "osc")).toHaveLength(0);
+  });
+
+  it("ağız açılırken yerel Türkçe ses varsa çene tam inince 'Aaa de!' denir (hemen değil; ekrandaki yazıyla aynı)", async () => {
+    const local = { lang: "tr-TR", localService: true };
+    const env = installFakeBrowser({ voices: [local] });
+    const audio = await import("@/game/audio");
+    audio.unlockAudio();
+    audio.sfx.open();
+    expect(env.said()).toHaveLength(0); // çene daha inmedi
+    vi.advanceTimersByTime(audio.OPEN_SPEECH_DELAY_MS - 10);
+    expect(env.said()).toHaveLength(0);
+    vi.advanceTimersByTime(20);
+    expect(env.said().map((u) => u.text)).toEqual(["Aaa de!"]);
+    expect(env.said()[0]!.voice).toBe(local);
+    expect(audio.OPEN_CHEER).toBe("Aaa de!");
+    // çene, geçişin %10'unda inmeye başlar ve %50'sinde tam iner: konuşma bu 0,6 sn'lik inişin sonunda
+    expect(audio.OPEN_SPEECH_DELAY_MS).toBe(600);
   });
 
   it("konuşma: yalnızca YEREL Türkçe ses kullanılır; bulut sesi asla", async () => {

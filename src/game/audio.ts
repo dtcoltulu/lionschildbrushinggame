@@ -8,6 +8,8 @@
  * - Telefon hoparlörleri kısık olduğundan tüm sesler bir ana ses yükselticiden + sınırlayıcıdan (compressor) geçer.
  * - Durum `<html data-audio="none|suspended|running|interrupted">` olarak yayımlanır (destek/test için).
  */
+import { OPEN_FROM, OPEN_TO, OPEN_TRANSITION_MS } from "./constants";
+
 const KEY = "lions.muted";
 
 let ctx: AudioContext | null = null;
@@ -247,6 +249,11 @@ function whoosh(): void {
 /** Konuşma ayarları: rate 1 = cihazın normal hızı. Çocuklar için biraz daha yavaş ve net. */
 export const SPEECH = { rate: 0.88, pitchMin: 1.2, pitchMax: 1.4, volume: 1, delayMs: 320 } as const;
 
+/** Ağız açılırken söylenen kısa çağrı (ekrandaki "Aaa de!" yazısıyla aynı). Yalnızca yerel Türkçe ses varsa söylenir. */
+export const OPEN_CHEER = "Aaa de!";
+/** Ses ipucu çene inmeye başlarken gelir; "Aaa de!" çene tam inince (sahne ve yazı değişirken) söylenir. */
+export const OPEN_SPEECH_DELAY_MS = Math.round((OPEN_TO - OPEN_FROM) * OPEN_TRANSITION_MS);
+
 let trVoice: SpeechSynthesisVoice | null = null;
 let speechPrepared = false;
 
@@ -363,10 +370,13 @@ export const sfx = {
     const text = CHEERS[phaseIndex % CHEERS.length]!;
     setTimeout(() => speak(text), SPEECH.delayMs);
   },
-  /** Ağız açılırken (çene inerken): süzülen "vınn", çene yerine oturunca yumuşak bir "aaa". */
+  /**
+   * Ağız açılırken: çene inerken süzülen "vınn"; çene tam inince, cihazda yerel Türkçe ses varsa "Aaa de!" denir.
+   * (Düşük perdeli sentez "aaa" kaba bir osuruk sesi gibi çıktığı için ünlü harf taklidi yapılmaz; yalnızca gerçek ses kullanılır.)
+   */
   open: () => {
     whoosh();
-    vocalGlide(0.3, 0.42, 240, 200, 850, 800, 0.05);
+    setTimeout(() => speak(OPEN_CHEER), OPEN_SPEECH_DELAY_MS);
   },
   phase: () => {
     [523, 659, 784].forEach((f, i) => tone(f, i * 0.09, 0.18, "triangle", 0.07));
