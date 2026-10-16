@@ -48,21 +48,25 @@ function installFakeBrowser(opts: { voices?: { lang: string; localService: boole
     createBufferSource() { return node("buffer"); }
     createBuffer(_c: number, len: number) { return { getChannelData: () => new Float32Array(len) }; }
   }
+  type Utt = { text: string; voice: unknown; rate: number; pitch: number; volume: number; onstart?: () => void; onend?: () => void; onerror?: (e: { error: string }) => void };
   const spoken: { text: string; voice: unknown; rate: number; pitch: number; volume: number }[] = [];
+  const utterances: Utt[] = [];
+  const synthCalls = { cancel: 0, resume: 0 };
   const voices = opts.voices ?? [];
   const listeners: (() => void)[] = [];
-  const w = {
-    AudioContext: FakeCtx,
-    speechSynthesis: {
-      getVoices: () => voices,
-      addEventListener: (_t: string, fn: () => void) => void listeners.push(fn),
-      cancel: () => {},
-      speaking: false,
-      pending: false,
-      speak: (u: { text: string; voice: unknown; rate: number; pitch: number; volume: number }) =>
-        spoken.push({ text: u.text, voice: u.voice, rate: u.rate, pitch: u.pitch, volume: u.volume }),
+  const synth = {
+    getVoices: () => voices,
+    addEventListener: (_t: string, fn: () => void) => void listeners.push(fn),
+    cancel: () => void (synthCalls.cancel += 1),
+    resume: () => void (synthCalls.resume += 1),
+    speaking: false,
+    pending: false,
+    speak: (u: Utt) => {
+      utterances.push(u);
+      spoken.push({ text: u.text, voice: u.voice, rate: u.rate, pitch: u.pitch, volume: u.volume });
     },
   };
+  const w = { AudioContext: FakeCtx, speechSynthesis: synth };
   const store = new Map<string, string>();
   vi.stubGlobal("window", w);
   vi.stubGlobal("navigator", nav);
@@ -87,7 +91,7 @@ function installFakeBrowser(opts: { voices?: { lang: string; localService: boole
   /** Gerçek konuşmalar (ısınma için söylenen sessiz cümle hariç). */
   const said = () => spoken.filter((u) => u.text.trim() !== "");
   const fire = (type: string) => (docListeners.get(type) ?? []).forEach((f) => f({}));
-  return { created, oscTypes, resumeCalls, audioEl, docEl, nav, fire, spoken, said, voices, fireVoicesChanged: () => listeners.forEach((f) => f()) };
+  return { created, oscTypes, resumeCalls, audioEl, docEl, nav, fire, spoken, said, voices, synth, synthCalls, utterances, fireVoicesChanged: () => listeners.forEach((f) => f()) };
 }
 
 describe("sesler", () => {
@@ -128,15 +132,81 @@ describe("sesler", () => {
     expect(env.said()).toHaveLength(0);
   });
 
-  it("ağız açma sesi: süzgeçli gürültü (whoosh) ve yumuşak bir ünlü (\"aaa\") kurar", async () => {
+  it("ağız açma sesi yalnızca süzgeçli gürültüdür (whoosh): sentez 'aaa' yok (düşük perdeli testere dalgası osuruk gibi çıkıyordu); yerel ses yoksa konuşma da yok", async () => {
     const env = installFakeBrowser();
     const audio = await import("@/game/audio");
     audio.unlockAudio();
     audio.sfx.open();
     expect(env.created).toContain("buffer"); // whoosh
-    expect(env.created.filter((k) => k === "filter")).toHaveLength(2); // whoosh süzgeci + ünlü süzgeci
-    expect(env.created.filter((k) => k === "osc")).toHaveLength(1); // "aaa"
-    expect(env.oscTypes).toEqual(["sawtooth"]);
+    expect(env.created.filter((k) => k === "filter")).toHaveLength(1);
+    expect(env.created.filter((k) => k === "osc")).toHaveLength(0); // hiç osilatör (ünlü taklidi) yok
+    vi.advanceTimersByTime(audio.OPEN_SPEECH_DELAY_MS + 1000);
+    expect(env.said()).toHaveLength(0);
+    expect(env.created.filter((k) => k === "osc")).toHaveLength(0);
+  });
+
+  it("ağız açılırken yerel Türkçe ses varsa çene tam inince 'Ağzını aç, aa de!' denir (hemen değil)", async () => {
+    const local = { lang: "tr-TR", localService: true };
+    const env = installFakeBrowser({ voices: [local] });
+    const audio = await import("@/game/audio");
+    audio.unlockAudio();
+    audio.sfx.open();
+    expect(env.said()).toHaveLength(0); // çene daha inmedi
+    vi.advanceTimersByTime(audio.OPEN_SPEECH_DELAY_MS - 10);
+    expect(env.said()).toHaveLength(0);
+    vi.advanceTimersByTime(20);
+    expect(env.said().map((u) => u.text)).toEqual(["Ağzını aç, aa de!"]);
+    expect(env.said()[0]!.voice).toBe(local);
+    // "Aaa de!" tek başına bazı telefonlarda okunmuyordu: sıradan bir Türkçe cümle de içerir
+    expect(audio.OPEN_CHEER).toContain("Ağzını aç");
+    expect(audio.OPEN_CHEER).toContain("aa de");
+    // çene, geçişin %10'unda inmeye başlar ve %50'sinde tam iner: konuşma bu 0,6 sn'lik inişin sonunda
+    expect(audio.OPEN_SPEECH_DELAY_MS).toBe(600);
+  });
+
+  it("konuşma: bir şey konuşuyorken iptal edilir ve yenisi kısa bir bekleyişten sonra söylenir (iptalin hemen ardından konuşma yutulmasın)", async () => {
+    const local = { lang: "tr-TR", localService: true };
+    const env = installFakeBrowser({ voices: [local] });
+    const audio = await import("@/game/audio");
+    audio.unlockAudio();
+    env.synth.speaking = true; // önceki övgü hâlâ söyleniyor
+    audio.sfx.openVoice();
+    expect(env.synthCalls.cancel).toBe(1);
+    expect(env.said()).toHaveLength(0); // hemen değil
+    vi.advanceTimersByTime(200);
+    expect(env.said().map((u) => u.text)).toEqual(["Ağzını aç, aa de!"]);
+    expect(env.synthCalls.resume).toBeGreaterThan(0); // motor duraklamışsa sürdürülür
+    // hiçbir şey konuşmuyorsa iptal edilmez, hemen söylenir
+    env.synth.speaking = false;
+    env.synthCalls.cancel = 0;
+    audio.sfx.openVoice();
+    expect(env.synthCalls.cancel).toBe(0);
+    expect(env.said()).toHaveLength(2);
+  });
+
+  it("son konuşmanın durumu izlenir (ses testi sayfası): sıraya alındı → başladı → bitti; hata kodu görünür; eski cümlenin iptal hatası yeni durumu ezmez", async () => {
+    const local = { lang: "tr-TR", localService: true };
+    const env = installFakeBrowser({ voices: [local] });
+    const audio = await import("@/game/audio");
+    expect(audio.getSpeechStatus()).toEqual({ state: "none", text: "" });
+    audio.unlockAudio();
+    audio.sfx.openVoice();
+    expect(audio.getSpeechStatus()).toEqual({ state: "queued", text: "Ağzını aç, aa de!" });
+    const first = env.utterances[env.utterances.length - 1]!;
+    first.onstart?.();
+    expect(audio.getSpeechStatus().state).toBe("started");
+    expect(env.docEl.dataset.speech).toBe("started");
+    first.onend?.();
+    expect(audio.getSpeechStatus().state).toBe("ended");
+    // yeni cümle başlarken eskisinin "interrupted" hatası gelse de durum yeni cümleyi gösterir
+    env.synth.speaking = true;
+    audio.sfx.openVoice();
+    vi.advanceTimersByTime(200);
+    first.onerror?.({ error: "interrupted" });
+    expect(audio.getSpeechStatus().state).toBe("queued");
+    const second = env.utterances[env.utterances.length - 1]!;
+    second.onerror?.({ error: "synthesis-failed" });
+    expect(audio.getSpeechStatus()).toEqual({ state: "error", text: "Ağzını aç, aa de!", error: "synthesis-failed" });
   });
 
   it("konuşma: yalnızca YEREL Türkçe ses kullanılır; bulut sesi asla", async () => {

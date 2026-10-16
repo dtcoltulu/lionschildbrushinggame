@@ -62,7 +62,7 @@ Yazdırıp standda bulundurun. Kutuları işaretleyin.
 
 ## 🔊 Ses testi (her telefon türünde)
 
-- [ ] `https://…/ses-testi` adresini açın, **"Sesi dene"**ye dokunun: durum **"Açık ✅"** olmalı ve ses duyulmalı
+- [ ] `https://…/ses-testi` adresini açın, **"Sesi dene"**ye dokunun: durum **"Açık ✅"** olmalı ve ses duyulmalı; **"Konuşmayı dene"** ile konuşmayı da deneyin (telefonda yerel Türkçe ses varsa "Ağzını aç, aa de!" söylenir)
 - [ ] iPhone'da yan **sessiz düğmesi kapalı** (turuncu görünmemeli) ve medya sesi açık
 - [ ] Bluetooth kulaklık bağlı değil (ses oraya gider)
 - [ ] Ses yine yoksa sayfadaki ipuçlarına bakın; oyun sessiz de tamamen oynanabilir (ses zorunlu değil)

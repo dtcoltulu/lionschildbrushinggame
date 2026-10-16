@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { audioState, getSpeechInfo, installAudioUnlock, isMuted, setMuted, sfx, unlockAudio } from "@/game/audio";
+import { audioState, getSpeechInfo, getSpeechStatus, installAudioUnlock, isMuted, setMuted, sfx, unlockAudio, type SpeechStatus } from "@/game/audio";
 
 const STATE_TEXT: Record<string, string> = {
   none: "Henüz açılmadı: aşağıdaki düğmeye dokun",
@@ -10,10 +10,27 @@ const STATE_TEXT: Record<string, string> = {
   closed: "Kapandı ❌ (sayfayı yenile)",
 };
 
+/** Son konuşmanın durumu, telefondaki kişinin okuyabileceği biçimde. */
+const SPEECH_TEXT = (s: SpeechStatus): string => {
+  switch (s.state) {
+    case "none":
+      return "Henüz denenmedi";
+    case "queued":
+      return `Sıraya alındı: "${s.text}"`;
+    case "started":
+      return `Başladı ✅ "${s.text}" (ses duyuluyorsa sorun yok)`;
+    case "ended":
+      return `Bitti ✅ "${s.text}"`;
+    case "error":
+      return `Hata ❌ (${s.error ?? "bilinmiyor"}) "${s.text}"`;
+  }
+};
+
 /** Etkinlik günü herkesin telefonunda sesi hızlıca denemesi için basit bir sayfa. */
 export function SoundCheck() {
   const [state, setState] = useState("none");
   const [speech, setSpeech] = useState({ supported: false, localTurkish: false, voiceCount: 0 });
+  const [lastSpeech, setLastSpeech] = useState<SpeechStatus>({ state: "none", text: "" });
   const [muted, setMutedState] = useState(false);
   const [tested, setTested] = useState(false);
 
@@ -22,6 +39,7 @@ export function SoundCheck() {
     const refresh = () => {
       setState(audioState());
       setSpeech(getSpeechInfo());
+      setLastSpeech(getSpeechStatus());
       setMutedState(isMuted());
     };
     refresh();
@@ -63,6 +81,10 @@ export function SoundCheck() {
                 : "Yok (yalnızca ses efektleri çalar; sorun değil)"}
           </dd>
         </div>
+        <div>
+          <dt className="font-bold">Son konuşma</dt>
+          <dd data-testid="last-speech">{SPEECH_TEXT(lastSpeech)}</dd>
+        </div>
       </dl>
 
       <button type="button" className={btn} onClick={play(() => sfx.yay(0))} data-testid="play-yay">
@@ -73,6 +95,9 @@ export function SoundCheck() {
       </button>
       <button type="button" className={btn} onClick={play(() => sfx.open())}>
         😮 Ağız açma sesi
+      </button>
+      <button type="button" className={btn} onClick={play(() => sfx.openVoice())} data-testid="play-voice">
+        🗣️ Konuşmayı dene
       </button>
       <button type="button" className={btn} onClick={play(() => sfx.fanfare())}>
         🏆 Final sesi

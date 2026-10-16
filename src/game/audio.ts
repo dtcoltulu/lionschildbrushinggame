@@ -8,6 +8,8 @@
  * - Telefon hoparlörleri kısık olduğundan tüm sesler bir ana ses yükselticiden + sınırlayıcıdan (compressor) geçer.
  * - Durum `<html data-audio="none|suspended|running|interrupted">` olarak yayımlanır (destek/test için).
  */
+import { OPEN_FROM, OPEN_TO, OPEN_TRANSITION_MS } from "./constants";
+
 const KEY = "lions.muted";
 
 let ctx: AudioContext | null = null;
@@ -247,6 +249,14 @@ function whoosh(): void {
 /** Konuşma ayarları: rate 1 = cihazın normal hızı. Çocuklar için biraz daha yavaş ve net. */
 export const SPEECH = { rate: 0.88, pitchMin: 1.2, pitchMax: 1.4, volume: 1, delayMs: 320 } as const;
 
+/**
+ * Ağız açılırken söylenen kısa çağrı. Yalnızca yerel Türkçe ses varsa söylenir. "Aaa de!" tek başına bazı telefonlarda
+ * okunmadığı için önüne sıradan bir Türkçe cümle konur; ekrandaki "Aaa de!" yazısı ve üstteki yönerge ile uyumludur.
+ */
+export const OPEN_CHEER = "Ağzını aç, aa de!";
+/** Ses ipucu çene inmeye başlarken gelir; "Aaa de!" çene tam inince (sahne ve yazı değişirken) söylenir. */
+export const OPEN_SPEECH_DELAY_MS = Math.round((OPEN_TO - OPEN_FROM) * OPEN_TRANSITION_MS);
+
 let trVoice: SpeechSynthesisVoice | null = null;
 let speechPrepared = false;
 
@@ -290,6 +300,33 @@ export function audioState(): string {
   return ctx ? String(ctx.state) : "none";
 }
 
+/** Son konuşmanın durumu: telefonda sesin neden gelmediğini (ses testi sayfasında) görmek için. */
+export type SpeechState = "none" | "queued" | "started" | "ended" | "error";
+export interface SpeechStatus {
+  state: SpeechState;
+  text: string;
+  /** `error` durumunda tarayıcının verdiği hata kodu (ör. "not-allowed", "synthesis-failed", "audio-busy"). */
+  error?: string;
+}
+let lastSpeech: SpeechStatus = { state: "none", text: "" };
+/** Konuşan cümle: tarayıcı çöp toplayıcısı bitmeden silmesin diye (bazı tarayıcılarda konuşma yarıda kesilir) tutulur. */
+let speaking: SpeechSynthesisUtterance | null = null;
+/** İptal ile yeni konuşma arasındaki boşluk: bazı Android cihazlarda hemen ardından gelen konuşma yutulur. */
+const CANCEL_GAP_MS = 150;
+
+function noteSpeech(s: SpeechStatus): void {
+  lastSpeech = s;
+  try {
+    document.documentElement.dataset.speech = s.state;
+  } catch {
+    /* document yoksa yoksay */
+  }
+}
+
+export function getSpeechStatus(): SpeechStatus {
+  return lastSpeech;
+}
+
 function speak(text: string): void {
   if (muted || typeof window === "undefined" || !("speechSynthesis" in window)) return;
   try {
@@ -303,9 +340,27 @@ function speak(text: string): void {
     u.pitch = SPEECH.pitchMin + Math.random() * (SPEECH.pitchMax - SPEECH.pitchMin);
     u.rate = SPEECH.rate;
     u.volume = SPEECH.volume;
-    // Bazı Android cihazlarda hemen ardından gelen cancel→speak konuşmayı yutar: yalnızca gerekiyorsa iptal et.
-    if (synth.speaking || synth.pending) synth.cancel();
-    synth.speak(u);
+    // Olaylar yalnızca en son cümle için sayılır (önceki cümlenin iptal hatası yeni durumu ezmesin).
+    u.onstart = () => speaking === u && noteSpeech({ state: "started", text });
+    u.onend = () => speaking === u && noteSpeech({ state: "ended", text });
+    u.onerror = (e) => speaking === u && noteSpeech({ state: "error", text, error: (e as SpeechSynthesisErrorEvent).error ?? "unknown" });
+    speaking = u;
+    noteSpeech({ state: "queued", text });
+    const go = () => {
+      try {
+        synth.resume?.(); // bazı tarayıcılarda konuşma motoru kendiliğinden duraklar
+        synth.speak(u);
+      } catch {
+        /* konuşma desteklenmiyorsa sessizce geç */
+      }
+    };
+    // Yalnızca gerekiyorsa iptal et; iptalin hemen ardından konuşmak bazı Android cihazlarda konuşmayı yutar: kısa bekle.
+    if (synth.speaking || synth.pending) {
+      synth.cancel();
+      setTimeout(go, CANCEL_GAP_MS);
+    } else {
+      go();
+    }
   } catch {
     /* konuşma desteklenmiyorsa sessizce geç */
   }
@@ -363,11 +418,16 @@ export const sfx = {
     const text = CHEERS[phaseIndex % CHEERS.length]!;
     setTimeout(() => speak(text), SPEECH.delayMs);
   },
-  /** Ağız açılırken (çene inerken): süzülen "vınn", çene yerine oturunca yumuşak bir "aaa". */
+  /**
+   * Ağız açılırken: çene inerken süzülen "vınn"; çene tam inince, cihazda yerel Türkçe ses varsa "Aaa de!" denir.
+   * (Düşük perdeli sentez "aaa" kaba bir osuruk sesi gibi çıktığı için ünlü harf taklidi yapılmaz; yalnızca gerçek ses kullanılır.)
+   */
   open: () => {
     whoosh();
-    vocalGlide(0.3, 0.42, 240, 200, 850, 800, 0.05);
+    setTimeout(() => speak(OPEN_CHEER), OPEN_SPEECH_DELAY_MS);
   },
+  /** Ses testi sayfası için: ağız açılırken söylenen cümleyi hemen söyler (konuşmanın telefonda çalıştığını görmek için). */
+  openVoice: () => speak(OPEN_CHEER),
   phase: () => {
     [523, 659, 784].forEach((f, i) => tone(f, i * 0.09, 0.18, "triangle", 0.07));
   },
