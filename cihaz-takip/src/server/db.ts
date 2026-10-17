@@ -1,7 +1,7 @@
 import "server-only";
 import fs from "node:fs";
 import path from "node:path";
-import { dbConfig, type DbConfig } from "./env";
+import { authMode, dbConfig, type DbConfig } from "./env";
 
 /** Sorgu çalıştırabilen her şey (bağlantı havuzu ya da açık işlem). */
 export interface Queryable {
@@ -133,6 +133,8 @@ const g = globalThis as GlobalDb;
 /**
  * Uygulama genelinde tek bağlantı havuzu. Yerel (PGlite) modda geçişler otomatik uygulanır ve
  * ilk açılışta örnek veriler eklenir; üretimde geçişler `npm run db:migrate` ile bilinçli olarak uygulanır.
+ * Önizleme (test) ortamı: ayrı şemadaki gerçek Postgres + deneme girişi; SEED_DEMO=1 ise veritabanı boşken
+ * örnek veri eklenir. Bu yalnızca deneme girişinde (AUTH_MODE=dev) mümkündür, üretimde asla çalışmaz.
  */
 export function getDb(): Promise<Db> {
   if (!g.__cihazDb) {
@@ -145,6 +147,10 @@ export function getDb(): Promise<Db> {
           const { seedDemoIfEmpty } = await import("./seed-demo");
           await seedDemoIfEmpty(db);
         }
+      } else if (process.env.SEED_DEMO === "1" && authMode() === "dev") {
+        const { seedDemoIfEmpty } = await import("./seed-demo");
+        // Aynı anda açılan iki sunucu örneğinden biri benzersizlik hatası alabilir; diğeri örnek veriyi ekler.
+        await seedDemoIfEmpty(db).catch((e) => console.warn("[örnek veri]", e instanceof Error ? e.message : e));
       }
       return db;
     })().catch((e) => {

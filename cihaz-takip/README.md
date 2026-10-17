@@ -194,7 +194,7 @@ Kabul senaryoları ↔ testler:
 | Ortam | Veritabanı | Giriş | Nerede |
 |---|---|---|---|
 | Geliştirme | Yerel PGlite (`.data/`) + örnek veri | Parolasız deneme girişi | Geliştiricinin bilgisayarı |
-| Test / önizleme | Ayrı Supabase projesi (ör. `kosuyolu-cihaz-test`) | Supabase Auth | Vercel "Preview" ortamı, `APP_ENV_LABEL=TEST` (kırmızı şerit) |
+| Test / önizleme | Ayrı Supabase projesi (ör. `kosuyolu-cihaz-test`) ya da ücretsiz planda aynı projede ayrı şema + ayrı rol (bkz. 8.0) | Supabase Auth ya da deneme girişi | Vercel "Preview" ortamı, `APP_ENV_LABEL` ile kırmızı şerit |
 | Üretim | Ayrı Supabase projesi (ör. `kosuyolu-cihaz`) — **Lions oyununun projesi değil** | Supabase Auth | Vercel "Production" ortamı |
 
 Üretimde yerel veritabanı ve parolasız giriş **kodla engellenmiştir** (yapılandırma eksikse uygulama açılmaz, sessizce yerel
@@ -207,7 +207,7 @@ veriye düşmez).
 | Supabase projesi | `kosuyolu-cihaz-takip` (Frankfurt, **ücretsiz plan**). Şema (0001, 0002) uygulandı. |
 | Veritabanı bağlantısı | Uygulama `postgres` yönetici rolüyle değil, yalnızca veri okuma/yazma yetkisi olan **`cihaz_app`** rolüyle bağlanır (tablo silme/değiştirme yetkisi yok). Yeni geçişler `postgres` rolüyle uygulanır; yeni tablolar varsayılan yetkilerle bu role otomatik açılır. |
 | Vercel projesi | `kosuyolu-cihaz-takip` (kök klasör `cihaz-takip`, Frankfurt). **Üretim** = main dalı → Supabase. Üretim adresi herkese açık (uygulamanın kendi girişi var); dağıtıma özel adresler ve önizlemeler Vercel girişiyle korumalı. |
-| Önizleme (PR / dal yayınları) | Ücretsiz planda ikinci bir Supabase projesi açılamadığı için önizlemeler **gerçek veriden tamamen ayrı, geçici örnek verili deneme modunda** çalışır (parolasız deneme girişi, kırmızı “ÖNİZLEME” şeridi). Bu veriler sunucu yeniden başlayınca sıfırlanabilir. Pro plana geçilirse ayrı bir test Supabase projesi önerilir. |
+| Önizleme / test (PR ve dal yayınları) | Ücretsiz planda ikinci bir Supabase projesi açılamadığı için test verisi aynı sunucuda **ayrı bir şemada** (`onizleme`) tutulur. Önizlemeler yalnızca bu şemaya erişebilen **`cihaz_onizleme`** rolüyle bağlanır; üretim tablolarını göremez (üretim rolü de önizleme tablolarını göremez). Parolasız deneme girişi + örnek veri (`SEED_DEMO=1`), kırmızı “ÖNİZLEME” şeridi, Vercel girişiyle korumalı. Yeni geçişler **önce `onizleme` şemasına**, sonra üretime uygulanır. Pro plana geçilirse ayrı bir test projesi daha güçlü bir ayrım sağlar. |
 | Giriş hesabı açma | `SUPABASE_SERVICE_ROLE_KEY` Vercel'e eklenene kadar yönetici kullanıcıyı uygulamada tanımlar, giriş hesabını Supabase panelinden (Authentication → Users → Add user, “Auto confirm user”) aynı e-postayla açar; kişi ilk girişte kaydına bağlanır. Anahtar eklenince hesap açma ve parola sıfırlama uygulamadan yapılır. |
 
 ### 8.1 Supabase

@@ -25,8 +25,6 @@ const csp = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   outputFileTracingRoot: root,
-  // Önizleme/deneme ortamındaki geçici veritabanı (PGlite) geçiş dosyalarını çalışma anında okur.
-  outputFileTracingIncludes: { "/**": ["./db/migrations/*.sql"] },
   turbopack: { root },
   reactStrictMode: true,
   // Veritabanı sürücüleri paketlenmez (PGlite WASM dosyalarını diskten okur).
