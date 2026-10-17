@@ -28,16 +28,16 @@ export async function seedDemoIfEmpty(db: Db): Promise<void> {
   const type = new Map((await db.query<{ id: string; prefix: string }>(`select id, code_prefix as prefix from device_types`)).map((r) => [r.prefix, r.id]));
 
   const people = [
-    ["Örnek Hekim A", "dis_hekimi", "Ünit 1"],
-    ["Örnek Uzman Hekim B", "uzman_dis_hekimi", "Ünit 2"],
-    ["Örnek Asistan C", "asistan", "Ünit 1"],
-    ["Örnek Asistan D", "asistan", "Sterilizasyon"],
-    ["Örnek Sekreter E", "sekreter", "Banko"],
-    ["Örnek Müdür F", "klinik_muduru", null],
+    ["Örnek Hekim A", "dis_hekimi", ["Ünit 1", "Ünit 2"]],
+    ["Örnek Uzman Hekim B", "uzman_dis_hekimi", ["Ünit 2"]],
+    ["Örnek Asistan C", "asistan", ["Ünit 1", "Ünit 3"]],
+    ["Örnek Asistan D", "asistan", ["Sterilizasyon"]],
+    ["Örnek Sekreter E", "sekreter", ["Banko"]],
+    ["Örnek Müdür F", "klinik_muduru", []],
   ] as const;
   const staff: Record<string, string> = {};
-  for (const [fullName, jobRole, l] of people) {
-    staff[fullName] = (await createStaff(ctx, { fullName, jobRole, locationId: l ? loc.get(l) : null })).id;
+  for (const [fullName, jobRole, rooms] of people) {
+    staff[fullName] = (await createStaff(ctx, { fullName, jobRole, locationIds: rooms.map((r) => loc.get(r)) })).id;
   }
   await db.query(`update app_users set staff_id = $1 where email_key = 'demo-yonetici@ornek.local'`, [staff["Örnek Müdür F"]]);
   await db.query(`update app_users set staff_id = $1 where email_key = 'demo-personel@ornek.local'`, [staff["Örnek Asistan C"]]);

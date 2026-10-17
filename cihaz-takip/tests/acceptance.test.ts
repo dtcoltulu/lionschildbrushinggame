@@ -384,6 +384,29 @@ describe("11. Deneme arızası silinince analizlerden çıkar, cihaz kartı koru
   });
 });
 
+describe("Çalışanın birden fazla odası", () => {
+  it("birden fazla oda seçilir, değiştirilir, geçmişe adlarıyla yazılır; pasif oda korunur", async () => {
+    const s = await createStaff(w.admin, { fullName: "Çok Odalı Hekim", jobRole: "dis_hekimi", locationIds: [w.loc["Ünit 2"], w.loc["Ünit 1"]] });
+    expect(s.locationNames).toEqual(["Ünit 1", "Ünit 2"]);
+    const s2 = await updateStaff(w.admin, s.id, { ...s, locationIds: [w.loc["Ünit 2"], w.loc["Ünit 3"], w.loc["Sterilizasyon"]] });
+    expect(s2.locationNames).toEqual(["Ünit 2", "Ünit 3", "Sterilizasyon"]);
+    const [log] = await w.db.query<{ changes: Record<string, { from: unknown; to: unknown }> }>(
+      `select changes from audit_log where entity = 'staff' and entity_id = $1 and action = 'update'`, [s.id],
+    );
+    expect(log!.changes.locationNames).toMatchObject({ from: ["Ünit 1", "Ünit 2"], to: ["Sterilizasyon", "Ünit 2", "Ünit 3"] });
+    // Odasız çalışan
+    const s3 = await updateStaff(w.admin, s.id, { ...s2, locationIds: [] });
+    expect(s3.locationIds).toEqual([]);
+    // Geçersiz oda alanı belirterek reddedilir
+    await expectError(updateStaff(w.admin, s.id, { ...s3, locationIds: ["00000000-0000-4000-8000-000000000000"] }), 422, "locationIds");
+    // Pasifleştirilen oda atamada kalır
+    const room = await createLookup(w.admin, "locations", { name: "Geçici oda" });
+    const s4 = await updateStaff(w.admin, s.id, { ...s3, locationIds: [room.id] });
+    await updateLookup(w.admin, "locations", room.id, { ...room, active: false });
+    expect((await listStaff(w.db, { includeInactive: true })).find((x) => x.id === s4.id)!.locationNames).toEqual(["Geçici oda"]);
+  });
+});
+
 describe("12. Pasif personelin geçmiş kayıtları korunur", () => {
   it("pasif yapılır, kayıtlarda adı görünmeye devam eder, listeden seçimde çıkmaz", async () => {
     const s = await createStaff(w.admin, { fullName: "Ayrılan Çalışan", jobRole: "asistan" });

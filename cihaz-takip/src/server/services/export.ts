@@ -105,8 +105,8 @@ export async function exportCsv(ctx: Ctx, kind: string, period: Period = ALL_TIM
     }
     case "calisanlar": {
       const staff = await listStaff(q, { includeInactive: true });
-      const rows: Cell[][] = [["Ad soyad", "Görev", "Durum", "İlgili oda / ünit", "İş e-postası", "Uygulama hesabı var mı", "Not"]];
-      for (const s of staff) rows.push([s.fullName, jobRoleLabel(s.jobRole), s.active ? "Aktif" : "Pasif", s.locationName, s.workEmail, s.hasLogin ? "Evet" : "Hayır", s.note]);
+      const rows: Cell[][] = [["Ad soyad", "Görev", "Durum", "İlgili odalar / üniteler", "İş e-postası", "Uygulama hesabı var mı", "Not"]];
+      for (const s of staff) rows.push([s.fullName, jobRoleLabel(s.jobRole), s.active ? "Aktif" : "Pasif", s.locationNames.join(", "), s.workEmail, s.hasLogin ? "Evet" : "Hayır", s.note]);
       return { filename: `calisanlar-${stamp}.csv`, body: toCsv(rows) };
     }
     default:
