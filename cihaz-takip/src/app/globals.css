@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #0f6e6a;
+  --color-brand-dark: #0b5551;
+  --color-brand-soft: #e6f3f2;
+  --color-ink: #13202b;
+  --color-muted: #5b6774;
+  --color-line: #d9dee4;
+  --color-page: #f4f6f8;
+  --color-chart: #2a78d6;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  background: var(--color-page);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* iOS'ta odaklanınca yakınlaştırmayı önlemek için form alanları en az 16px */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+/* Bileşen sınıfları katman içinde: Tailwind yardımcı sınıfları (ör. hidden, w-full) bunları ezebilsin. */
+@layer components {
+  .field {
+    width: 100%;
+    min-height: 48px;
+    border: 1px solid #b9c2cc;
+    border-radius: 10px;
+    background: #fff;
+    padding: 10px 12px;
+    color: var(--color-ink);
+  }
+  .field:focus {
+    outline: 3px solid rgb(15 110 106 / 0.25);
+    border-color: var(--color-brand);
+  }
+  .field[aria-invalid="true"] {
+    border-color: #c62828;
+    background: #fff7f7;
+  }
+  textarea.field {
+    min-height: 88px;
+    resize: vertical;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 48px;
+    padding: 0 1.1rem;
+    border-radius: 10px;
+    font-weight: 650;
+    font-size: 1rem;
+    line-height: 1.2;
+    cursor: pointer;
+    border: 1px solid transparent;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background: var(--color-brand);
+    color: #fff;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-brand-dark);
+  }
+  .btn-secondary {
+    background: #fff;
+    color: var(--color-ink);
+    border-color: #b9c2cc;
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: #f0f3f5;
+  }
+  .btn-danger {
+    background: #fff;
+    color: #b3261e;
+    border-color: #e3a9a5;
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: #fdecea;
+  }
+  .btn-danger-solid {
+    background: #b3261e;
+    color: #fff;
+  }
+  .btn-sm {
+    min-height: 40px;
+    padding: 0 0.8rem;
+    font-size: 0.95rem;
+  }
+
+  .card {
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 14px;
+  }
+}
+
+/* Alt gezinme çubuğunun içeriği örtmemesi için */
+.pb-safe {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+}
+@media (min-width: 1024px) {
+  .pb-safe {
+    padding-bottom: 2rem;
+  }
+}
