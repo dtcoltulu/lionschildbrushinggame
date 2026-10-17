@@ -6,6 +6,12 @@ import { authMode, ConfigError, supabaseConfig } from "./env";
  * Supabase Auth tutar. Geliştirme modunda parola yoktur (geliştirici girişi), bu işlemler etkisizdir.
  */
 export interface LoginAdmin {
+  /**
+   * dev: parola yok (deneme girişi). supabase: hesaplar uygulamadan açılır/parola verilir.
+   * supabase-manual: SUPABASE_SERVICE_ROLE_KEY tanımlı değil; giriş hesabı Supabase panelinden açılır,
+   * kişi ilk girişte (doğrulanmış e-postasıyla) uygulamadaki kaydına bağlanır.
+   */
+  readonly mode: "dev" | "supabase" | "supabase-manual";
   readonly usesPasswords: boolean;
   /** Yeni giriş hesabı açar; Supabase kullanıcı kimliğini döndürür. Hesap zaten varsa null. */
   createLogin(email: string, password: string): Promise<string | null>;
@@ -14,6 +20,7 @@ export interface LoginAdmin {
 }
 
 export const devLoginAdmin: LoginAdmin = {
+  mode: "dev",
   usesPasswords: false,
   async createLogin() {
     return null;
@@ -32,6 +39,7 @@ async function supabaseAdminClient() {
 }
 
 const supabaseLoginAdmin: LoginAdmin = {
+  mode: "supabase",
   usesPasswords: true,
   async createLogin(email, password) {
     const sb = await supabaseAdminClient();
@@ -56,6 +64,20 @@ const supabaseLoginAdmin: LoginAdmin = {
   },
 };
 
+/** Gizli anahtar yokken: hesap açma/parola işlemleri Supabase panelinden yapılır; erişim kapatma uygulamada anında geçerlidir. */
+const manualLoginAdmin: LoginAdmin = {
+  mode: "supabase-manual",
+  usesPasswords: false,
+  async createLogin() {
+    return null;
+  },
+  async setPassword() {
+    throw new LoginAdminError("Parola, Supabase panelinden (Authentication → Users) sıfırlanmalı: SUPABASE_SERVICE_ROLE_KEY tanımlı değil.");
+  },
+  async setBlocked() {},
+};
+
 export function getLoginAdmin(): LoginAdmin {
-  return authMode() === "supabase" ? supabaseLoginAdmin : devLoginAdmin;
+  if (authMode() !== "supabase") return devLoginAdmin;
+  return supabaseConfig().serviceRoleKey ? supabaseLoginAdmin : manualLoginAdmin;
 }

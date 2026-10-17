@@ -12,7 +12,10 @@ import { Badge, Notice } from "../ui";
 
 const roles = USER_ROLES.map((r) => ({ value: r.value, label: r.label }));
 
-function NewUser({ staff, usesPasswords, onDone }: { staff: Opt[]; usesPasswords: boolean; onDone: (m: string) => void }) {
+type LoginMode = "dev" | "supabase" | "supabase-manual";
+
+function NewUser({ staff, mode, onDone }: { staff: Opt[]; mode: LoginMode; onDone: (m: string) => void }) {
+  const usesPasswords = mode === "supabase";
   const [v, setV] = useState({ email: "", displayName: "", role: "staff", staffId: "", password: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<ApiError | null>(null);
@@ -34,7 +37,9 @@ function NewUser({ staff, usesPasswords, onDone }: { staff: Opt[]; usesPasswords
             ? `${v.displayName} eklendi. Bu e-posta için giriş hesabı zaten vardı; mevcut parolasıyla girebilir.`
             : usesPasswords
               ? `${v.displayName} eklendi. İlk parolayı kendisine yüz yüze iletin; girişten sonra “Hesabım”dan değiştirebilir.`
-              : `${v.displayName} eklendi.`,
+              : mode === "supabase-manual"
+                ? `${v.displayName} eklendi. Şimdi Supabase panelinde (Authentication → Users → Add user, “Auto confirm” işaretli) ${v.email} için giriş hesabı açın; kişi ilk girişte bu kayda bağlanır.`
+                : `${v.displayName} eklendi.`,
         );
         setV({ email: "", displayName: "", role: "staff", staffId: "", password: "" });
       }}
@@ -54,7 +59,8 @@ function NewUser({ staff, usesPasswords, onDone }: { staff: Opt[]; usesPasswords
   );
 }
 
-function EditUser({ user, staff, usesPasswords, onDone }: { user: AppUser; staff: Opt[]; usesPasswords: boolean; onDone: (m: string) => void }) {
+function EditUser({ user, staff, mode, onDone }: { user: AppUser; staff: Opt[]; mode: LoginMode; onDone: (m: string) => void }) {
+  const usesPasswords = mode === "supabase";
   const [v, setV] = useState({ displayName: user.displayName, role: user.role as string, staffId: user.staffId ?? "", active: user.active });
   const [pw, setPw] = useState("");
   const [busy, setBusy] = useState(false);
@@ -109,7 +115,7 @@ function EditUser({ user, staff, usesPasswords, onDone }: { user: AppUser; staff
   );
 }
 
-export function UserManager({ users, staff, usesPasswords, meId }: { users: AppUser[]; staff: Opt[]; usesPasswords: boolean; meId: string }) {
+export function UserManager({ users, staff, mode, meId }: { users: AppUser[]; staff: Opt[]; mode: LoginMode; meId: string }) {
   const router = useRouter();
   const [msg, setMsg] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
@@ -123,11 +129,18 @@ export function UserManager({ users, staff, usesPasswords, meId }: { users: AppU
   return (
     <div className="space-y-4">
       {msg && <Notice tone="green">✓ {msg}</Notice>}
-      {!usesPasswords && <Notice tone="amber">Geliştirme ortamı: parola yoktur, giriş ekranında hesap seçilir. Gerçek kurulumda giriş Supabase Auth ile e-posta + parola ile yapılır.</Notice>}
+      {mode === "dev" && <Notice tone="amber">Geliştirme ortamı: parola yoktur, giriş ekranında hesap seçilir. Gerçek kurulumda giriş Supabase Auth ile e-posta + parola ile yapılır.</Notice>}
+      {mode === "supabase-manual" && (
+        <Notice tone="amber" title="Giriş hesapları şimdilik Supabase panelinden açılıyor">
+          Kullanıcıyı burada ekleyin, sonra Supabase panelinde (Authentication → Users → Add user, “Auto confirm user” işaretli) aynı e-postayla giriş hesabı
+          açın; kişi ilk girişte bu kayda otomatik bağlanır. Hesap açma ve parola sıfırlamayı buradan yapmak için Vercel’e SUPABASE_SERVICE_ROLE_KEY eklenmelidir.
+          Erişim kapatma buradan da anında çalışır.
+        </Notice>
+      )}
       {adding ? (
         <div className="card p-4">
           <h3 className="mb-3 text-lg font-bold">Yeni kullanıcı hesabı</h3>
-          <NewUser staff={staff} usesPasswords={usesPasswords} onDone={done} />
+          <NewUser staff={staff} mode={mode} onDone={done} />
           <button type="button" className="btn btn-secondary mt-2" onClick={() => setAdding(false)}>Kapat</button>
         </div>
       ) : (
@@ -155,7 +168,7 @@ export function UserManager({ users, staff, usesPasswords, meId }: { users: AppU
             </div>
             {editing === u.id && (
               <div className="mt-3 border-t border-slate-200 pt-3">
-                <EditUser user={u} staff={staff} usesPasswords={usesPasswords} onDone={done} />
+                <EditUser user={u} staff={staff} mode={mode} onDone={done} />
               </div>
             )}
           </li>

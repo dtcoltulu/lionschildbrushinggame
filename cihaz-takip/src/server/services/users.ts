@@ -138,7 +138,7 @@ async function authUserIdOf(q: Queryable, id: string): Promise<string | null> {
 /** Yönetici, parolasını unutan çalışana yeni geçici parola verir. */
 export async function resetPassword(ctx: Ctx, id: string, input: unknown, logins: LoginAdmin): Promise<void> {
   assertCan(ctx.actor, "users.manage");
-  if (!logins.usesPasswords) throw new ConflictError("no_passwords", "Geliştirme modunda parola kullanılmaz.");
+  if (logins.mode === "dev") throw new ConflictError("no_passwords", "Geliştirme modunda parola kullanılmaz.");
   const body = asBody(input);
   const errors: Record<string, string> = {};
   const pw = readPassword(body, errors);

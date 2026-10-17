@@ -16,7 +16,7 @@ export default async function UsersPage() {
     <>
       <PageHeader title="Ayarlar" subtitle="Her yetkili çalışan kendi hesabıyla girer; hesaplar paylaşılmaz. Personel kartı ile giriş hesabı ayrı kavramlardır." />
       <SettingsTabs current="/ayarlar" />
-      <UserManager users={users} staff={lk.staff} usesPasswords={getLoginAdmin().usesPasswords} meId={ctx.actor.userId} />
+      <UserManager users={users} staff={lk.staff} mode={getLoginAdmin().mode} meId={ctx.actor.userId} />
     </>
   );
 }
