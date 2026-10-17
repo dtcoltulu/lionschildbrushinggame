@@ -200,6 +200,16 @@ Kabul senaryoları ↔ testler:
 Üretimde yerel veritabanı ve parolasız giriş **kodla engellenmiştir** (yapılandırma eksikse uygulama açılmaz, sessizce yerel
 veriye düşmez).
 
+### 8.0 Bu kliniğin kurulumu (17.10.2026)
+
+| Bileşen | Durum |
+|---|---|
+| Supabase projesi | `kosuyolu-cihaz-takip` (Frankfurt, **ücretsiz plan**). Şema (0001, 0002) uygulandı. |
+| Veritabanı bağlantısı | Uygulama `postgres` yönetici rolüyle değil, yalnızca veri okuma/yazma yetkisi olan **`cihaz_app`** rolüyle bağlanır (tablo silme/değiştirme yetkisi yok). Yeni geçişler `postgres` rolüyle uygulanır; yeni tablolar varsayılan yetkilerle bu role otomatik açılır. |
+| Vercel projesi | `kosuyolu-cihaz-takip` (kök klasör `cihaz-takip`, Frankfurt). **Üretim** = main dalı → Supabase. Üretim adresi herkese açık (uygulamanın kendi girişi var); dağıtıma özel adresler ve önizlemeler Vercel girişiyle korumalı. |
+| Önizleme (PR / dal yayınları) | Ücretsiz planda ikinci bir Supabase projesi açılamadığı için önizlemeler **gerçek veriden tamamen ayrı, geçici örnek verili deneme modunda** çalışır (parolasız deneme girişi, kırmızı “ÖNİZLEME” şeridi). Bu veriler sunucu yeniden başlayınca sıfırlanabilir. Pro plana geçilirse ayrı bir test Supabase projesi önerilir. |
+| Giriş hesabı açma | `SUPABASE_SERVICE_ROLE_KEY` Vercel'e eklenene kadar yönetici kullanıcıyı uygulamada tanımlar, giriş hesabını Supabase panelinden (Authentication → Users → Add user, “Auto confirm user”) aynı e-postayla açar; kişi ilk girişte kaydına bağlanır. Anahtar eklenince hesap açma ve parola sıfırlama uygulamadan yapılır. |
+
 ### 8.1 Supabase
 
 1. Yeni proje: bölge **Central EU (Frankfurt)**. Veritabanı parolasını güvenli yerde saklayın.
