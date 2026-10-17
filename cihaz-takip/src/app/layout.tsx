@@ -3,11 +3,11 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "Cihaz Takip | Koşuyolu Park", template: "%s | Cihaz Takip" },
-  description: "Özel Koşuyolu Park Ağız ve Diş Sağlığı Polikliniği – cihaz envanteri, arıza ve teknik servis takibi",
+  title: { default: "DENTINEL | Koşuyolu Park", template: "%s | DENTINEL" },
+  description: "DENTINEL – Özel Koşuyolu Park Ağız ve Diş Sağlığı Polikliniği cihaz envanteri, arıza ve teknik servis takibi",
   robots: { index: false, follow: false },
-  applicationName: "Cihaz Takip",
-  appleWebApp: { capable: true, title: "Cihaz Takip", statusBarStyle: "default" },
+  applicationName: "DENTINEL",
+  appleWebApp: { capable: true, title: "DENTINEL", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

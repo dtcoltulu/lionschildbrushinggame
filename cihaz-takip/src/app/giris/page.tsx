@@ -32,8 +32,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <div className="mb-6 text-center">
         {/* eslint-disable-next-line @next/next/no-img-element -- küçük SVG simge, optimizasyon gerekmez */}
         <img src="/icon.svg" alt="" width={56} height={56} className="mx-auto" />
-        <h1 className="mt-3 text-2xl font-bold">Cihaz Takip</h1>
-        <p className="text-muted">Özel Koşuyolu Park Ağız ve Diş Sağlığı Polikliniği</p>
+        <h1 className="mt-3 text-2xl font-bold tracking-wide">DENTINEL</h1>
+        <p className="text-muted">Cihaz, arıza ve teknik servis takibi</p>
+        <p className="text-sm text-muted">Özel Koşuyolu Park Ağız ve Diş Sağlığı Polikliniği</p>
       </div>
       <div className="space-y-4">
         {firstParam(sp.hata) === "erisim" && (

@@ -1,6 +1,6 @@
-# Koşuyolu Park Cihaz Takip
+# DENTINEL
 
-Özel Koşuyolu Park Ağız ve Diş Sağlığı Polikliniği için **cihaz envanteri, arıza ve teknik servis takip** uygulaması.
+**DENTINEL**, Özel Koşuyolu Park Ağız ve Diş Sağlığı Polikliniği için **cihaz envanteri, arıza ve teknik servis takip** uygulaması.
 Klinik bilgisayarlarından ve çalışanların telefonlarından kullanılan, mobil uyumlu bir web uygulamasıdır (PWA: telefonda
 "Ana ekrana ekle" ile uygulama gibi açılır).
 
