@@ -9,7 +9,9 @@ export const dynamic = "force-dynamic";
 
 export default async function StaffPage() {
   const ctx = await pageCtx({ admin: true });
-  const [staff, lk] = await Promise.all([listStaff(ctx.db, { includeInactive: true }), formLookups(ctx.db)]);
+  const staff = await listStaff(ctx.db, { includeInactive: true });
+  // Pasifleştirilmiş bir oda hâlâ birine atanmışsa formda "(pasif)" olarak görünsün; kaydederken sessizce silinmesin.
+  const lk = await formLookups(ctx.db, staff.flatMap((s) => s.locationIds));
   return (
     <>
       <PageHeader

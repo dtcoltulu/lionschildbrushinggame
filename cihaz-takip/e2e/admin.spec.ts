@@ -51,8 +51,11 @@ test("yönetici: çalışan ekler, cihaz sorumlusu yapar, pasifleştirir; geçmi
   await page.getByRole("button", { name: "+ Yeni çalışan" }).click();
   await page.getByLabel("Ad soyad").fill(name);
   await page.getByLabel("Görev").selectOption({ label: "Diş hekimi" });
+  await page.getByLabel("Ünit 1", { exact: true }).check();
+  await page.getByLabel("Ünit 2", { exact: true }).check();
   await page.getByRole("button", { name: "Çalışanı ekle" }).click();
   await expect(page.getByText(`${name} eklendi.`)).toBeVisible();
+  await expect(page.locator("li", { hasText: name }).getByText("Diş hekimi · Ünit 1, Ünit 2")).toBeVisible();
 
   // Aynı kişi farklı yazımla eklenemez
   await page.getByRole("button", { name: "+ Yeni çalışan" }).click();

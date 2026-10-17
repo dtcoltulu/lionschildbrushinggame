@@ -14,17 +14,17 @@ import { Badge } from "../ui";
 interface Values {
   fullName: string;
   jobRole: string;
-  locationId: string;
+  locationIds: string[];
   workEmail: string;
   note: string;
   active: boolean;
 }
 
-const EMPTY: Values = { fullName: "", jobRole: "asistan", locationId: "", workEmail: "", note: "", active: true };
+const EMPTY: Values = { fullName: "", jobRole: "asistan", locationIds: [], workEmail: "", note: "", active: true };
 
 function StaffEditor({ staff, locations, onDone }: { staff: Staff | null; locations: Opt[]; onDone: (msg: string) => void }) {
   const [v, setV] = useState<Values>(
-    staff ? { fullName: staff.fullName, jobRole: staff.jobRole, locationId: staff.locationId ?? "", workEmail: staff.workEmail ?? "", note: staff.note ?? "", active: staff.active } : EMPTY,
+    staff ? { fullName: staff.fullName, jobRole: staff.jobRole, locationIds: staff.locationIds, workEmail: staff.workEmail ?? "", note: staff.note ?? "", active: staff.active } : EMPTY,
   );
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<ApiError | null>(null);
@@ -52,8 +52,22 @@ function StaffEditor({ staff, locations, onDone }: { staff: Staff | null; locati
       <div className="grid gap-3 sm:grid-cols-2">
         <TextInput label="Ad soyad" required value={v.fullName} onChange={(x) => set("fullName", x)} error={fe.fullName} />
         <Select label="Görev" required value={v.jobRole} onChange={(x) => set("jobRole", x)} options={JOB_ROLES.map((r) => ({ value: r.value, label: r.label }))} error={fe.jobRole} />
-        <Select label="İlgili oda / ünit" value={v.locationId} onChange={(x) => set("locationId", x)} options={locations} emptyLabel="Yok" error={fe.locationId} />
         <TextInput label="İş e-postası (gerekiyorsa)" type="email" inputMode="email" value={v.workEmail} onChange={(x) => set("workEmail", x)} error={fe.workEmail} />
+        <fieldset className="sm:col-span-2">
+          <legend className="mb-1 text-[15px] font-semibold">İlgili odalar / üniteler</legend>
+          <p className="mb-1 text-sm text-muted">Birden fazla seçilebilir (ör. iki ünite arasında çalışan hekim veya asistan).</p>
+          <div className="grid grid-cols-2 gap-x-4 rounded-xl border border-slate-200 bg-white px-3 sm:grid-cols-3">
+            {locations.map((l) => (
+              <Checkbox
+                key={l.value}
+                label={l.label}
+                checked={v.locationIds.includes(l.value)}
+                onChange={(on) => set("locationIds", on ? [...v.locationIds, l.value] : v.locationIds.filter((x) => x !== l.value))}
+              />
+            ))}
+          </div>
+          {fe.locationIds && <p className="mt-1 text-sm font-semibold text-red-700" role="alert">{fe.locationIds}</p>}
+        </fieldset>
         <div className="sm:col-span-2">
           <TextArea label="Not" value={v.note} onChange={(x) => set("note", x)} error={fe.note} rows={2} />
         </div>
@@ -73,7 +87,7 @@ export function StaffManager({ staff, locations }: { staff: Staff[]; locations: 
   const [msg, setMsg] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [showInactive, setShowInactive] = useState(false);
-  const list = staff.filter((s) => (showInactive || s.active) && matchesQuery(`${s.fullName} ${jobRoleLabel(s.jobRole)} ${s.locationName ?? ""}`, q));
+  const list = staff.filter((s) => (showInactive || s.active) && matchesQuery(`${s.fullName} ${jobRoleLabel(s.jobRole)} ${s.locationNames.join(" ")}`, q));
   const done = (m: string) => {
     setMsg(m);
     setEditing(null);
@@ -104,7 +118,7 @@ export function StaffManager({ staff, locations }: { staff: Staff[]; locations: 
                 <div className="text-[17px] font-semibold">{s.fullName}</div>
                 <div className="text-sm text-muted">
                   {jobRoleLabel(s.jobRole)}
-                  {s.locationName ? ` · ${s.locationName}` : ""}
+                  {s.locationNames.length ? ` · ${s.locationNames.join(", ")}` : ""}
                   {s.workEmail ? ` · ${s.workEmail}` : ""}
                 </div>
               </div>
