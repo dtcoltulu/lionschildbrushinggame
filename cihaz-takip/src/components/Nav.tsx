@@ -35,8 +35,8 @@ export function TopNav({ isAdmin, userName }: { isAdmin: boolean; userName: stri
           {/* eslint-disable-next-line @next/next/no-img-element -- küçük SVG simge, optimizasyon gerekmez */}
           <img src="/icon.svg" alt="" width={32} height={32} />
           <span className="leading-tight">
-            <span className="block text-[15px]">Koşuyolu Park</span>
-            <span className="block text-xs font-medium text-muted">Cihaz Takip</span>
+            <span className="block text-[15px] tracking-wide">DENTINEL</span>
+            <span className="block text-xs font-medium text-muted">Koşuyolu Park</span>
           </span>
         </Link>
         <nav className="ml-2 hidden flex-1 gap-1 lg:flex" aria-label="Ana menü">

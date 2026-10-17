@@ -11,8 +11,12 @@ test("telefonda: cihaz ekle → arıza bildir → servise gönder → tamirden g
   const person = uniq("Asistan Ayşe");
   await addStaff(admin.page, person);
 
+  await page.goto("/giris");
+  await expect(page).toHaveTitle("Giriş | DENTINEL");
+  await expect(page.getByRole("heading", { name: "DENTINEL" })).toBeVisible();
   await login(page, "Demo Personel");
   await expect(page.getByRole("heading", { name: "Genel bakış" })).toBeVisible();
+  await expect(page).toHaveTitle("DENTINEL | Koşuyolu Park");
 
   // Cihaz ekle (seri numarası olmadan)
   await page.getByRole("link", { name: "+ Cihaz ekle" }).first().click();

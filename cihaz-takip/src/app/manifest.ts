@@ -3,8 +3,8 @@ import type { MetadataRoute } from "next";
 /** Telefonda "Ana ekrana ekle" ile uygulama gibi açılır. Veriler her zaman sunucudan gelir (çevrimdışı önbellek yok). */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Koşuyolu Park Cihaz Takip",
-    short_name: "Cihaz Takip",
+    name: "DENTINEL – Koşuyolu Park",
+    short_name: "DENTINEL",
     description: "Cihaz envanteri, arıza ve teknik servis takibi",
     start_url: "/",
     display: "standalone",
