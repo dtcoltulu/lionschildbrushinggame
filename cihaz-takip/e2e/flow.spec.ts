@@ -106,6 +106,8 @@ test("oturum/yenileme: kaydedilmemiş form taslağı korunur", async ({ page }) 
   await page.getByRole("button", { name: "Arızayı kaydet" }).click();
   await expect(page.getByText("Oturumunuz kapanmış.")).toBeVisible();
   await page.getByRole("link", { name: "Tekrar giriş yap" }).click();
+  // Bütün çerezler silindiği için klinik de yeniden seçilir; dönüş adresi korunur.
+  await page.getByRole("link", { name: "Koşuyolu Park" }).click();
   await page.getByRole("button", { name: /Demo Personel/ }).click();
   await expect(page).toHaveURL(new RegExp(`cihaz=${deviceId}`));
   await expect(page.getByLabel("Ne oldu?")).toHaveValue("Taslak metin – yarıda kaldı");

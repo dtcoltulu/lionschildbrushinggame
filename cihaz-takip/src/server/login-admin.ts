@@ -17,6 +17,23 @@ export interface LoginAdmin {
   createLogin(email: string, password: string): Promise<string | null>;
   setPassword(authUserId: string, password: string): Promise<void>;
   setBlocked(authUserId: string, blocked: boolean): Promise<void>;
+  /** Açılıp kullanılamayan (ör. veritabanı işlemi başarısız olan) giriş hesabını siler. */
+  deleteLogin(authUserId: string): Promise<void>;
+  /**
+   * Bu parola bu hesapta geçerli mi? Kliniğin personel ve yönetici şifrelerinin aynı olmasını önlemek
+   * için kullanılır (aynı olursa personel, yönetici olarak girebilirdi). Açılan deneme oturumu hemen kapatılır.
+   */
+  passwordMatches(email: string, password: string): Promise<boolean>;
+}
+
+/**
+ * Kliniğin ortak girişleri için Supabase'deki hesap adı. Kimse bu adrese e-posta almaz: ".invalid"
+ * uzantısı hiçbir zaman gerçek bir alan adı olamaz (RFC 2606), bu yüzden "parolamı unuttum" ile bir
+ * başkasının ele geçirmesi de mümkün değildir.
+ */
+export function sharedLoginEmail(clinicId: string, kind: "staff" | "admin"): string {
+  const domain = process.env.CLINIC_LOGIN_EMAIL_DOMAIN || "klinik.dentinel.invalid";
+  return `${kind === "admin" ? "yonetici" : "personel"}.${clinicId}@${domain}`;
 }
 
 export const devLoginAdmin: LoginAdmin = {
@@ -27,6 +44,10 @@ export const devLoginAdmin: LoginAdmin = {
   },
   async setPassword() {},
   async setBlocked() {},
+  async deleteLogin() {},
+  async passwordMatches() {
+    return false;
+  },
 };
 
 export class LoginAdminError extends Error {}
@@ -62,6 +83,20 @@ const supabaseLoginAdmin: LoginAdmin = {
     const { error } = await sb.auth.admin.updateUserById(authUserId, { ban_duration: blocked ? "876000h" : "none" });
     if (error) throw new LoginAdminError(`Giriş hesabı güncellenemedi: ${error.message}`);
   },
+  async deleteLogin(authUserId) {
+    const sb = await supabaseAdminClient();
+    await sb.auth.admin.deleteUser(authUserId);
+  },
+  async passwordMatches(email, password) {
+    const cfg = supabaseConfig();
+    const { createClient } = await import("@supabase/supabase-js");
+    const probe = createClient(cfg.url, cfg.anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { data, error } = await probe.auth.signInWithPassword({ email, password });
+    if (error || !data.session) return false;
+    // Yalnızca bu deneme oturumu kapatılır; hesabın diğer oturumları etkilenmez.
+    await probe.auth.signOut({ scope: "local" });
+    return true;
+  },
 };
 
 /** Gizli anahtar yokken: hesap açma/parola işlemleri Supabase panelinden yapılır; erişim kapatma uygulamada anında geçerlidir. */
@@ -75,6 +110,10 @@ const manualLoginAdmin: LoginAdmin = {
     throw new LoginAdminError("Parola, Supabase panelinden (Authentication → Users) sıfırlanmalı: SUPABASE_SERVICE_ROLE_KEY tanımlı değil.");
   },
   async setBlocked() {},
+  async deleteLogin() {},
+  async passwordMatches() {
+    return false;
+  },
 };
 
 export function getLoginAdmin(): LoginAdmin {

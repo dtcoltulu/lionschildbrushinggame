@@ -9,6 +9,9 @@ import { MIN_PASSWORD } from "@/server/services/users";
 /** Kullanıcı kendi parolasını değiştirir (yöneticinin verdiği ilk parolayı değiştirmek için). */
 export const POST = api(async (ctx, req: NextRequest) => {
   if (authMode() !== "supabase") throw new AppError(400, "dev_mode", "Geliştirme modunda parola kullanılmaz.");
+  if (ctx.actor.shared) {
+    throw new AppError(403, "shared_login", "Kliniğin ortak şifresini yönetici Ayarlar → Giriş ve erişim bölümünden değiştirir.");
+  }
   const body = asBody(await readJson(req));
   const pw = typeof body.password === "string" ? body.password : "";
   const again = typeof body.passwordAgain === "string" ? body.passwordAgain : "";

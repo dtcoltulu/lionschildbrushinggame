@@ -1,6 +1,7 @@
 # DENTINEL
 
-**DENTINEL**, Özel Koşuyolu Park Ağız ve Diş Sağlığı Polikliniği için **cihaz envanteri, arıza ve teknik servis takip** uygulaması.
+**DENTINEL**, diş kliniklerinin **cihaz envanteri, arıza ve teknik servis takip** uygulaması. İlk klinik Özel Koşuyolu Park
+Ağız ve Diş Sağlığı Polikliniği'dir; genel yönetici başka klinikler de açabilir (**her kliniğin verisi ayrıdır**, bkz. 3.1).
 Klinik bilgisayarlarından ve çalışanların telefonlarından kullanılan, mobil uyumlu bir web uygulamasıdır (PWA: telefonda
 "Ana ekrana ekle" ile uygulama gibi açılır).
 
@@ -86,7 +87,8 @@ app_users (giriş hesabı; isteğe bağlı olarak bir personel kartına bağlı)
 |---|---|
 | `devices` | `inventory_code` benzersiz; `serial_number`, marka, model **isteğe bağlı**; `lifecycle`: aktif / kullanım dışı / envanterden çıkarıldı. Cihaz silinmez. |
 | `staff` | Ad, görev (8 grup), aktif/pasif, oda, iş e-postası, not. `name_key` ile aynı kişinin farklı yazımı yakalanır. Silinmez, pasif yapılır. |
-| `app_users` | Giriş hesabı ≠ personel kartı. Rol: `admin` / `staff`. `auth_user_id` = Supabase Auth kullanıcısı. |
+| `clinics` | Klinik adı, erişim açık/kapalı. Diğer bütün tablolarda `clinic_id` vardır (bkz. 3.1). |
+| `app_users` | Giriş hesabı ≠ personel kartı. Rol: `admin` / `staff`. `auth_user_id` = Supabase Auth kullanıcısı. `clinic_id` boşsa **genel yönetici**; `shared` = kliniğin **ortak girişi** (personel şifresi / yönetici şifresi). |
 | `faults` | Açıklama, fark edilme tarihi, fark eden, son bilinen kullanıcı, konum, neden + doğrulama durumu, (isteğe bağlı) doğrulanmış sorumlu + kanıt + doğrulayan, durum, `closed_at`, mantıksal silme ve silme talebi alanları. |
 | `service_visits` | Firma, gönderim, beklenen dönüş (ileri tarih olabilir), döndü mü, gerçek dönüş, yapılan işlem, **maliyet (boş = bilinmiyor, 0 = ücretsiz)**, **masraf tarihi**, fiş referansı, sonuç (kullanıma hazır / sorun devam ediyor / henüz denenmedi). |
 | `audit_log` | Kim, ne zaman, hangi kayıtta, neyi neyden neye değiştirdi. Değişiklikle aynı işlemde yazılır. |
@@ -97,7 +99,29 @@ Veritabanı düzeyindeki güvenceler:
 - Sorumluluk atanırsa kanıt ve doğrulayan kişi zorunlu (`faults_responsibility_chk`).
 - Dönüş tarihi gönderimden önce olamaz; dönmemiş gidişte sonuç olamaz; maliyet negatif olamaz.
 - Her tabloda `version` sütunu: eşzamanlı düzenlemede eski sürümle yapılan kayıt reddedilir.
-- Tüm tablolarda RLS açık ve politika yok: Supabase'in otomatik veri API'si (anon anahtar) tablolara erişemez.
+- Tüm tablolarda RLS açık; anon/authenticated rollerinin yetkisi kaldırılmıştır: Supabase'in otomatik veri API'si (anon anahtar)
+  tablolara erişemez. Klinik ayrımı da RLS ile yapılır (3.1).
+
+### 3.1 Birden fazla klinik
+
+Geçişler: [`0004_clinics.sql`](db/migrations/0004_clinics.sql) (geçiş aşaması) ve [`0005_clinics_strict.sql`](db/migrations/0005_clinics_strict.sql).
+
+- Klinik verisi tutan her tabloda `clinic_id` ve `klinik_ayrimi` politikası vardır: bir işlem yalnızca `app.clinic_id`
+  ayarındaki kliniğin satırlarını görür, yalnızca o kliniğe satır ekler/değiştirir. Ayar yoksa **hiçbir satır görünmez**.
+- Uygulama her isteği `forClinic(db, actor.clinicId)` bağlantısıyla çalıştırır ([`src/server/db.ts`](src/server/db.ts)): her sorgu,
+  kliniği ayarlayan bir işlem (transaction) içinde koşar. Servis kodunda klinik süzgeci yazılmaz; unutulamaz.
+- Uygulama rolleri (`cihaz_app`, `cihaz_onizleme`) **NOBYPASSRLS**'tir ve tablo sahibi değildir. Rol RLS'i atlayabiliyorsa
+  uygulama klinik isteğini reddeder (yanlış yapılandırmada sessizce bütün klinikleri göstermez).
+- Envanter kodu, çalışan adı ve liste adları **klinik içinde** benzersizdir (iki klinikte de `AER-001` olabilir).
+- Yeni klinik, başlangıç listeleriyle ([`src/server/clinic-defaults.ts`](src/server/clinic-defaults.ts), 0002 ile aynı) açılır.
+- **Giriş**: giriş ekranında klinik seçilir (cihazda hatırlanır), sonra **personel şifresi** ya da **yönetici şifresi** yazılır.
+  Şifreler kliniğin iki ortak Supabase Auth hesabındadır (adları `personel.<klinik>@klinik.dentinel.invalid`; bu adrese e-posta
+  gitmez). Uygulama şifre saklamaz. İki şifre aynı olamaz. Şifre değişince o girişle açılmış eski oturumlar kapanır.
+- **Genel yönetici** (ilk yönetici hesabı) "E-posta ile giriş" ile girer, çalışacağı kliniği seçer; Ayarlar → Klinikler'den
+  klinik açar, adını/erişimini değiştirir, şifreleri belirler. Kliniğin yöneticisi kendi kliniğinin şifrelerini değiştirebilir.
+- Kişisel hesaplar (e-posta + parola) isteğe bağlı olarak sürer; klinik içindedir.
+- **Yayın sırası**: 0004 eski sürümle uyumludur (klinik ayarı olmayan istek ilk kliniği görür) → yeni sürüm yayınlanır → 0005
+  uygulanır (geçiş kolaylığı kalkar).
 
 ## 4. Ekranlar ve akış
 
@@ -110,8 +134,11 @@ Veritabanı düzeyindeki güvenceler:
 | Arıza bildir (cihaz seç → kısa form) ve arıza kaydı (durum, servis, dönüş, gidişler, silme) | `/arizalar/yeni`, `/arizalar/[id]` | herkes |
 | Analizler: 3 yönetim sorusu, dönem seçimi, Excel | `/analizler` | yönetici |
 | Çalışanlar | `/calisanlar` | yönetici |
-| Ayarlar: kullanıcılar ve erişim, listeler (konum, tür, neden, servis firması), işlem geçmişi, dışa aktarım | `/ayarlar/*` | yönetici |
-| Hesabım (parola değiştirme) | `/hesabim` | herkes |
+| Ayarlar: giriş ve erişim (klinik şifreleri, kişisel hesaplar), listeler (konum, tür, neden, servis firması), işlem geçmişi, dışa aktarım | `/ayarlar/*` | yönetici |
+| Hesabım (parola değiştirme; ortak girişte yok) | `/hesabim` | herkes |
+| Giriş: klinik seç → personel / yönetici şifresi; "E-posta ile giriş" (genel yönetici, kişisel hesaplar) | `/giris` | herkes |
+| Klinik seç / değiştir | `/klinik-sec` | genel yönetici |
+| Klinikler: klinik aç, ad/erişim, şifreler | `/ayarlar/klinikler` | genel yönetici |
 
 Telefonda alt menünün ortasında büyük **"+ Arıza bildir"** düğmesi vardır. Sıradan bir arıza bildirimi: cihaz kartı →
 "Arıza bildir" → "Ne oldu?" → "Arızayı kaydet" (tarih bugün, fark eden giriş yapan kişinin personel kartı, konum cihazın
@@ -208,7 +235,8 @@ veriye düşmez).
 | Veritabanı bağlantısı | Uygulama `postgres` yönetici rolüyle değil, yalnızca veri okuma/yazma yetkisi olan **`cihaz_app`** rolüyle bağlanır (tablo silme/değiştirme yetkisi yok). Yeni geçişler `postgres` rolüyle uygulanır; yeni tablolar varsayılan yetkilerle bu role otomatik açılır. |
 | Vercel projesi | `kosuyolu-cihaz-takip` (kök klasör `cihaz-takip`, Frankfurt). **Üretim** = main dalı → Supabase. Üretim adresi herkese açık (uygulamanın kendi girişi var); dağıtıma özel adresler ve önizlemeler Vercel girişiyle korumalı. |
 | Önizleme / test (PR ve dal yayınları) | Ücretsiz planda ikinci bir Supabase projesi açılamadığı için test verisi aynı sunucuda **ayrı bir şemada** (`onizleme`) tutulur. Önizlemeler yalnızca bu şemaya erişebilen **`cihaz_onizleme`** rolüyle bağlanır; üretim tablolarını göremez (üretim rolü de önizleme tablolarını göremez). Parolasız deneme girişi + örnek veri (`SEED_DEMO=1`), kırmızı “ÖNİZLEME” şeridi, Vercel girişiyle korumalı. Yeni geçişler **önce `onizleme` şemasına**, sonra üretime uygulanır. Pro plana geçilirse ayrı bir test projesi daha güçlü bir ayrım sağlar. |
-| Giriş hesabı açma | `SUPABASE_SERVICE_ROLE_KEY` Vercel'e eklenene kadar yönetici kullanıcıyı uygulamada tanımlar, giriş hesabını Supabase panelinden (Authentication → Users → Add user, “Auto confirm user”) aynı e-postayla açar; kişi ilk girişte kaydına bağlanır. Anahtar eklenince hesap açma ve parola sıfırlama uygulamadan yapılır. |
+| Giriş hesabı açma | `SUPABASE_SERVICE_ROLE_KEY` Vercel'e eklenene kadar yönetici kullanıcıyı uygulamada tanımlar, giriş hesabını Supabase panelinden (Authentication → Users → Add user, “Auto confirm user”) aynı e-postayla açar; kişi ilk girişte kaydına bağlanır. Anahtar eklenince hesap açma ve parola sıfırlama uygulamadan yapılır. **Klinik şifreleri (ortak girişler) yalnızca bu anahtarla belirlenebilir.** |
+| Birden fazla klinik (18.10.2026) | 0004 üretime ve önizlemeye uygulandı (mevcut kayıtlar "Koşuyolu Park" kliniğine bağlandı, ilk yönetici genel yönetici oldu, `cihaz_app`/`cihaz_onizleme` NOBYPASSRLS). 0005 önizlemeye uygulandı; üretime yeni sürüm yayınlandıktan sonra uygulanır. |
 
 ### 8.1 Supabase
 
@@ -229,8 +257,8 @@ veriye düşmez).
    `AUTH_MODE`, `ALLOW_*`, `LOCAL_DB_DIR` **eklenmez**.
 3. Deploy. Bölge `vercel.json` ile Frankfurt.
 4. Yönetici e-postasıyla giriş yapın → otomatik olarak yönetici hesabı oluşur. Sonra `BOOTSTRAP_ADMIN_EMAIL` silinebilir.
-5. Ayarlar → Kullanıcılar: her çalışana kendi hesabını açın (ilk parolayı yüz yüze iletin; çalışan "Hesabım"dan değiştirir).
-   Çalışanlar → personel kartlarını girin; hesapları kartlara bağlayın.
+5. Ayarlar → Klinikler: her kliniğin personel ve yönetici şifresini belirleyin; çalışanlar giriş ekranında kliniği seçip
+   şifreyle girer. Çalışanlar → personel kartlarını girin. (İsteyene Ayarlar → Giriş ve erişim'den kişisel hesap da açılabilir.)
 
 Yeni sürümde şema değişikliği varsa (`db/migrations/000N_*.sql`) **önce test, sonra üretim veritabanına** uygulanır, ardından
 kod yayınlanır. Yeni tablo ekleyen geçişlerde de `enable row level security` ve anon/authenticated yetkilerinin kaldırılması
@@ -266,7 +294,12 @@ duraklatılabilir ([Supabase: Database Backups](https://supabase.com/docs/guides
   ekler, silme talebi gönderir. Diğer her şey (silme, geri alma, kalıcı silme, envanterden çıkarma, kod değiştirme, sorumluluk
   ataması, personel/kullanıcı/liste yönetimi, analizler, maliyetler, dışa aktarım, işlem geçmişi) yöneticidedir.
 - **Kimlik doğrulama**: Supabase Auth; oturum her istekte Supabase'de doğrulanır (`getUser`). Uygulama hesabı pasif yapılınca
-  erişim anında kesilir ve Supabase'de de giriş engellenir. Son aktif yönetici kendini düşüremez.
+  erişim anında kesilir ve Supabase'de de giriş engellenir. Son aktif yönetici kendini düşüremez. Klinik şifresi değişince o
+  girişin eski oturumları kapanır (oturumun açıldığı an, erişim anahtarındaki `amr` kaydından okunur).
+- **Klinik ayrımı** veritabanında (RLS) uygulanır; bkz. 3.1. Klinikler arası işlemler (klinik açma, şifre) yalnızca genel yöneticide.
+- **Ortak şifre**: Klinik şifresi kişiye özel değildir; işlem geçmişinde kişi adı yerine "Ortak personel girişi" görünür. Şifre
+  yalnızca o kliniğin çalışanlarıyla paylaşılmalı, ayrılan çalışan olunca değiştirilmelidir. Kişi bazında iz isteyen klinik
+  kişisel hesap kullanabilir.
 - **Anahtarlar** yalnızca sunucu ortam değişkenlerindedir; hiçbir değişken `NEXT_PUBLIC_` değildir, tarayıcıya anahtar gitmez.
 - **CSRF**: değişiklik yapan istekler yalnızca aynı kökenden kabul edilir; çerezler `SameSite=Lax`.
 - **İçerik güvenliği**: dış kaynak yüklenmez (CSP `default-src 'self'`), arama motorlarına kapalı, iframe'e gömülemez.
@@ -293,6 +326,8 @@ duraklatılabilir ([Supabase: Database Backups](https://supabase.com/docs/guides
 - Yönetici geçici parola verir (e-posta ile parola sıfırlama bağlantısı için Supabase'de SMTP ayarı gerekir; ilk sürümde kullanılmadı).
 - Grafikler basit çubuklardır; her grafiğin tablo görünümü vardır.
 - Para birimi yalnızca TL.
+- Klinik şifresiyle girenler için işlem geçmişi kişiyi değil, ortak girişi (personel / yönetici) gösterir.
+- Genel yöneticinin bir kliniğe erişimi kapatması, o klinikte açık olan oturumları bir sonraki istekte kapatır; veriler silinmez.
 
 ### Kod yapısı
 

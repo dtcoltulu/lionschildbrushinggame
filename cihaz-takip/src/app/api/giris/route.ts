@@ -1,20 +1,14 @@
+import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
 import { asBody, Reader } from "@/lib/validate";
-import { resolveAuthUser } from "@/server/auth";
+import { CLINIC_COOKIE, CLINIC_COOKIE_OPTIONS, resolveAuthUser } from "@/server/auth";
 import { getDb } from "@/server/db";
 import { authMode } from "@/server/env";
 import { AppError, ValidationError } from "@/server/errors";
 import { publicApi, readJson } from "@/server/http";
+import { recordFailure, tooManyFailures } from "@/server/login-throttle";
 
-// Basit yavaşlatma: art arda hatalı girişlerde bekletir (Supabase'in kendi hız sınırına ek).
-const fails = new Map<string, number[]>();
-function tooMany(key: string) {
-  const now = Date.now();
-  const list = (fails.get(key) ?? []).filter((t) => now - t < 10 * 60_000);
-  fails.set(key, list);
-  return list.length >= 8;
-}
-
+/** E-posta ile giriş: genel yönetici ve (varsa) kliniğin kişisel hesapları. */
 export const POST = publicApi(async (req: NextRequest) => {
   if (authMode() !== "supabase") throw new AppError(400, "dev_mode", "Geliştirme modunda parolasız giriş kullanılır.");
   const body = asBody(await readJson(req));
@@ -24,7 +18,7 @@ export const POST = publicApi(async (req: NextRequest) => {
   const password = typeof body.password === "string" ? body.password : "";
   if (!password) r.error("password", "Parolanızı yazın.");
   if (!r.ok) throw new ValidationError(r.errors);
-  if (tooMany(email!)) throw new AppError(429, "too_many", "Çok fazla hatalı deneme. 10 dakika sonra tekrar deneyin.");
+  if (tooManyFailures(email!)) throw new AppError(429, "too_many", "Çok fazla hatalı deneme. 10 dakika sonra tekrar deneyin.");
 
   const { supabaseForRequest } = await import("@/server/supabase");
   const sb = await supabaseForRequest();
@@ -33,15 +27,23 @@ export const POST = publicApi(async (req: NextRequest) => {
     throw new AppError(403, "no_access", "Bu hesabın uygulamaya erişimi kapatılmış. Klinik yöneticisine başvurun.");
   }
   if (error || !data.user) {
-    fails.get(email!)!.push(Date.now());
+    recordFailure(email!);
     throw new AppError(401, "bad_credentials", "E-posta veya parola hatalı.", { password: "E-posta veya parola hatalı." });
   }
   const db = await getDb();
-  const state = await resolveAuthUser(db, { id: data.user.id, email: data.user.email, emailConfirmed: !!data.user.email_confirmed_at });
-  if (state.kind !== "ok") {
+  const store = await cookies();
+  const state = await resolveAuthUser(
+    db,
+    { id: data.user.id, email: data.user.email, emailConfirmed: !!data.user.email_confirmed_at },
+    { selectedClinicId: store.get(CLINIC_COOKIE)?.value ?? null },
+  );
+  if (state.kind !== "ok" && state.kind !== "choose_clinic") {
     await sb.auth.signOut();
-    throw new AppError(403, "no_access", "Bu hesabın uygulamaya erişimi yok veya kapatılmış. Klinik yöneticisine başvurun.");
+    const closed = state.kind === "no_access" && state.reason === "clinic_inactive";
+    throw new AppError(403, "no_access", closed ? "Bu kliniğin erişimi kapatılmış. Genel yöneticiye başvurun." : "Bu hesabın uygulamaya erişimi yok veya kapatılmış. Klinik yöneticisine başvurun.");
   }
-  await db.query(`update app_users set last_login_at = now() where id = $1`, [state.actor.userId]);
-  return { ok: true };
+  const userId = state.kind === "ok" ? state.actor.userId : state.userId;
+  await db.query(`update app_users set last_login_at = now() where id = $1`, [userId]);
+  if (state.kind === "ok") store.set(CLINIC_COOKIE, state.actor.clinicId, CLINIC_COOKIE_OPTIONS);
+  return { ok: true, chooseClinic: state.kind === "choose_clinic" };
 });

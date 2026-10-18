@@ -24,7 +24,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   return (
     <>
       <PageHeader title="Ayarlar" />
-      <SettingsTabs current="/ayarlar/gecmis" />
+      <SettingsTabs current="/ayarlar/gecmis" superAdmin={ctx.actor.superAdmin} />
       <nav className="mb-3 flex flex-wrap gap-2">
         {ENTITIES.map((e) => (
           <Link key={e.value} href={e.value ? `/ayarlar/gecmis?tur=${e.value}` : "/ayarlar/gecmis"} className={`btn btn-sm ${e.value === entity ? "btn-primary" : "btn-secondary"}`}>{e.label}</Link>

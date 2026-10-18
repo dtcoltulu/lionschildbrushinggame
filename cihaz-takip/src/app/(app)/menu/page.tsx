@@ -14,10 +14,16 @@ export default async function MenuPage() {
       ? [
           { href: "/analizler", label: "Analizler", hint: "Sık tamire giden cihazlar, aylık maliyet, arıza nedenleri" },
           { href: "/calisanlar", label: "Çalışanlar", hint: "Personel kartları" },
-          { href: "/ayarlar", label: "Kullanıcılar ve erişim", hint: "Giriş hesapları ve roller" },
+          { href: "/ayarlar", label: "Giriş ve erişim", hint: "Klinik şifreleri ve kişisel hesaplar" },
           { href: "/ayarlar/listeler", label: "Listeler", hint: "Konumlar, cihaz türleri, arıza nedenleri, servis firmaları" },
           { href: "/arizalar?gorunum=silinen", label: "Silinen kayıtlar", hint: "Geri alma" },
           { href: "/ayarlar/disa-aktar", label: "Excel'e aktar", hint: "Dışa aktarım ve yedek" },
+        ]
+      : []),
+    ...(ctx.actor.superAdmin
+      ? [
+          { href: "/ayarlar/klinikler", label: "Klinikler", hint: "Klinik ekle, şifreleri belirle" },
+          { href: "/klinik-sec?next=%2Fmenu", label: "Klinik değiştir", hint: `Şu an: ${ctx.actor.clinicName}` },
         ]
       : []),
     { href: "/hesabim", label: "Hesabım", hint: ctx.actor.displayName },

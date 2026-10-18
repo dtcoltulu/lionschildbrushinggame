@@ -13,6 +13,8 @@ const manual: LoginAdmin = {
   async createLogin() { return null; },
   async setPassword() { throw new Error("yok"); },
   async setBlocked() {},
+  async deleteLogin() {},
+  async passwordMatches() { return false; },
 };
 
 let w: World;
@@ -43,8 +45,15 @@ describe("Supabase hesabının uygulama hesabına bağlanması", () => {
     expect(stranger.kind).toBe("no_access");
     const unconfirmed = await resolveAuthUser(fresh.db, { id: "44444444-4444-4444-8444-444444444444", email: "sahip@klinik.test", emailConfirmed: false });
     expect(unconfirmed.kind).toBe("no_access");
+    // İlk hesap genel yöneticidir: önce çalışacağı kliniği seçer, sonra o klinikte yönetici olarak çalışır.
     const owner = await resolveAuthUser(fresh.db, { id: "44444444-4444-4444-8444-444444444444", email: "sahip@klinik.test", emailConfirmed: true });
-    expect(owner.kind === "ok" && owner.actor.role).toBe("admin");
+    expect(owner.kind).toBe("choose_clinic");
+    const inClinic = await resolveAuthUser(
+      fresh.db,
+      { id: "44444444-4444-4444-8444-444444444444", email: "sahip@klinik.test", emailConfirmed: true },
+      { selectedClinicId: fresh.clinicId },
+    );
+    expect(inClinic.kind === "ok" && [inClinic.actor.role, inClinic.actor.superAdmin, inClinic.actor.clinicId]).toEqual(["admin", true, fresh.clinicId]);
     // Yönetici varken aynı e-postayla ikinci bir Supabase hesabı yönetici olamaz
     const second = await resolveAuthUser(fresh.db, { id: "55555555-5555-4555-8555-555555555555", email: "sahip@klinik.test", emailConfirmed: true });
     expect(second.kind).toBe("no_access");

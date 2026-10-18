@@ -25,12 +25,18 @@ const SELECT = `select u.id, u.email, u.display_name as "displayName", u.role, u
   u.active, (u.auth_user_id is not null) as "hasAuthLogin", u.last_login_at as "lastLoginAt", u.version, u.created_at as "createdAt"
   from app_users u left join staff s on s.id = u.staff_id`;
 
-export async function listUsers(q: Queryable): Promise<AppUser[]> {
-  return q.query<AppUser>(`${SELECT} order by u.active desc, u.display_name`);
+/** Kliniğin kişisel hesapları (ortak klinik girişleri ve genel yöneticiler hariç). */
+export async function listUsers(q: Queryable, clinicId: string): Promise<AppUser[]> {
+  return q.query<AppUser>(`${SELECT} where u.clinic_id = $1 and not u.shared order by u.active desc, u.display_name`, [clinicId]);
 }
 
 export async function getUser(q: Queryable, id: string): Promise<AppUser | null> {
   return (await q.query<AppUser>(`${SELECT} where u.id = $1`, [id]))[0] ?? null;
+}
+
+/** Yönetilebilir kişisel hesap: yalnızca bu kliniğin, ortak giriş olmayan hesabı. */
+async function getClinicUser(q: Queryable, clinicId: string, id: string): Promise<AppUser | null> {
+  return (await q.query<AppUser>(`${SELECT} where u.id = $1 and u.clinic_id = $2 and not u.shared`, [id, clinicId]))[0] ?? null;
 }
 
 export const MIN_PASSWORD = 10;
@@ -44,8 +50,9 @@ function readPassword(body: Record<string, unknown>, errors: Record<string, stri
 
 const ROLE_VALUES = USER_ROLES.map((r) => r.value) as UserRole[];
 
-async function activeAdminCount(q: Queryable): Promise<number> {
-  const [r] = await q.query<{ n: number }>(`select count(*) as n from app_users where role = 'admin' and active`);
+/** Kliniğe girebilen yönetici sayısı (ortak yönetici girişi dahil, genel yöneticiler hariç). */
+async function activeAdminCount(q: Queryable, clinicId: string): Promise<number> {
+  const [r] = await q.query<{ n: number }>(`select count(*) as n from app_users where role = 'admin' and active and clinic_id = $1`, [clinicId]);
   return r!.n;
 }
 
@@ -78,8 +85,8 @@ export async function createUser(ctx: Ctx, input: unknown, logins: LoginAdmin): 
   try {
     const user = await ctx.db.tx(async (q) => {
       const [row] = await q.query<{ id: string }>(
-        `insert into app_users (auth_user_id, email, email_key, display_name, role, staff_id) values ($1, $2, $3, $4, $5, $6) returning id`,
-        [authUserId, email, emailKey, displayName, role, staffId],
+        `insert into app_users (auth_user_id, email, email_key, display_name, role, staff_id, clinic_id) values ($1, $2, $3, $4, $5, $6, $7) returning id`,
+        [authUserId, email, emailKey, displayName, role, staffId, ctx.actor.clinicId],
       );
       await audit(q, ctx, { entity: "user", entityId: row!.id, action: "create", summary: `Kullanıcı hesabı açıldı: ${displayName} <${email}> (${role === "admin" ? "Yönetici" : "Personel"})` });
       return (await getUser(q, row!.id))!;
@@ -102,10 +109,10 @@ export async function updateUser(ctx: Ctx, id: string, input: unknown, logins: L
   const active = r.bool("active", true);
   if (!r.ok) throw new ValidationError(r.errors);
   const result = await ctx.db.tx(async (q) => {
-    const cur = await getUser(q, id);
+    const cur = await getClinicUser(q, ctx.actor.clinicId, id);
     if (!cur) throw new NotFoundError("Kullanıcı bulunamadı.");
     const losingAdmin = cur.role === "admin" && cur.active && (role !== "admin" || !active);
-    if (losingAdmin && (await activeAdminCount(q)) <= 1) {
+    if (losingAdmin && (await activeAdminCount(q, ctx.actor.clinicId)) <= 1) {
       throw new ConflictError("last_admin", "En az bir aktif yönetici kalmalı. Önce başka bir kullanıcıyı yönetici yapın.");
     }
     if (staffId && !(await q.query(`select 1 from staff where id = $1`, [staffId])).length) {
@@ -143,7 +150,7 @@ export async function resetPassword(ctx: Ctx, id: string, input: unknown, logins
   const errors: Record<string, string> = {};
   const pw = readPassword(body, errors);
   if (Object.keys(errors).length) throw new ValidationError(errors);
-  const user = await getUser(ctx.db, id);
+  const user = await getClinicUser(ctx.db, ctx.actor.clinicId, id);
   if (!user) throw new NotFoundError("Kullanıcı bulunamadı.");
   const authId = await authUserIdOf(ctx.db, id);
   if (!authId) throw new ConflictError("no_login", "Bu kullanıcı henüz hiç giriş yapmamış ve giriş hesabı bağlanmamış. Supabase panelinden parolasını sıfırlayın.");

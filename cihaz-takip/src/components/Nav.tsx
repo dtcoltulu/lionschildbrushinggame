@@ -25,7 +25,7 @@ function active(path: string, href: string) {
   return href === "/" ? path === "/" : path === href || path.startsWith(`${href}/`);
 }
 
-export function TopNav({ isAdmin, userName }: { isAdmin: boolean; userName: string }) {
+export function TopNav({ isAdmin, userName, clinicName, superAdmin }: { isAdmin: boolean; userName: string; clinicName: string; superAdmin: boolean }) {
   const path = usePathname();
   const items = ITEMS.filter((i) => isAdmin || !i.adminOnly);
   return (
@@ -36,7 +36,7 @@ export function TopNav({ isAdmin, userName }: { isAdmin: boolean; userName: stri
           <img src="/icon.svg" alt="" width={32} height={32} />
           <span className="leading-tight">
             <span className="block text-[15px] tracking-wide">DENTINEL</span>
-            <span className="block text-xs font-medium text-muted">Koşuyolu Park</span>
+            <span className="block max-w-40 truncate text-xs font-medium text-muted">{clinicName}</span>
           </span>
         </Link>
         <nav className="ml-2 hidden flex-1 gap-1 lg:flex" aria-label="Ana menü">
@@ -53,6 +53,11 @@ export function TopNav({ isAdmin, userName }: { isAdmin: boolean; userName: stri
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-2">
+          {superAdmin && (
+            <Link href={`/klinik-sec?next=${encodeURIComponent(path)}`} className="btn btn-secondary btn-sm hidden sm:inline-flex" title="Başka bir kliniğe geç">
+              Klinik değiştir
+            </Link>
+          )}
           <Link href="/arizalar/yeni" className="btn btn-primary btn-sm hidden sm:inline-flex">
             + Arıza bildir
           </Link>

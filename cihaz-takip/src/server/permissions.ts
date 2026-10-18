@@ -24,7 +24,8 @@ export type Permission =
   | "analytics.view"
   | "costs.view"
   | "export"
-  | "audit.view";
+  | "audit.view"
+  | "clinics.manage"; // klinik ekleme/düzenleme: yalnızca genel yönetici
 
 const STAFF_PERMISSIONS: ReadonlySet<Permission> = new Set<Permission>([
   "device.create",
@@ -35,7 +36,8 @@ const STAFF_PERMISSIONS: ReadonlySet<Permission> = new Set<Permission>([
   "vendor.create",
 ]);
 
-export function can(actor: Pick<Actor, "role">, perm: Permission): boolean {
+export function can(actor: Pick<Actor, "role"> & Partial<Pick<Actor, "superAdmin">>, perm: Permission): boolean {
+  if (perm === "clinics.manage") return actor.superAdmin === true;
   if (actor.role === "admin") return true;
   return STAFF_PERMISSIONS.has(perm);
 }
@@ -49,8 +51,9 @@ const MESSAGES: Partial<Record<Permission, string>> = {
   "device.retire": "Cihazı envanterden çıkarma yalnızca yöneticiye açıktır.",
   "device.recode": "Envanter kodunu yalnızca yönetici değiştirebilir.",
   "fault.assignResponsibility": "Sorumluluk atamasını yalnızca yönetici yapabilir.",
+  "clinics.manage": "Klinikleri yalnızca genel yönetici yönetebilir.",
 };
 
-export function assertCan(actor: Pick<Actor, "role">, perm: Permission): void {
+export function assertCan(actor: Pick<Actor, "role"> & Partial<Pick<Actor, "superAdmin">>, perm: Permission): void {
   if (!can(actor, perm)) throw new ForbiddenError(MESSAGES[perm]);
 }

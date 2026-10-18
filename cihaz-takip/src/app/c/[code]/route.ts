@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getActor } from "@/server/auth";
-import { getDb } from "@/server/db";
+import { getAuthState } from "@/server/auth";
+import { forClinic, getDb } from "@/server/db";
 import { findDeviceByCode } from "@/server/services/devices";
 
 /**
@@ -9,9 +9,12 @@ import { findDeviceByCode } from "@/server/services/devices";
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
-  if (!(await getActor())) {
-    return NextResponse.redirect(new URL(`/giris?next=${encodeURIComponent(`/c/${code}`)}`, req.url), 307);
+  const state = await getAuthState();
+  if (state.kind !== "ok") {
+    const page = state.kind === "choose_clinic" ? "/klinik-sec" : "/giris";
+    return NextResponse.redirect(new URL(`${page}?next=${encodeURIComponent(`/c/${code}`)}`, req.url), 307);
   }
-  const id = await findDeviceByCode(await getDb(), decodeURIComponent(code).slice(0, 40));
+  // Envanter kodu klinik içinde benzersizdir: kod, kullanıcının kliniğinde aranır.
+  const id = await findDeviceByCode(forClinic(await getDb(), state.actor.clinicId), decodeURIComponent(code).slice(0, 40));
   return NextResponse.redirect(new URL(id ? `/cihazlar/${id}` : `/cihazlar?q=${encodeURIComponent(code)}`, req.url), 307);
 }

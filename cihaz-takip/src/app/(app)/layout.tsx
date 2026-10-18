@@ -16,7 +16,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           {env} ORTAMI – örnek/deneme verileri. Gerçek klinik verisi girmeyin.
         </div>
       )}
-      <TopNav isAdmin={actor.role === "admin"} userName={actor.displayName} />
+      <TopNav isAdmin={actor.role === "admin"} userName={actor.displayName} clinicName={actor.clinicName} superAdmin={actor.superAdmin} />
       <main className="pb-safe mx-auto max-w-6xl px-4 pt-5">{children}</main>
       <BottomNav isAdmin={actor.role === "admin"} />
     </div>
