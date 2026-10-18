@@ -8,9 +8,19 @@ export interface Actor {
   displayName: string;
   email: string;
   staffId: string | null;
+  /** Şu an çalışılan klinik. Bütün veriler bu kliniğe aittir. */
+  clinicId: string;
+  clinicName: string;
+  /** Genel yönetici: klinik ekler, her kliniğe girebilir. */
+  superAdmin: boolean;
+  /** Kliniğin ortak girişi (personel şifresi ya da yönetici şifresi). */
+  shared: boolean;
 }
 
-/** Her servis çağrısının bağlamı: veritabanı, işlemi yapan kişi ve klinik saatine göre "bugün". */
+/**
+ * Her servis çağrısının bağlamı: işlemi yapan kişi, klinik saatine göre "bugün" ve YALNIZCA o kliniğin
+ * verisini gören veritabanı bağlantısı (forClinic).
+ */
 export interface Ctx {
   db: Db;
   actor: Actor;

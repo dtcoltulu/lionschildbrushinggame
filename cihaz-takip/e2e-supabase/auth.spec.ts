@@ -5,10 +5,30 @@ const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD!;
 const stamp = Date.now().toString(36);
 const STAFF_EMAIL = `personel-${stamp}@klinik.test`;
 
+const CLINIC = `GoTrue Kliniği ${stamp}`;
+
+/** E-posta ile giriş (genel yönetici ve kişisel hesaplar). */
 async function login(page: Page, email: string, password: string) {
-  await page.goto("/giris");
+  await page.goto("/giris?genel=1");
   await page.getByLabel("E-posta").fill(email);
   await page.getByLabel("Parola").fill(password);
+  await page.getByRole("button", { name: "Giriş yap" }).click();
+}
+
+/** Genel yönetici: e-postayla girer, çalışacağı kliniği seçer. */
+async function loginGeneral(page: Page, clinic = "Koşuyolu Park") {
+  await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  await expect(page.getByRole("heading", { name: "Hangi klinikte çalışacaksınız?" })).toBeVisible();
+  await page.getByRole("button", { name: new RegExp(`^${clinic}`) }).click();
+  await expect(page.getByRole("heading", { name: "Genel bakış" })).toBeVisible();
+}
+
+/** Klinik şifresiyle giriş: klinik seçilir, personel ya da yönetici şifresi yazılır. */
+async function clinicLogin(page: Page, clinic: string, kind: "Personel" | "Yönetici", password: string) {
+  await page.goto("/giris?sec=1");
+  await page.getByRole("link", { name: clinic }).click();
+  await page.getByRole("radio", { name: kind }).click();
+  await page.getByLabel(kind === "Yönetici" ? "Yönetici şifresi" : "Klinik şifresi").fill(password);
   await page.getByRole("button", { name: "Giriş yap" }).click();
 }
 
@@ -21,9 +41,8 @@ test("hatalı parola reddedilir; hesap bilgisi sızdırılmaz", async ({ page })
   await expect(page.getByText("E-posta veya parola hatalı.")).toBeVisible();
 });
 
-test("ilk yönetici, yönetici e-postasıyla ilk girişte oluşur; personel hesabı açar", async ({ page }) => {
-  await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-  await expect(page.getByRole("heading", { name: "Genel bakış" })).toBeVisible();
+test("ilk genel yönetici, yönetici e-postasıyla ilk girişte oluşur; klinik seçer; kişisel hesap açar", async ({ page }) => {
+  await loginGeneral(page);
   await page.goto("/ayarlar");
   await page.getByRole("button", { name: "+ Kullanıcı ekle" }).click();
   await page.getByLabel("E-posta (giriş adı)").fill(STAFF_EMAIL);
@@ -69,7 +88,8 @@ test("yönetici erişimi kapatınca açık oturum da hemen geçersiz olur; parol
   const adminCtx = await browser.newContext({ viewport: { width: 1200, height: 900 } });
   const admin = await adminCtx.newPage();
   await login(admin, ADMIN_EMAIL, ADMIN_PASSWORD);
-  await admin.waitForURL((u) => !u.pathname.startsWith("/giris"));
+  await admin.getByRole("button", { name: /^Koşuyolu Park/ }).click();
+  await admin.waitForURL((u) => !u.pathname.startsWith("/klinik-sec"));
   await admin.goto("/ayarlar");
   const row = admin.locator("li", { hasText: STAFF_EMAIL });
   await row.getByRole("button", { name: "Düzenle" }).click();
@@ -111,4 +131,68 @@ test("Supabase'de hesabı olup uygulamada kaydı olmayan kişi giremez", async (
   expect(r.ok()).toBe(true);
   await login(page, email, "Yabanci-parola-1");
   await expect(page.getByText("Bu hesabın uygulamaya erişimi yok")).toBeVisible();
+});
+
+test("şifresi belirlenmemiş klinik girişi açık bir mesajla durur", async ({ page }) => {
+  await clinicLogin(page, "Koşuyolu Park", "Personel", "Herhangi-bir-sifre");
+  await expect(page.getByText("Bu kliniğin personel şifresi henüz belirlenmemiş.", { exact: false })).toBeVisible();
+});
+
+test("genel yönetici klinik açar; personel kliniği seçip şifreyle girer; şifre değişince eski oturum kapanır", async ({ browser }) => {
+  const adminCtx = await browser.newContext({ viewport: { width: 1200, height: 900 } });
+  const admin = await adminCtx.newPage();
+  await loginGeneral(admin);
+  await admin.goto("/ayarlar/klinikler");
+  await admin.getByRole("button", { name: "+ Klinik ekle" }).click();
+  await admin.getByLabel("Klinik adı").fill(CLINIC);
+  await admin.getByLabel("Personel şifresi").fill("Ortak-sifre-2026");
+  await admin.getByLabel("Yönetici şifresi").fill("Ortak-sifre-2026");
+  await admin.getByRole("button", { name: "Klinik aç" }).click();
+  await expect(admin.getByText("Personel ve yönetici şifreleri farklı olmalı", { exact: false })).toBeVisible();
+  await admin.getByLabel("Yönetici şifresi").fill("Yonetici-sifre-2026");
+  await admin.getByRole("button", { name: "Klinik aç" }).click();
+  await expect(admin.getByText(`${CLINIC} açıldı.`, { exact: false })).toBeVisible();
+
+  // Personel: kliniği seçer, şifreyle girer; yönetici işlemleri kapalı
+  const staffCtx = await browser.newContext();
+  const staff = await staffCtx.newPage();
+  await clinicLogin(staff, CLINIC, "Personel", "yanlis-sifre-123");
+  await expect(staff.getByText("Şifre hatalı.")).toBeVisible();
+  await clinicLogin(staff, CLINIC, "Personel", "Ortak-sifre-2026");
+  await expect(staff.getByRole("heading", { name: "Genel bakış" })).toBeVisible();
+  await expect(staff.getByRole("banner")).toContainText(CLINIC);
+  await staff.goto("/analizler");
+  await expect(staff).toHaveURL(/yetki=yok/);
+  expect((await staff.request.post("/api/klinikler", { data: { name: "Yetkisiz" } })).status()).toBe(403);
+  // Personel şifresiyle yönetici olarak girilemez
+  const other = await browser.newContext();
+  const p3 = await other.newPage();
+  await clinicLogin(p3, CLINIC, "Yönetici", "Ortak-sifre-2026");
+  await expect(p3.getByText("Şifre hatalı.")).toBeVisible();
+  await clinicLogin(p3, CLINIC, "Yönetici", "Yonetici-sifre-2026");
+  await expect(p3.getByRole("heading", { name: "Genel bakış" })).toBeVisible();
+  await p3.goto("/analizler");
+  await expect(p3.getByRole("heading", { name: "Analizler" })).toBeVisible();
+  await other.close();
+
+  // Genel yönetici personel şifresini değiştirir: yönetici şifresiyle aynı olamaz; değişince eski oturum kapanır
+  await staff.waitForTimeout(1100);
+  await admin.reload();
+  const card = admin.getByRole("listitem").filter({ hasText: CLINIC }).first();
+  await card.getByRole("listitem").filter({ hasText: "Personel şifresi" }).getByRole("button", { name: "Değiştir" }).click();
+  await card.getByLabel("Yeni personel şifresi").fill("Yonetici-sifre-2026");
+  await card.getByRole("button", { name: "Kaydet" }).click();
+  await expect(card.getByText("Personel ve yönetici şifreleri farklı olmalı", { exact: false })).toBeVisible();
+  await card.getByLabel("Yeni personel şifresi").fill("Yeni-personel-2026");
+  await card.getByRole("button", { name: "Kaydet" }).click();
+  await expect(admin.getByText("personel şifresi kaydedildi", { exact: false })).toBeVisible();
+
+  await staff.goto("/cihazlar");
+  await expect(staff).toHaveURL(/\/giris/);
+  await clinicLogin(staff, CLINIC, "Personel", "Ortak-sifre-2026");
+  await expect(staff.getByText("Şifre hatalı.")).toBeVisible();
+  await clinicLogin(staff, CLINIC, "Personel", "Yeni-personel-2026");
+  await expect(staff.getByRole("heading", { name: "Genel bakış" })).toBeVisible();
+  await staffCtx.close();
+  await adminCtx.close();
 });

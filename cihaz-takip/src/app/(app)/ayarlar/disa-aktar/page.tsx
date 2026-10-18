@@ -8,11 +8,11 @@ export const metadata: Metadata = { title: "Dışa aktarım ve yedek" };
 export const dynamic = "force-dynamic";
 
 export default async function ExportPage() {
-  await pageCtx({ admin: true });
+  const ctx = await pageCtx({ admin: true });
   return (
     <>
       <PageHeader title="Ayarlar" />
-      <SettingsTabs current="/ayarlar/disa-aktar" />
+      <SettingsTabs current="/ayarlar/disa-aktar" superAdmin={ctx.actor.superAdmin} />
       <div className="grid gap-5 lg:grid-cols-2">
         <Card title="Excel’e aktar">
           <p className="mb-3 text-[15px] text-muted">Dosyalar Türkçe Excel’de çift tıklayınca doğru açılır (UTF-8, noktalı virgül). Silinen kayıtlar dahil edilmez.</p>

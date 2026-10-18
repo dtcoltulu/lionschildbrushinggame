@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { todayIstanbul } from "@/lib/dates";
 import { requireActor } from "./auth";
 import type { Ctx } from "./context";
-import { getDb } from "./db";
+import { forClinic, getDb } from "./db";
 import { ConfigError } from "./env";
 import { AppError, ForbiddenError } from "./errors";
 
@@ -40,9 +40,10 @@ function assertSameOrigin(req: NextRequest) {
   if (!host || originHost !== host) throw new ForbiddenError("İstek başka bir siteden geldiği için reddedildi.");
 }
 
+/** API bağlamı: veritabanı yalnızca kullanıcının kliniğini görür. */
 export async function makeCtx(): Promise<Ctx> {
   const actor = await requireActor();
-  return { db: await getDb(), actor, today: todayIstanbul() };
+  return { db: forClinic(await getDb(), actor.clinicId), actor, today: todayIstanbul() };
 }
 
 export async function readJson(req: NextRequest): Promise<unknown> {

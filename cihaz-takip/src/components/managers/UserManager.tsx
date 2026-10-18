@@ -46,7 +46,7 @@ function NewUser({ staff, mode, onDone }: { staff: Opt[]; mode: LoginMode; onDon
     >
       <ErrorBanner error={err} />
       <div className="grid gap-3 sm:grid-cols-2">
-        <TextInput label="E-posta (giriş adı)" required type="email" inputMode="email" value={v.email} onChange={(x) => set("email", x)} error={fe.email} hint="İş e-postası yoksa kişiye özel bir adres kullanın. Hesaplar paylaşılmaz." />
+        <TextInput label="E-posta (giriş adı)" required type="email" inputMode="email" value={v.email} onChange={(x) => set("email", x)} error={fe.email} hint="Kişiye özel bir adres. Kişisel hesap başkasıyla paylaşılmaz." />
         <TextInput label="Görünen ad" required value={v.displayName} onChange={(x) => set("displayName", x)} error={fe.displayName} />
         <Select label="Rol" value={v.role} onChange={(x) => set("role", x)} options={roles} error={fe.role} hint="Yönetici: tüm analizler, silme/geri alma, personel ve erişim yönetimi, dışa aktarım." />
         <Select label="Bağlı personel kartı" value={v.staffId} onChange={(x) => set("staffId", x)} options={staff} emptyLabel="Bağlı değil" error={fe.staffId} hint="Bağlıysa arıza bildiriminde “fark eden” otomatik önerilir." />
@@ -129,7 +129,6 @@ export function UserManager({ users, staff, mode, meId }: { users: AppUser[]; st
   return (
     <div className="space-y-4">
       {msg && <Notice tone="green">✓ {msg}</Notice>}
-      {mode === "dev" && <Notice tone="amber">Geliştirme ortamı: parola yoktur, giriş ekranında hesap seçilir. Gerçek kurulumda giriş Supabase Auth ile e-posta + parola ile yapılır.</Notice>}
       {mode === "supabase-manual" && (
         <Notice tone="amber" title="Giriş hesapları şimdilik Supabase panelinden açılıyor">
           Kullanıcıyı burada ekleyin, sonra Supabase panelinde (Authentication → Users → Add user, “Auto confirm user” işaretli) aynı e-postayla giriş hesabı

@@ -1,15 +1,15 @@
 import "server-only";
 import { todayIstanbul } from "@/lib/dates";
 import { jobRoleLabel } from "@/lib/labels";
-import { requirePageActor, requirePageAdmin } from "./auth";
+import { requirePageActor, requirePageAdmin, requirePageSuperAdmin } from "./auth";
 import type { Ctx } from "./context";
-import { getDb, type Queryable } from "./db";
+import { forClinic, getDb, type Queryable } from "./db";
 import { listLookup, type DeviceType, type FaultCause, type Vendor } from "./services/lookups";
 
-/** Sayfa bağlamı: oturum yoksa giriş sayfasına yönlendirir. */
-export async function pageCtx(opts: { admin?: boolean } = {}): Promise<Ctx> {
-  const actor = opts.admin ? await requirePageAdmin() : await requirePageActor();
-  return { actor, db: await getDb(), today: todayIstanbul() };
+/** Sayfa bağlamı: oturum yoksa giriş sayfasına yönlendirir. Veritabanı yalnızca kullanıcının kliniğini görür. */
+export async function pageCtx(opts: { admin?: boolean; superAdmin?: boolean } = {}): Promise<Ctx> {
+  const actor = opts.superAdmin ? await requirePageSuperAdmin() : opts.admin ? await requirePageAdmin() : await requirePageActor();
+  return { actor, db: forClinic(await getDb(), actor.clinicId), today: todayIstanbul() };
 }
 
 export interface Opt {

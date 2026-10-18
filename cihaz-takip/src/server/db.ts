@@ -1,7 +1,8 @@
 import "server-only";
 import fs from "node:fs";
 import path from "node:path";
-import { authMode, dbConfig, type DbConfig } from "./env";
+import { isUuid } from "@/lib/validate";
+import { authMode, ConfigError, dbConfig, type DbConfig } from "./env";
 
 /** Sorgu çalıştırabilen her şey (bağlantı havuzu ya da açık işlem). */
 export interface Queryable {
@@ -14,6 +15,12 @@ export interface Db extends Queryable {
   /** Çok komutlu SQL (geçiş dosyaları). */
   exec(sql: string): Promise<void>;
   close(): Promise<void>;
+  /**
+   * Klinik işlemlerinde geçilecek kısıtlı rol (yalnızca süper kullanıcıyla bağlanılan yerel/test veritabanı).
+   * Nesnenin üzerinde durur: Next.js sunucu kodunu birden çok pakete böldüğünde modül düzeyindeki bir
+   * tablo paylaşılmaz, bağlantı nesnesi ise (getDb önbelleği) paylaşılır.
+   */
+  tenantRole?: string;
 }
 
 // Tür dönüşümleri iki sürücüde aynı: date → "YYYY-MM-DD", timestamptz → ISO metin, bigint/numeric → sayı.
@@ -105,6 +112,84 @@ export async function openDb(cfg: DbConfig): Promise<Db> {
   return cfg.kind === "pg" ? createPg(cfg.url) : createPglite(cfg.dir);
 }
 
+// ---------------------------------------------------------------------------
+// Klinik ayrımı
+// Klinik verisi tutan tablolarda satır güvenliği (RLS) açıktır: bir işlem yalnızca `app.clinic_id`
+// ayarındaki kliniğin satırlarını görür ve yalnızca o kliniğe satır ekler (bkz. 0004/0005 geçişleri).
+// Servisler bu yüzden klinik süzgeci yazmaz; ctx.db her zaman forClinic() ile açılmış bağlantıdır.
+// ---------------------------------------------------------------------------
+
+/** Yerel/test veritabanında (süper kullanıcıyla bağlanılır) klinik işlemleri bu kısıtlı role geçer. */
+export const TENANT_ROLE = "dentinel_tenant";
+const rlsChecked = new WeakMap<Db, Promise<void>>();
+
+/**
+ * Süper kullanıcıyla bağlanılan veritabanlarında (PGlite, test Postgres'i) RLS uygulanmaz. Klinik işlemleri
+ * RLS'i atlayamayan bir role geçerek çalışsın diye rol açılır ve yetkileri verilir. Geçişlerden sonra çağrılır.
+ */
+export async function enableTenantRole(db: Db): Promise<void> {
+  await db.exec(`do $$
+    begin
+      if not exists (select 1 from pg_roles where rolname = '${TENANT_ROLE}') then
+        begin
+          create role ${TENANT_ROLE} nologin nobypassrls;
+        exception when duplicate_object or unique_violation then null;
+        end;
+      end if;
+      execute format('grant usage on schema %I to ${TENANT_ROLE}', current_schema());
+      execute format('grant select, insert, update, delete on all tables in schema %I to ${TENANT_ROLE}', current_schema());
+      execute format('grant usage, select on all sequences in schema %I to ${TENANT_ROLE}', current_schema());
+    end $$;`);
+  db.tenantRole = TENANT_ROLE;
+}
+
+/** Üretimde uygulama rolü RLS'i atlayabiliyorsa klinik ayrımı sağlanamaz: istek reddedilir. */
+function assertRlsEnforced(root: Db, q: Queryable): Promise<void> {
+  let p = rlsChecked.get(root);
+  if (!p) {
+    p = q
+      .query<{ bypass: boolean }>(`select (rolsuper or rolbypassrls) as bypass from pg_roles where rolname = current_user`)
+      .then(([r]) => {
+        if (!r || r.bypass) {
+          throw new ConfigError("Veritabanı rolü satır güvenliğini (RLS) atlıyor; klinik verileri ayrılamaz. Uygulama rolü NOBYPASSRLS olmalı.");
+        }
+      });
+    p.catch(() => rlsChecked.delete(root));
+    rlsChecked.set(root, p);
+  }
+  return p;
+}
+
+/** Yalnızca verilen kliniğin verisini gören bağlantı. Her sorgu, kliniği ayarlayan bir işlem içinde çalışır. */
+export function forClinic(root: Db, clinicId: string): Db {
+  if (!isUuid(clinicId)) throw new Error("Geçersiz klinik kimliği.");
+  const role = root.tenantRole;
+  const enter = async (q: Queryable) => {
+    if (role) {
+      await q.query(`select set_config('app.clinic_id', $1, true), set_config('role', $2, true)`, [clinicId, role]);
+    } else {
+      await q.query(`select set_config('app.clinic_id', $1, true)`, [clinicId]);
+      await assertRlsEnforced(root, q);
+    }
+  };
+  return {
+    query: <T>(sql: string, params?: unknown[]) =>
+      root.tx(async (q) => {
+        await enter(q);
+        return q.query<T>(sql, params);
+      }),
+    tx: <T>(fn: (q: Queryable) => Promise<T>) =>
+      root.tx(async (q) => {
+        await enter(q);
+        return fn(q);
+      }),
+    async exec() {
+      throw new Error("Klinik bağlantısında çok komutlu SQL çalıştırılmaz.");
+    },
+    async close() {},
+  };
+}
+
 export function migrationsDir(): string {
   return path.join(process.cwd(), "db", "migrations");
 }
@@ -143,11 +228,16 @@ export function getDb(): Promise<Db> {
       const db = await openDb(cfg);
       if (cfg.kind === "pglite") {
         await migrate(db);
+        await enableTenantRole(db);
         if (process.env.SEED_DEMO !== "0") {
           const { seedDemoIfEmpty } = await import("./seed-demo");
           await seedDemoIfEmpty(db);
         }
-      } else if (process.env.SEED_DEMO === "1" && authMode() === "dev") {
+      } else if (process.env.DB_USE_TENANT_ROLE === "1") {
+        // Yerelde süper kullanıcıyla bağlanılan Postgres: klinik işlemleri kısıtlı role geçer.
+        await enableTenantRole(db);
+      }
+      if (cfg.kind === "pg" && process.env.SEED_DEMO === "1" && authMode() === "dev") {
         const { seedDemoIfEmpty } = await import("./seed-demo");
         // Aynı anda açılan iki sunucu örneğinden biri benzersizlik hatası alabilir; diğeri örnek veriyi ekler.
         await seedDemoIfEmpty(db).catch((e) => console.warn("[örnek veri]", e instanceof Error ? e.message : e));

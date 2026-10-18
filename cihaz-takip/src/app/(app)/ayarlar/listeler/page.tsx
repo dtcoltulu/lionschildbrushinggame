@@ -20,7 +20,7 @@ export default async function ListsPage() {
   return (
     <>
       <PageHeader title="Ayarlar" />
-      <SettingsTabs current="/ayarlar/listeler" />
+      <SettingsTabs current="/ayarlar/listeler" superAdmin={ctx.actor.superAdmin} />
       <div className="grid gap-5 lg:grid-cols-2">
         <LookupManager kind="locations" title="Konumlar (oda / ünit)" items={locations} help={help} />
         <LookupManager kind="device_types" title="Cihaz türleri" items={types} help="Yeni tür eklenebilir; marka ve model serbesttir. Kod öneki envanter kodunu belirler." />
