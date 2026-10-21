@@ -40,3 +40,38 @@ describe("veritabanı geçişleri ↔ uygulama olay adları", () => {
     for (const n of old) expect(latest).toContain(n);
   });
 });
+
+/** SQL'den satır içi yorumlar çıkarılmış hâli. */
+const code = (f: string) => fs.readFileSync(path.join(DIR, f), "utf8").replace(/--.*$/gm, "");
+
+describe("Supabase Data API yetkileri (30 Ekim 2026'dan itibaren yeni tablolara yetki kendiliğinden verilmez)", () => {
+  const all = files.map(code).join("\n");
+  const tables = [...all.matchAll(/create\s+table\s+(?:if\s+not\s+exists\s+)?public\.(\w+)/gi)].map((m) => m[1]!);
+
+  it("geçişlerde public şemasında tablolar oluşturuluyor (bu denetim boşa geçmesin)", () => {
+    expect(tables).toEqual(expect.arrayContaining(["sessions", "events"]));
+  });
+
+  it("geçiş zincirinde oluşturulan HER tabloya service_role açıkça yetkili (yeniden kurulumda 'permission denied' olmasın)", () => {
+    for (const t of tables) {
+      expect(all, `${t}: service_role grant eksik`).toMatch(new RegExp(`grant\\s+[^;]*\\bon\\s+(?:table\\s+)?public\\.${t}\\s+to\\s+service_role`, "i"));
+    }
+  });
+
+  it("anon ve authenticated hiçbir tabloya yetkilendirilmez; her tabloda RLS açık ve bu rollerin yetkisi kaldırılır", () => {
+    expect(all).not.toMatch(/grant\s[^;]*\bto\s+[^;]*\b(anon|authenticated|public)\b/i);
+    for (const t of tables) {
+      expect(all, `${t}: RLS açılmamış`).toMatch(new RegExp(`alter\\s+table\\s+public\\.${t}\\s+enable\\s+row\\s+level\\s+security`, "i"));
+      expect(all, `${t}: anon/authenticated yetkisi kaldırılmamış`).toMatch(new RegExp(`revoke\\s+all\\s+on\\s+public\\.${t}\\s+from\\s+anon,\\s*authenticated`, "i"));
+    }
+    expect(all).not.toMatch(/create\s+policy/i); // policy yok: Data API üzerinden anonim erişim açılmaz
+  });
+
+  it("0003 yalnızca yetki verir/alır: veri ya da şema değiştirmez; tekrar çalıştırılabilir (grant/revoke idempotent)", () => {
+    const sql = code("0003_explicit_service_role_grants.sql");
+    const statements = sql.split(";").map((x) => x.trim()).filter(Boolean);
+    expect(statements.length).toBeGreaterThan(0);
+    // Her ifade grant ya da revoke ile başlar: create/alter/drop/insert/update/delete/truncate ifadesi yoktur
+    for (const st of statements) expect(st).toMatch(/^(grant|revoke)\b/i);
+  });
+});
