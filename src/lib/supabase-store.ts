@@ -64,6 +64,12 @@ export class SupabaseStore implements EventStore {
     if (r.error) throw new Error(`events: ${r.error.message}`);
   }
 
+  /** Tek satırlık küçük bir okuma: projenin "etkin" sayılması için yeterli bir API isteği. */
+  async ping(): Promise<void> {
+    const { error } = await this.db.from("sessions").select("id").limit(1);
+    if (error) throw new Error(`ping: ${error.message}`);
+  }
+
   async loadCampaign(campaignId: string): Promise<CampaignData> {
     const events: StoredEvent[] = [];
     for (let from = 0; ; from += PAGE) {

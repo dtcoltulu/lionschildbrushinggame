@@ -111,6 +111,24 @@ describe("SupabaseStore (sahte PostgREST ile)", () => {
     expect(calls.filter((c) => c.path.endsWith("/events"))).toHaveLength(3); // 1000 + 1000 + 300
   });
 
+  it("ping: tek satırlık küçük bir okuma isteği atar (projeyi etkin tutar); veri yazmaz", async () => {
+    const { f, calls } = fakePostgrest({ sessions: [{ id: ev.sessionId }] });
+    const store = new SupabaseStore("https://x.supabase.co", "sb_secret_dummy_key_value", { fetch: f });
+    await expect(store.ping()).resolves.toBeUndefined();
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe("GET");
+    expect(calls[0]!.path).toBe("/rest/v1/sessions");
+    expect(calls[0]!.query).toContain("select=id");
+    expect(calls[0]!.query).toContain("limit=1");
+  });
+
+  it("ping: veritabanı hata verirse (ör. erişilemeyen ya da duraklatılmış proje) hata fırlatır", async () => {
+    // 5xx yanıtlarını istemci kütüphanesi bekleyerek yeniden dener (testi uzatır); hata yolu 4xx ile aynıdır.
+    const { f } = fakePostgrest({ status: 400, errorBody: { message: "project paused" } });
+    const store = new SupabaseStore("https://x.supabase.co", "sb_secret_dummy_key_value", { fetch: f });
+    await expect(store.ping()).rejects.toThrow(/ping: project paused/);
+  });
+
   it("geçersiz anahtar (401): hata fırlatır ve mesajı okunur", async () => {
     const { f } = fakePostgrest({ status: 401, errorBody: { message: "Invalid API key" } });
     const store = new SupabaseStore("https://x.supabase.co", "yanlis", { fetch: f });

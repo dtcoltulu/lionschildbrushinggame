@@ -23,6 +23,15 @@ QR kod baskıya girdikten sonra **değiştirilemez**. Bu yüzden:
    - **service_role** anahtarı (yeni arayüzde "secret key", `sb_secret_…`) → `SUPABASE_SERVICE_ROLE_KEY`
    - ⚠️ Bu anahtar veritabanına tam erişim verir. Sadece Vercel ortam değişkenine yazın; koda, sohbete, e-postaya koymayın. `anon`/`publishable` anahtarı bu projede **kullanılmaz**.
 
+### Ücretsiz plan: 7 gün hareketsizlikte duraklatma ve keep-alive
+
+Supabase ücretsiz planında proje **7 gün boyunca hiç istek almazsa duraklatılır** (28 Ekim 2026'da bu oldu). Duraklatılmışken oyun telefonlarda çalışmaya devam eder, ama olaylar kaydedilmez (istemci olayları telefonda kuyrukta tutup tekrar dener; kuyruk 200 olayla sınırlıdır) ve yönetici paneli veri okuyamaz. Veriler silinmez.
+
+- **Keep-alive:** `vercel.json` içindeki günlük zamanlanmış görev (Vercel Cron, her gün 06:17 UTC) `/api/keepalive` adresini çağırır; bu adres veritabanına küçük bir okuma isteği atar ve projeyi etkin tutar. Oyun kimse oynamasa da duraklamaz. Cron yalnızca **Production** dağıtımında çalışır; Vercel Hobby planında günde en fazla bir kez zamanlanabilir (daha sık zamanlama yayını bozar, `tests/keepalive.test.ts` bunu denetler).
+- **Kontrol:** `https://<alan adı>/api/keepalive` adresini açın → `{"ok":true}`. Vercel → proje → Settings → Cron Jobs sayfasında görev listelenir, Logs'ta çalışmaları görülür. Veritabanı erişilemiyorsa adres `503` döner (cron başarısız görünür).
+- **Duraklatılmışsa:** Supabase dashboard → projeyi seçin → **Restore project** (birkaç dakika sürer; 90 gün içinde yapılmalıdır). Sonra `/api/keepalive` adresiyle kontrol edin. Telefonlarda bekleyen olaylar sonraki açılışta kendiliğinden gönderilir.
+- Alternatif: Pro plana geçmek duraklatmayı tamamen kaldırır.
+
 ## 2. Yönetici parolası ve oturum anahtarı
 
 ```bash
