@@ -17,6 +17,11 @@ export interface EventStore {
     events: StoredEvent[];
   }): Promise<void>;
   loadCampaign(campaignId: string): Promise<CampaignData>;
+  /**
+   * Veritabanına küçük bir okuma isteği atar. Supabase ücretsiz planında proje 7 gün boyunca hiç istek almazsa duraklatılır;
+   * günlük "keep-alive" (`/api/keepalive`) bunu önlemek için kullanır. Hata fırlatırsa depo erişilemiyor demektir.
+   */
+  ping(): Promise<void>;
 }
 
 // ---- Bellek içi (geliştirme / test) -----------------------------------------
@@ -44,4 +49,6 @@ export class MemoryStore implements EventStore {
       sessions: [...this.sessions.values()].filter((s) => s.campaignId === campaignId),
     };
   }
+
+  async ping(): Promise<void> {}
 }

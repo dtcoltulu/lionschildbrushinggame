@@ -524,3 +524,14 @@ test.describe('Kendini değerlendirme: "Sence yeterli ve etkin temizlendi mi?" (
     expect(pageErrors).toEqual([]);
   });
 });
+
+test.describe("Keep-alive (Supabase ücretsiz plan duraklatmasına karşı)", () => {
+  test("/api/keepalive herkese açık adreste { ok: true } döner ve önbelleğe alınmaz; art arda çağrılabilir", async ({ request }) => {
+    for (let i = 0; i < 3; i++) {
+      const res = await request.get("/api/keepalive");
+      expect(res.status()).toBe(200);
+      expect(await res.json()).toEqual({ ok: true });
+      expect(res.headers()["cache-control"]).toBe("no-store");
+    }
+  });
+});
