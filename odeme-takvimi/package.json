@@ -1,0 +1,14 @@
+{
+  "name": "odeme-takvimi",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Kredi kartı ve kredi ödeme takvimi: Google E-Tablolar + Google Takvim (Apps Script). Testler sahte Google servisleriyle çalışır.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "mutasyon": "node test/mutasyon.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
